@@ -19,11 +19,11 @@ interface StakingProps {
 }
 
 export function Staking({ onTokenSelect }: StakingProps) {
+  const { address: userAddress, isConnected } = useAccount()
   const { tokens, isLoading } = useWhitelistedTokens()
   const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(null)
   const gateway = useClientChainGateway(selectedToken!)
   const vault = useVault(gateway.vaultAddress as `0x${string}`)
-  const { address: userAddress } = useAccount()
 
   const { data: balance } = useBalance({
     address: userAddress,
@@ -88,34 +88,42 @@ export function Staking({ onTokenSelect }: StakingProps) {
     if (selectedToken) {
       updateRelayFee('stake')
     }
-  }, [operatorAddress, selectedToken, updateRelayFee])
+  }, [operatorAddress, selectedToken])
 
   if (isLoading) return <div>Loading tokens...</div>
   
   return (
     <div className="space-y-6">
       {/* Token Selection */}
-      <Select 
-        value={selectedToken || undefined}
-        onValueChange={(value) => {
-          const token = value as `0x${string}`
-          setSelectedToken(token)
-          onTokenSelect(token)
-        }}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Select a token" />
-        </SelectTrigger>
-        <SelectContent>
-          {tokens?.map((token) => (
-            <SelectItem key={token.address} value={token.address}>
-              {token.symbol} ({token.name})
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="relative">
+        <Select 
+          value={selectedToken || undefined}
+          onValueChange={(value) => {
+            const token = value as `0x${string}`
+            setSelectedToken(token)
+            onTokenSelect(token)
+          }}
+          disabled={!isConnected}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={isConnected ? "Select a token" : "Connect wallet to continue"} />
+          </SelectTrigger>
+          <SelectContent>
+            {tokens?.map((token) => (
+              <SelectItem key={token.address} value={token.address}>
+                {token.symbol} ({token.name})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {!isConnected && (
+          <p className="text-sm text-yellow-600 mt-2">
+            Please connect your wallet to start staking
+          </p>
+        )}
+      </div>
 
-      {selectedToken && (
+      {isConnected && selectedToken && (
         <>
           {/* Token Information Card */}
           <div className="bg-gray-50 rounded-lg p-4">
