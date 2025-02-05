@@ -1,6 +1,5 @@
 import { useIAssets } from '@/hooks/useIAssets'
 import { formatEther } from 'viem'
-import { exocore } from '@/config/wagmi'
 
 export function StakingPositions({ 
   tokenAddress 

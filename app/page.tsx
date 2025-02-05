@@ -1,11 +1,7 @@
 "use client"
 
 import { Header } from "@/components/layout/header"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
 import { Staking } from "@/components/Staking"
 import { StakingPositions } from "@/components/StakingPositions"
 import { useState } from 'react'

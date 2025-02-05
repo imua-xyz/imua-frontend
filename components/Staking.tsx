@@ -88,7 +88,7 @@ export function Staking({ onTokenSelect }: StakingProps) {
     if (selectedToken) {
       updateRelayFee('stake')
     }
-  }, [operatorAddress, selectedToken])
+  }, [operatorAddress, selectedToken, updateRelayFee])
 
   if (isLoading) return <div>Loading tokens...</div>
   
