@@ -23,6 +23,11 @@ export const CHAIN_ID_TO_NAME = {
   1: 'mainnet'
 } as const
 
+export const NETWORK_CHAIN_IDS: Record<string, number> = {
+    sepolia: 11155111,
+    mainnet: 1,
+} as const
+
 // Chain ID to LayerZero endpoint ID mapping
 export const CHAIN_ID_TO_ENDPOINT = {
   11155111: 40161, // Sepolia

@@ -2,12 +2,24 @@
 
 import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Staking } from "@/components/Staking"
+import { Staking } from "@/components/Staking/index"
 import { StakingPositions } from "@/components/StakingPositions"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAccount } from 'wagmi'
 
 export default function Home() {
   const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const { isConnected } = useAccount()
+
+  // Handle hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null // Return null on server/initial render
+  }
 
   return (
     <div>
@@ -16,10 +28,12 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Restake Assets</CardTitle>
+              <CardTitle>Staking Management</CardTitle>
             </CardHeader>
             <CardContent>
-              <Staking onTokenSelect={setSelectedToken} />
+              <Staking 
+                onTokenSelect={setSelectedToken}
+              />
             </CardContent>
           </Card>
 
@@ -28,7 +42,7 @@ export default function Home() {
               <CardTitle>Your Staking Positions</CardTitle>
             </CardHeader>
             <CardContent>
-              {selectedToken && (
+              {selectedToken && isConnected && (
                 <StakingPositions tokenAddress={selectedToken} />
               )}
             </CardContent>

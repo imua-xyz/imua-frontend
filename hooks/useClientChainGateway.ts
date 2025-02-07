@@ -127,7 +127,7 @@ export function useClientChainGateway(token: `0x${string}`) {
           address: contractAddress as `0x${string}`,
           abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
           functionName: 'deposit',
-          args: [token, parseEther(amount)],
+          args: [token, amount],
           value: fee as bigint,
         }, {
           onSuccess: (hash) => resolve(hash),
@@ -153,7 +153,7 @@ export function useClientChainGateway(token: `0x${string}`) {
           address: contractAddress as `0x${string}`,
           abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
           functionName: 'delegateTo',
-          args: [operator, token, parseEther(amount)],
+          args: [operator, token, amount],
           value: fee as bigint
         }, {
           onSuccess: (hash) => resolve(hash),
@@ -179,7 +179,7 @@ export function useClientChainGateway(token: `0x${string}`) {
           address: contractAddress as `0x${string}`,
           abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
           functionName: 'undelegateFrom',
-          args: [operator, token, parseEther(amount)],
+          args: [operator, token, amount],
           value: fee as bigint
         }, {
           onSuccess: (hash) => resolve(hash),
@@ -205,7 +205,7 @@ export function useClientChainGateway(token: `0x${string}`) {
           address: contractAddress as `0x${string}`,
           abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
           functionName: 'depositThenDelegateTo',
-          args: [token, parseEther(amount), operator],
+          args: [token, amount, operator],
           value: fee as bigint,
         }, {
           onSuccess: (hash) => resolve(hash),
@@ -230,7 +230,7 @@ export function useClientChainGateway(token: `0x${string}`) {
           address: contractAddress as `0x${string}`,
           abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
           functionName: 'claimPrincipalFromExocore',
-          args: [token, parseEther(amount)],
+          args: [token, amount],
           value: fee as bigint
         }, {
           onSuccess: (hash) => resolve(hash),
@@ -255,7 +255,7 @@ export function useClientChainGateway(token: `0x${string}`) {
           address: contractAddress as `0x${string}`,
           abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
           functionName: 'withdrawPrincipal',
-          args: [token, parseEther(amount), recipient]
+          args: [token, amount, recipient]
         }, {
           onSuccess: (hash) => resolve(hash),
           onError: (error) => reject(error)
