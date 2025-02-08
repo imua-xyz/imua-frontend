@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAccount, useBalance, useSwitchChain } from 'wagmi'
 import { getAccount } from '@wagmi/core'
 import { config, NETWORK_CHAIN_IDS } from '@/config/wagmi'

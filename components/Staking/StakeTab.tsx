@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
 import { isValidOperatorAddress } from '@/lib/utils'
-import { useBalance } from 'wagmi'
 import { useAmountInput } from '@/hooks/useAmountInput'
 
 interface StakeTabProps {
