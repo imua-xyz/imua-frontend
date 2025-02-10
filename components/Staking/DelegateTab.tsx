@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
@@ -35,6 +35,17 @@ export function DelegateTab({
   const [operatorAddress, setOperatorAddress] = useState('')
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null)
   const [txError, setTxError] = useState<string | null>(null)
+  const [operatorAddressError, setOperatorAddressError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!operatorAddress) {
+      setOperatorAddressError('Operator address is required')
+    } else if (!isValidOperatorAddress(operatorAddress)) {
+      setOperatorAddressError('Invalid operator address. Must be a valid bech32 address starting with exo1.')
+    } else {
+      setOperatorAddressError(null)
+    }
+  }, [operatorAddress])
 
   const handleOperation = async (operation: () => Promise<`0x${string}`>) => {
     setTxError(null)
@@ -60,11 +71,18 @@ export function DelegateTab({
 
   return (
     <div className="space-y-4">
-      <Input
-        placeholder="Operator Address (starts with exo1)"
-        value={operatorAddress}
-        onChange={(e) => setOperatorAddress(e.target.value)}
-      />
+      <div>
+        <Input
+          placeholder="Operator Address (starts with exo1)"
+          value={operatorAddress}
+          onChange={(e) => setOperatorAddress(e.target.value)}
+        />
+        {operatorAddressError && (
+          <p className="text-sm text-red-600 mt-1">
+            {operatorAddressError}
+          </p>
+        )}
+      </div>
       <div>
         <Input
           type="text"
@@ -80,7 +98,13 @@ export function DelegateTab({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <Button
-          disabled={!isValidOperatorAddress(operatorAddress) || !!txStatus && txStatus !== 'error' || !!amountError || !amount}
+          disabled={
+            !operatorAddress || 
+            !!operatorAddressError || 
+            !!txStatus && txStatus !== 'error' || 
+            !!amountError || 
+            !amount
+          }
           onClick={() => handleOperation(() => 
             gateway.handleDelegateTo(
               operatorAddress,
@@ -103,7 +127,13 @@ export function DelegateTab({
         </Button>
         <Button
           variant="outline"
-          disabled={!isValidOperatorAddress(operatorAddress) || !!txStatus && txStatus !== 'error' || !!amountError || !amount}
+          disabled={
+            !operatorAddress || 
+            !!operatorAddressError || 
+            !!txStatus && txStatus !== 'error' || 
+            !!amountError || 
+            !amount
+          }
           onClick={() => handleOperation(() =>
             gateway.handleUndelegateFrom(
               operatorAddress,
