@@ -36,12 +36,19 @@ export function StakeTab({
   })
 
   const [operatorAddress, setOperatorAddress] = useState('')
+  const [operatorAddressError, setOperatorAddressError] = useState<string | null>(null)
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null)
   const [txError, setTxError] = useState<string | null>(null)
 
-  // Update parent when operator address validity changes
+  // Validate operator address whenever it changes
   useEffect(() => {
-    onOperatorAddressChange(isValidOperatorAddress(operatorAddress))
+    if (operatorAddress && !isValidOperatorAddress(operatorAddress)) {
+      setOperatorAddressError('Invalid operator address. Must be a valid bech32 address starting with exo1.')
+      onOperatorAddressChange(false)
+    } else {
+      setOperatorAddressError(null)
+      onOperatorAddressChange(!!operatorAddress && isValidOperatorAddress(operatorAddress))
+    }
   }, [operatorAddress, onOperatorAddressChange])
 
   const handleOperation = async (
@@ -84,11 +91,18 @@ export function StakeTab({
           </p>
         )}
       </div>
-      <Input
-        placeholder="Operator Address (optional, starts with exo1)"
-        value={operatorAddress}
-        onChange={(e) => setOperatorAddress(e.target.value)}
-      />
+      <div>
+        <Input
+          placeholder="Operator Address (optional, starts with exo1)"
+          value={operatorAddress}
+          onChange={(e) => setOperatorAddress(e.target.value)}
+        />
+        {operatorAddressError && (
+          <p className="text-sm text-red-600 mt-1">
+            {operatorAddressError}
+          </p>
+        )}
+      </div>
       <Button
         className="w-full"
         variant={txStatus === 'success' ? 'secondary' : txStatus === 'error' ? 'destructive' : 'default'}
@@ -105,7 +119,12 @@ export function StakeTab({
           ),
           { requiresApproval: true }
         )}
-        disabled={!!txStatus && txStatus !== 'error' || !!amountError || !amount}
+        disabled={Boolean(
+          (!!txStatus && txStatus !== 'error') || 
+          !!amountError || 
+          !amount || 
+          (operatorAddress && !!operatorAddressError)
+        )}
       >
         {txStatus === 'approving' ? 'Approving...' :
          txStatus === 'processing' ? 'Processing...' :
@@ -113,11 +132,6 @@ export function StakeTab({
          txStatus === 'error' ? 'Failed!' :
          isValidOperatorAddress(operatorAddress) ? 'Stake' : 'Deposit'}
       </Button>
-      {operatorAddress && !isValidOperatorAddress(operatorAddress) && (
-        <p className="text-sm text-yellow-600">
-          Invalid operator address. Must be a valid bech32 address starting with exo1.
-        </p>
-      )}
       {txError && (
         <p className="text-sm text-red-600 mt-2">
           {txError}
