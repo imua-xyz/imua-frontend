@@ -1,7 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
+import { StakingPosition } from '@/hooks/useStakingPosition'
 import { StakeTab } from './StakeTab'
 import { DelegateTab } from './DelegateTab'
+import { UndelegateTab } from './UndelegateTab'
 import { WithdrawTab } from './WithdrawTab'
 import { useState } from 'react'
 
@@ -17,6 +19,7 @@ interface StakingTabsProps {
     decimals: number
   } | undefined
   withdrawableAmount: bigint
+  position: StakingPosition
 }
 
 export function StakingTabs({ 
@@ -25,7 +28,8 @@ export function StakingTabs({
   gateway, 
   selectedToken,
   balance,
-  withdrawableAmount
+  withdrawableAmount,
+  position
 }: StakingTabsProps) {
   const [currentTab, setCurrentTab] = useState('stake')
 
@@ -37,9 +41,10 @@ export function StakingTabs({
 
   return (
     <Tabs defaultValue="stake" onValueChange={handleTabChange}>
-      <TabsList className="w-full grid grid-cols-3">
+      <TabsList className="w-full grid grid-cols-4">
         <TabsTrigger value="stake" className="flex-1">Stake</TabsTrigger>
         <TabsTrigger value="delegate" className="flex-1">Delegate</TabsTrigger>
+        <TabsTrigger value="undelegate" className="flex-1">Undelegate</TabsTrigger>
         <TabsTrigger value="withdraw" className="flex-1">Withdraw</TabsTrigger>
       </TabsList>
 
@@ -64,6 +69,17 @@ export function StakingTabs({
             selectedToken={selectedToken}
             balance={balance}
             onStatusChange={onStatusChange}
+            position={position}
+          />
+        </TabsContent>
+
+        <TabsContent value="undelegate">
+          <UndelegateTab 
+            gateway={gateway} 
+            selectedToken={selectedToken}
+            balance={balance}
+            onStatusChange={onStatusChange}
+            position={position}
           />
         </TabsContent>
 
@@ -74,6 +90,7 @@ export function StakingTabs({
             balance={balance}
             withdrawableAmount={withdrawableAmount}
             onStatusChange={onStatusChange}
+            position={position}
           />
         </TabsContent>
       </div>

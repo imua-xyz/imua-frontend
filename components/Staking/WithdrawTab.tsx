@@ -14,6 +14,9 @@ interface WithdrawTabProps {
     symbol: string
     decimals: number
   } | undefined
+  position: {
+    claimableBalance: bigint
+  } | undefined
   withdrawableAmount: bigint
   onStatusChange?: (status: TxStatus, error?: string) => void
 }
@@ -22,6 +25,7 @@ export function WithdrawTab({
   gateway, 
   selectedToken,
   balance, 
+  position,
   withdrawableAmount,
   onStatusChange 
 }: WithdrawTabProps) {
@@ -32,7 +36,7 @@ export function WithdrawTab({
     setAmount: setClaimAmount
   } = useAmountInput({
     decimals: balance?.decimals || 18,
-    // Remove maxAmount for claim as it depends on staking position
+    maxAmount: position?.claimableBalance // Max for claim is claimable balance
   })
 
   const {
@@ -42,7 +46,7 @@ export function WithdrawTab({
     setAmount: setWithdrawAmount
   } = useAmountInput({
     decimals: balance?.decimals || 18,
-    maxAmount: withdrawableAmount // Set max to withdrawable amount
+    maxAmount: withdrawableAmount // Max for withdraw is withdrawable amount
   })
 
   const [recipientAddress, setRecipientAddress] = useState('')
@@ -76,7 +80,7 @@ export function WithdrawTab({
       <div>
         <Input
           type="text"
-          placeholder={`Claim Amount (${balance?.symbol || ''})`}
+          placeholder={`Claim amount (max: ${position?.claimableBalance ? formatUnits(position.claimableBalance, balance?.decimals || 18) : '0'} ${balance?.symbol || ''})`}
           value={claimAmount}
           onChange={(e) => setClaimAmount(e.target.value)}
         />

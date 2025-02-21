@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
-import { isValidOperatorAddress } from '@/lib/utils'
 import { useAmountInput } from '@/hooks/useAmountInput'
+import { OperatorSelector } from './OperatorSelector'
+import { formatUnits } from 'viem'
 
 interface DelegateTabProps {
   gateway: ReturnType<typeof useClientChainGateway>
@@ -14,6 +15,9 @@ interface DelegateTabProps {
     symbol: string
     decimals: number
   } | undefined
+  position?: {
+    claimableBalance: bigint
+  }
   onStatusChange?: (status: TxStatus, error?: string) => void
 }
 
@@ -21,6 +25,7 @@ export function DelegateTab({
   gateway, 
   selectedToken, 
   balance,
+  position,
   onStatusChange 
 }: DelegateTabProps) {
   const {
@@ -30,22 +35,12 @@ export function DelegateTab({
     setAmount
   } = useAmountInput({
     decimals: balance?.decimals || 18,
+    maxAmount: position?.claimableBalance
   })
   
   const [operatorAddress, setOperatorAddress] = useState('')
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null)
   const [txError, setTxError] = useState<string | null>(null)
-  const [operatorAddressError, setOperatorAddressError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!operatorAddress) {
-      setOperatorAddressError('Operator address is required')
-    } else if (!isValidOperatorAddress(operatorAddress)) {
-      setOperatorAddressError('Invalid operator address. Must be a valid bech32 address starting with exo1.')
-    } else {
-      setOperatorAddressError(null)
-    }
-  }, [operatorAddress])
 
   const handleOperation = async (operation: () => Promise<`0x${string}`>) => {
     setTxError(null)
@@ -71,90 +66,52 @@ export function DelegateTab({
 
   return (
     <div className="space-y-4">
-      <div>
-        <Input
-          placeholder="Operator Address (starts with exo1)"
-          value={operatorAddress}
-          onChange={(e) => setOperatorAddress(e.target.value)}
-        />
-        {operatorAddressError && (
-          <p className="text-sm text-red-600 mt-1">
-            {operatorAddressError}
-          </p>
-        )}
-      </div>
-      <div>
-        <Input
-          type="text"
-          placeholder={`Amount (${balance?.symbol || ''})`}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        {amountError && (
-          <p className="text-sm text-red-600 mt-1">
-            {amountError}
-          </p>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Button
-          disabled={
-            !operatorAddress || 
-            !!operatorAddressError || 
-            !!txStatus && txStatus !== 'error' || 
-            !!amountError || 
-            !amount
-          }
-          onClick={() => handleOperation(() => 
-            gateway.handleDelegateTo(
-              operatorAddress,
-              selectedToken,
-              parsedAmount,
-              {
-                onStatus: (status, error) => {
-                  setTxStatus(status)
-                  if (error) setTxError(error)
-                  onStatusChange?.(status, error)
-                }
+      <OperatorSelector 
+        onSelect={setOperatorAddress}
+        value={operatorAddress}
+      />
+      <Input
+        type="text"
+        placeholder={`Amount (max: ${position?.claimableBalance ? formatUnits(position.claimableBalance, balance?.decimals || 18) : '0'} ${balance?.symbol || ''})`}
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+      />
+      {amountError && (
+        <p className="text-sm text-red-600 mt-1">
+          {amountError}
+        </p>
+      )}
+      <Button
+        className="w-full"
+        variant={txStatus === 'success' ? 'secondary' : txStatus === 'error' ? 'destructive' : 'default'}
+        disabled={
+          (!!txStatus && txStatus !== 'error') ||
+          !!amountError ||
+          !amount ||
+          !operatorAddress ||
+          !selectedToken ||
+          !gateway
+        }
+        onClick={() => handleOperation(() =>
+          gateway.handleDelegateTo(
+            operatorAddress,
+            selectedToken,
+            parsedAmount,
+            {
+              onStatus: (status, error) => {
+                setTxStatus(status)
+                if (error) setTxError(error)
+                onStatusChange?.(status, error)
               }
-            )
-          )}
-        >
-          {txStatus === 'processing' ? 'Processing...' :
-           txStatus === 'success' ? 'Success!' :
-           txStatus === 'error' ? 'Failed!' :
-           'Delegate'}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={
-            !operatorAddress || 
-            !!operatorAddressError || 
-            !!txStatus && txStatus !== 'error' || 
-            !!amountError || 
-            !amount
-          }
-          onClick={() => handleOperation(() =>
-            gateway.handleUndelegateFrom(
-              operatorAddress,
-              selectedToken,
-              parsedAmount,
-              {
-                onStatus: (status, error) => {
-                  setTxStatus(status)
-                  if (error) setTxError(error)
-                  onStatusChange?.(status, error)
-                }
-              }
-            )
-          )}
-        >
-          {txStatus === 'processing' ? 'Processing...' :
-           txStatus === 'success' ? 'Success!' :
-           txStatus === 'error' ? 'Failed!' :
-           'Undelegate'}
-        </Button>
-      </div>
+            }
+          )
+        )}
+      >
+        {txStatus === 'processing' ? 'Processing...' :
+         txStatus === 'success' ? 'Success!' :
+         txStatus === 'error' ? 'Failed!' :
+         'Delegate'}
+      </Button>
       {txError && (
         <p className="text-sm text-red-600 mt-2">
           {txError}

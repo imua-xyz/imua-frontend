@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useAccount, useBalance, useSwitchChain } from 'wagmi'
-import { getAccount } from '@wagmi/core'
 import { config, NETWORK_CHAIN_IDS } from '@/config/wagmi'
 import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
 import { useVault } from '@/hooks/useVault'
+import { StakingPosition } from '@/hooks/useStakingPosition'
 import { TokenSelector } from './TokenSelector'
 import { TokenInfo } from './TokenInfo'
 import { StakingTabs } from './StakingTabs'
@@ -13,12 +13,12 @@ import { CONTRACTS } from '@/config/contracts'
 
 interface StakingProps {
   onTokenSelect: (token: `0x${string}` | null) => void
+  chain: typeof config.chains[number] | undefined
+  position: StakingPosition
 }
 
-export function Staking({ onTokenSelect }: StakingProps) {
+export function Staking({ onTokenSelect, chain, position }: StakingProps) {
   const { address: userAddress, isConnected } = useAccount()
-  const { chainId } = getAccount(config)
-  const chain = config.chains.find(chain => chain.id === chainId)
   const { switchChain } = useSwitchChain()
   const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(null)
   const gateway = useClientChainGateway(selectedToken!)
@@ -109,6 +109,7 @@ export function Staking({ onTokenSelect }: StakingProps) {
             withdrawableAmount={vault.withdrawableAmount ?? BigInt(0)}
             onTabChange={updateRelayFee}
             onStatusChange={handleStatusChange}
+            position={position}
           />
         </>
       )}
