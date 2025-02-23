@@ -110,7 +110,7 @@ export function UndelegateTab({
         {txStatus === 'processing' ? 'Processing...' :
          txStatus === 'success' ? 'Success!' :
          txStatus === 'error' ? 'Failed!' :
-         'Delegate'}
+         'Undelegate'}
       </Button>
       {txError && (
         <p className="text-sm text-red-600 mt-2">

@@ -26,9 +26,22 @@ export function useAmountInput({ decimals, maxAmount }: UseAmountInputProps) {
     }
 
     try {
-      // Check if amount exceeds max
-      if (maxAmount) {
-        const parsedAmount = parseUnits(value || '0', decimals)
+      const parsedAmount = parseUnits(value || '0', decimals)
+      
+      // Check for zero amount
+      if (parsedAmount === BigInt(0)) {
+        setError('Amount must be greater than 0')
+        setAmount(value)
+        return
+      }
+
+      // Check if amount exceeds max (including zero max)
+      if (maxAmount !== undefined) {
+        if (maxAmount === BigInt(0) && parsedAmount > BigInt(0)) {
+            setError('No available balance')
+            setAmount(value)
+            return
+        }
         if (parsedAmount > maxAmount) {
           setError(`Amount exceeds balance: ${formatUnits(maxAmount, decimals)}`)
           setAmount(value)
