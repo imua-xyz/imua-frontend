@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
+import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
 import { StakingPosition } from '@/hooks/useStakingPosition'
 import { StakeTab } from './StakeTab'
 import { DelegateTab } from './DelegateTab'
@@ -10,8 +10,9 @@ import { useState } from 'react'
 interface StakingTabsProps {
   onTabChange: (operationType: 'delegation' | 'asset') => void
   onStatusChange: (status: TxStatus, error?: string) => void
-  gateway: ReturnType<typeof useClientChainGateway>
+  LSTController: ReturnType<typeof useLSTOperations>
   selectedToken: `0x${string}`
+  vaultAddress: `0x${string}`
   balance: {
     value: bigint
     formatted: string
@@ -25,8 +26,9 @@ interface StakingTabsProps {
 export function StakingTabs({ 
   onTabChange, 
   onStatusChange, 
-  gateway, 
+  LSTController, 
   selectedToken,
+  vaultAddress,
   balance,
   withdrawableAmount,
   position
@@ -35,7 +37,7 @@ export function StakingTabs({
 
   const handleTabChange = (tab: string) => {
     setCurrentTab(tab)
-    const operationType = tab === 'delegate' ? 'delegation' : 'asset'
+    const operationType = tab === 'delegate' || tab === 'undelegate' ? 'delegation' : 'asset'
     onTabChange(operationType)
   }
 
@@ -51,8 +53,9 @@ export function StakingTabs({
       <div className="mt-4">
         <TabsContent value="stake">
           <StakeTab 
-            gateway={gateway} 
+            LSTController={LSTController} 
             selectedToken={selectedToken}
+            vaultAddress={vaultAddress}
             balance={balance}
             onStatusChange={onStatusChange}
             onOperatorAddressChange={(hasOperator) => {
@@ -65,7 +68,7 @@ export function StakingTabs({
 
         <TabsContent value="delegate">
           <DelegateTab 
-            gateway={gateway} 
+            LSTController={LSTController} 
             selectedToken={selectedToken}
             balance={balance}
             onStatusChange={onStatusChange}
@@ -75,7 +78,7 @@ export function StakingTabs({
 
         <TabsContent value="undelegate">
           <UndelegateTab 
-            gateway={gateway} 
+            LSTController={LSTController} 
             selectedToken={selectedToken}
             balance={balance}
             onStatusChange={onStatusChange}
@@ -85,7 +88,7 @@ export function StakingTabs({
 
         <TabsContent value="withdraw">
           <WithdrawTab 
-            gateway={gateway} 
+            LSTController={LSTController} 
             selectedToken={selectedToken}
             balance={balance}
             withdrawableAmount={withdrawableAmount}

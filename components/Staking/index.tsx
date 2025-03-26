@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAccount, useBalance, useSwitchChain } from 'wagmi'
 import { config, NETWORK_CHAIN_IDS } from '@/config/wagmi'
-import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
+import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
+import { useVaultAddress } from '@/hooks/useVaultAddress'
 import { useVault } from '@/hooks/useVault'
 import { StakingPosition } from '@/hooks/useStakingPosition'
 import { TokenSelector } from './TokenSelector'
@@ -21,8 +22,9 @@ export function Staking({ onTokenSelect, chain, position }: StakingProps) {
   const { address: userAddress, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
   const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(null)
-  const gateway = useClientChainGateway(selectedToken!)
-  const vault = useVault(gateway.vaultAddress as `0x${string}`)
+  const LSTController = useLSTOperations(selectedToken!)
+  const vaultAddress = useVaultAddress(selectedToken!)
+  const vault = useVault(vaultAddress as `0x${string}`)
   const [relayFee, setRelayFee] = useState<bigint>(BigInt(0))
 
   const { data: balance } = useBalance({
@@ -38,8 +40,8 @@ export function Staking({ onTokenSelect, chain, position }: StakingProps) {
 
   // Update relay fee when tab changes or operation type changes
   const updateRelayFee = async (operationType: 'delegation' | 'asset') => {
-    if (!gateway) return
-    const fee = await gateway.getQuote(operationType)
+    if (!LSTController) return
+    const fee = await LSTController.getQuote(operationType)
     setRelayFee(fee as bigint)
   }
 
@@ -96,15 +98,16 @@ export function Staking({ onTokenSelect, chain, position }: StakingProps) {
         <>
           <TokenInfo
             token={selectedToken}
-            vaultAddress={gateway.vaultAddress as `0x${string}`}
+            vaultAddress={vaultAddress as `0x${string}`}
             balance={balance}
             withdrawableAmount={vault.withdrawableAmount ?? BigInt(0)}
             relayFee={relayFee}
           />
 
           <StakingTabs
-            gateway={gateway}
+            LSTController={LSTController}
             selectedToken={selectedToken}
+            vaultAddress={vaultAddress as `0x${string}`}
             balance={balance}
             withdrawableAmount={vault.withdrawableAmount ?? BigInt(0)}
             onTabChange={updateRelayFee}

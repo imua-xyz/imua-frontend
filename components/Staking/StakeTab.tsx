@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
+import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
 import { useAmountInput } from '@/hooks/useAmountInput'
 import { OperatorSelector } from './OperatorSelector'
 
 interface StakeTabProps {
-  gateway: ReturnType<typeof useClientChainGateway>
+  LSTController: ReturnType<typeof useLSTOperations>
   selectedToken: `0x${string}`
+  vaultAddress: `0x${string}`
   balance: {
     value: bigint
     formatted: string
@@ -19,8 +20,9 @@ interface StakeTabProps {
 }
 
 export function StakeTab({ 
-  gateway, 
+  LSTController, 
   selectedToken,
+  vaultAddress,
   balance,
   onStatusChange,
   onOperatorAddressChange 
@@ -102,17 +104,19 @@ export function StakeTab({
           !!amountError ||
           !amount ||
           !selectedToken ||
-          !gateway
+          !LSTController
         }
         onClick={() => handleOperation(
-          () => gateway.handleStakeWithApproval(
-            selectedToken,
+          () => LSTController.stakeWithApproval(
             parsedAmount,
+            vaultAddress,
             operatorAddress || undefined,
-            (status, error) => {
-              setTxStatus(status)
-              if (error) setTxError(error)
-              onStatusChange?.(status, error)
+            {
+              onStatus: (status, error) => {
+                setTxStatus(status)
+                if (error) setTxError(error)
+                onStatusChange?.(status, error)
+              }
             }
           ),
           { requiresApproval: true }
