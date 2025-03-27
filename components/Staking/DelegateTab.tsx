@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
+import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
 import { useAmountInput } from '@/hooks/useAmountInput'
 import { OperatorSelector } from './OperatorSelector'
 import { formatUnits } from 'viem'
 
 interface DelegateTabProps {
-  gateway: ReturnType<typeof useClientChainGateway>
+  LSTController: ReturnType<typeof useLSTOperations>
   selectedToken: `0x${string}`
   balance: {
     value: bigint
@@ -22,7 +22,7 @@ interface DelegateTabProps {
 }
 
 export function DelegateTab({ 
-  gateway, 
+  LSTController, 
   selectedToken, 
   balance,
   position,
@@ -90,12 +90,11 @@ export function DelegateTab({
           !amount ||
           !operatorAddress ||
           !selectedToken ||
-          !gateway
+          !LSTController
         }
         onClick={() => handleOperation(() =>
-          gateway.handleDelegateTo(
+          LSTController.delegateTo(
             operatorAddress,
-            selectedToken,
             parsedAmount,
             {
               onStatus: (status, error) => {

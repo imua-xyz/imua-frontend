@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useClientChainGateway, type TxStatus } from '@/hooks/useClientChainGateway'
+import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
 import { useAmountInput } from '@/hooks/useAmountInput'
 import { formatUnits } from 'ethers'
 
 interface WithdrawTabProps {
-  gateway: ReturnType<typeof useClientChainGateway>
-  selectedToken: `0x${string}`
+  LSTController: ReturnType<typeof useLSTOperations>
   balance: {
     value: bigint
     formatted: string
@@ -22,8 +21,7 @@ interface WithdrawTabProps {
 }
 
 export function WithdrawTab({ 
-  gateway, 
-  selectedToken,
+  LSTController, 
   balance, 
   position,
   withdrawableAmount,
@@ -95,8 +93,7 @@ export function WithdrawTab({
         variant="default"
         disabled={!!txStatus && txStatus !== 'error' || !!claimAmountError || !claimAmount}
         onClick={() => handleOperation(() =>
-          gateway.handleClaimPrincipal(
-            selectedToken,
+          LSTController.claimPrincipal(
             parsedClaimAmount,
             {
               onStatus: (status, error) => {
@@ -135,8 +132,7 @@ export function WithdrawTab({
           variant="outline"
           disabled={!!txStatus && txStatus !== 'error' || !!withdrawAmountError || !withdrawAmount}
           onClick={() => handleOperation(() =>
-            gateway.handleWithdrawPrincipal(
-              selectedToken,
+            LSTController.withdrawPrincipal(
               parsedWithdrawAmount,
               recipientAddress as `0x${string}`,
               {

@@ -1,6 +1,6 @@
 import { useReadContract } from 'wagmi'
 import { useAccount, useChainId } from 'wagmi'
-import VaultABI from '@/Vault.abi.json'
+import VaultABI from '@/abi/Vault.abi.json'
 
 export function useVault(vaultAddress?: `0x${string}`) {
   const { address: userAddress } = useAccount()

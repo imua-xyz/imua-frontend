@@ -55,8 +55,7 @@ export function useAmountInput({ decimals, maxAmount }: UseAmountInputProps) {
     }
   }
 
-  const parsedAmount = amount ? parseUnits(amount, decimals).toString() : '0'
-  console.log('parsedAmount', parsedAmount)
+  const parsedAmount = amount ? parseUnits(amount, decimals) : BigInt(0)
 
   return {
     amount,

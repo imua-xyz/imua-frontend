@@ -1,5 +1,5 @@
-import ClientChainGatewayABI from '../ClientChainGateway.abi.json'
-import deployedContracts from '../deployedContracts.json'
+import ClientChainGatewayABI from '@/abi/ClientChainGateway.abi.json'
+import deployedContracts from '@/deployedContracts.json'
 
 export const CONTRACTS = {
   CLIENT_CHAIN_GATEWAY: {

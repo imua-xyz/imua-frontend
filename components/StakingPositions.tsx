@@ -77,7 +77,7 @@ export function StakingPositions({ positions, isLoading, error }: StakingPositio
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
               <p>LZ Endpoint ID: {position.metadata.lzEndpointId}</p>
-              <p>Exocore Chain Index: {position.metadata.exocoreChainIndex}</p>
+              <p>Imua Chain Index: {position.metadata.imuaChainIndex}</p>
             </div>
           </div>
         </div>
