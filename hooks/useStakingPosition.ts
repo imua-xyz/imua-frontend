@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { COSMOS_CONFIG } from '@/config/cosmos'
-import { formatUnits } from 'viem'
+import { imua } from '@/config/wagmi'
+import { encodePacked } from 'viem'
+import IAssetsABI from '@/abi/IAssets.abi.json'
+import { createPublicClient, http } from 'viem'
 
 interface AssetInfo {
   asset_id: string  // Format: "tokenAddress_lzEndpointId"
@@ -18,19 +21,21 @@ interface AssetMetadata {
     address: string
     decimals: number
     layer_zero_chain_id: string
-    exocore_chain_index: string
+    imua_chain_index: string
     meta_info: string
   }
   staking_total_amount: string
 }
 
-interface DelegationInfo {
-  delegation_infos: {
-    [operator: string]: {
-      undelegatable_share: string
-      wait_undelegation_amount: string
-    }
-  }
+export interface StakerBalance {
+  clientChainID: number
+  stakerAddress: `0x${string}`
+  tokenID: `0x${string}`
+  balance: bigint
+  withdrawable: bigint
+  delegated: bigint
+  pendingUndelegated: bigint
+  totalDeposited: bigint
 }
 
 export interface StakingPosition {
@@ -46,16 +51,53 @@ export interface StakingPosition {
     symbol: string
     decimals: number
     lzEndpointId: string
-    exocoreChainIndex: string
+    imuaChainIndex: string
     metaInfo: string
     totalStaked: bigint
   }
 }
 
-export function useStakingPosition(address: `0x${string}`, lzEndpointId: number) {
+// Create a public client once for contract reads
+const publicClient = createPublicClient({
+  chain: imua,
+  transport: http(),
+})
+
+// Address of the IAssets precompile contract
+const ASSETS_PRECOMPILE_ADDRESS = '0x0000000000000000000000000000000000000804'
+
+// Helper function to read staker balance data directly from the contract (no hooks)
+async function readStakerBalance(
+  endpointId: number,
+  userAddress: `0x${string}`,
+  tokenAddress: `0x${string}`
+): Promise<{ success: boolean, stakerBalance?: StakerBalance }> {
+  try {
+    const result = await publicClient.readContract({
+      address: ASSETS_PRECOMPILE_ADDRESS,
+      abi: IAssetsABI,
+      functionName: 'getStakerBalanceByToken',
+      args: [
+        endpointId,
+        encodePacked(['address'], [userAddress]),
+        encodePacked(['address'], [tokenAddress])
+      ]
+    }) as [boolean, StakerBalance]
+        
+    return { 
+      success: result[0],
+      stakerBalance: result[1]
+    }
+  } catch (error) {
+    console.error(`Failed to read staker balance for ${tokenAddress} at endpoint ${endpointId}:`, error)
+    return { success: false }
+  }
+}
+
+export function useStakingPosition(userAddress: `0x${string}`, lzEndpointId: number) {
   // Convert decimal endpoint ID to hex for staker_id
-  const stakerId = address && lzEndpointId 
-    ? `${address.toLowerCase()}_0x${lzEndpointId.toString(16)}`
+  const stakerId = userAddress && lzEndpointId 
+    ? `${userAddress.toLowerCase()}_0x${lzEndpointId.toString(16)}`
     : undefined
 
   return useQuery({
@@ -64,6 +106,7 @@ export function useStakingPosition(address: `0x${string}`, lzEndpointId: number)
       if (!stakerId) {
         throw new Error('Invalid staker ID: Missing address or endpoint ID')
       }
+      
       // Fetch asset infos
       const assetResponse = await fetch(
         `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.STAKER_ASSETS(stakerId)}`
@@ -77,13 +120,14 @@ export function useStakingPosition(address: `0x${string}`, lzEndpointId: number)
           // Parse token address and lz endpoint id from asset_id
           const [tokenAddress, hexLzEndpointId] = asset.asset_id.split('_') as [`0x${string}`, string]
           // Convert hex endpoint ID back to decimal
-          const tokenLzEndpointId = parseInt(hexLzEndpointId, 16).toString()
+          const tokenLzEndpointId = parseInt(hexLzEndpointId, 16)
 
-          // Fetch delegation info
-          const delegationResponse = await fetch(
-            `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, asset.asset_id.toLowerCase())}`
+          // Fetch staker balance directly (no hooks)
+          const { success, stakerBalance } = await readStakerBalance(
+            tokenLzEndpointId,
+            userAddress,
+            tokenAddress
           )
-          const delegationData: DelegationInfo = await delegationResponse.json()
 
           // Fetch asset metadata
           const metadataResponse = await fetch(
@@ -91,23 +135,20 @@ export function useStakingPosition(address: `0x${string}`, lzEndpointId: number)
           )
           const metadataData: AssetMetadata = await metadataResponse.json()
 
-          // Calculate total delegated amount (currently 0 as per spec)
-          const delegatedBalance = BigInt(0)
-
           return {
             assetId: asset.asset_id,
             tokenAddress,
-            lzEndpointId: tokenLzEndpointId,
+            lzEndpointId: tokenLzEndpointId.toString(),
             totalBalance: BigInt(asset.info.total_deposit_amount),
             claimableBalance: BigInt(asset.info.withdrawable_amount),
-            delegatedBalance,
+            delegatedBalance: stakerBalance?.delegated || BigInt(0),
             pendingUndelegatedBalance: BigInt(asset.info.pending_undelegation_amount),
             metadata: {
               name: metadataData.asset_basic_info.name,
               symbol: metadataData.asset_basic_info.symbol,
               decimals: metadataData.asset_basic_info.decimals,
               lzEndpointId: metadataData.asset_basic_info.layer_zero_chain_id,
-              exocoreChainIndex: metadataData.asset_basic_info.exocore_chain_index,
+              imuaChainIndex: metadataData.asset_basic_info.imua_chain_index,
               metaInfo: metadataData.asset_basic_info.meta_info,
               totalStaked: BigInt(metadataData.staking_total_amount)
             }
@@ -118,6 +159,6 @@ export function useStakingPosition(address: `0x${string}`, lzEndpointId: number)
       return positions
     },
     refetchInterval: 30000,
-    enabled: !!address && !!lzEndpointId,
+    enabled: !!userAddress && !!lzEndpointId,
   })
 } 

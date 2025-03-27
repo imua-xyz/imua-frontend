@@ -7,7 +7,6 @@ import { formatUnits } from 'ethers'
 
 interface WithdrawTabProps {
   LSTController: ReturnType<typeof useLSTOperations>
-  selectedToken: `0x${string}`
   balance: {
     value: bigint
     formatted: string
@@ -23,7 +22,6 @@ interface WithdrawTabProps {
 
 export function WithdrawTab({ 
   LSTController, 
-  selectedToken,
   balance, 
   position,
   withdrawableAmount,

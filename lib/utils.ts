@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 export function isValidOperatorAddress(address: string): boolean {
   try {
     const { prefix, data } = fromBech32(address)
-    return prefix === 'exo' && data.length === 20
+    return prefix === 'im' && data.length === 20
   } catch {
     return false
   }

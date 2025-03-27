@@ -89,7 +89,6 @@ export function StakingTabs({
         <TabsContent value="withdraw">
           <WithdrawTab 
             LSTController={LSTController} 
-            selectedToken={selectedToken}
             balance={balance}
             withdrawableAmount={withdrawableAmount}
             onStatusChange={onStatusChange}

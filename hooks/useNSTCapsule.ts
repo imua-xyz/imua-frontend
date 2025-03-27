@@ -56,8 +56,7 @@ export function useNSTCapsule() {
 
     try {
       setCreateStatus('processing')
-      const tx = await contract.write.createExoCapsule()
-      await tx.wait()
+      const tx = await contract.write.createImuaCapsule()
       
       // Fetch new capsule address
       const newCapsuleAddress = await contract.read.ownerToCapsule([userAddress as Address])

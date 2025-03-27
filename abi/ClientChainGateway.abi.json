@@ -13,7 +13,7 @@
         "internalType": "struct BootstrapStorage.ImmutableConfig",
         "components": [
           {
-            "name": "exocoreChainId",
+            "name": "imuachainChainId",
             "type": "uint32",
             "internalType": "uint32"
           },
@@ -28,7 +28,7 @@
             "internalType": "address"
           },
           {
-            "name": "exoCapsuleBeacon",
+            "name": "imuaCapsuleBeacon",
             "type": "address",
             "internalType": "address"
           },
@@ -84,7 +84,7 @@
   },
   {
     "type": "function",
-    "name": "EXOCORE_CHAIN_ID",
+    "name": "IMUACHAIN_CHAIN_ID",
     "inputs": [],
     "outputs": [
       {
@@ -97,7 +97,7 @@
   },
   {
     "type": "function",
-    "name": "EXO_ADDRESS_PREFIX",
+    "name": "IMUA_ADDRESS_PREFIX",
     "inputs": [],
     "outputs": [
       {
@@ -110,7 +110,7 @@
   },
   {
     "type": "function",
-    "name": "EXO_CAPSULE_BEACON",
+    "name": "IMUA_CAPSULE_BEACON",
     "inputs": [],
     "outputs": [
       {
@@ -236,7 +236,7 @@
   },
   {
     "type": "function",
-    "name": "claimPrincipalFromExocore",
+    "name": "claimPrincipalFromImuachain",
     "inputs": [
       {
         "name": "token",
@@ -254,7 +254,7 @@
   },
   {
     "type": "function",
-    "name": "claimRewardFromExocore",
+    "name": "claimRewardFromImuachain",
     "inputs": [
       {
         "name": "",
@@ -301,7 +301,7 @@
     "name": "commissionEdited",
     "inputs": [
       {
-        "name": "exoAddress",
+        "name": "imAddress",
         "type": "string",
         "internalType": "string"
       }
@@ -349,7 +349,7 @@
   },
   {
     "type": "function",
-    "name": "createExoCapsule",
+    "name": "createImuaCapsule",
     "inputs": [],
     "outputs": [
       {
@@ -406,7 +406,7 @@
         "internalType": "address"
       },
       {
-        "name": "exoAddress",
+        "name": "imAddress",
         "type": "string",
         "internalType": "string"
       },
@@ -430,7 +430,7 @@
     "name": "delegationsByValidator",
     "inputs": [
       {
-        "name": "exoAddress",
+        "name": "imAddress",
         "type": "string",
         "internalType": "string"
       },
@@ -550,7 +550,7 @@
   },
   {
     "type": "function",
-    "name": "ethToExocoreAddress",
+    "name": "ethToImAddress",
     "inputs": [
       {
         "name": "ethAddress",
@@ -560,7 +560,7 @@
     ],
     "outputs": [
       {
-        "name": "exoAddress",
+        "name": "imAddress",
         "type": "string",
         "internalType": "string"
       }
@@ -638,7 +638,7 @@
   },
   {
     "type": "function",
-    "name": "isValidExocoreAddress",
+    "name": "isValidImAddress",
     "inputs": [
       {
         "name": "addressToValidate",
@@ -806,7 +806,7 @@
       {
         "name": "capsule",
         "type": "address",
-        "internalType": "contract IExoCapsule"
+        "internalType": "contract IImuaCapsule"
       }
     ],
     "stateMutability": "view"
@@ -1301,7 +1301,7 @@
     "name": "validators",
     "inputs": [
       {
-        "name": "exoAddress",
+        "name": "imAddress",
         "type": "string",
         "internalType": "string"
       }
@@ -2045,7 +2045,7 @@
   },
   {
     "type": "error",
-    "name": "ClientChainGatewayTokenAdditionViaExocore",
+    "name": "ClientChainGatewayTokenAdditionViaImuachain",
     "inputs": []
   },
   {

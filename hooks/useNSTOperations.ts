@@ -20,7 +20,7 @@ export function useNSTOperations() {
     if (!contract) throw new Error('Contract not found')
     
     return handleTxWithStatus(
-      contract.write.createExoCapsule(),
+      contract.write.createImuaCapsule(),
       options
     )
   }, [contract, handleTxWithStatus])

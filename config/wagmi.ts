@@ -34,15 +34,15 @@ export const CHAIN_ID_TO_ENDPOINT = {
   1: 30101,        // Mainnet
 } as const
 
-// Define Exocore chain
-export const exocore = {
+// Define Imua chain
+export const imua = {
   id: 233, // Replace with actual chain ID
-  name: 'Exocore',
-  network: 'exocore',
+  name: 'Imua',
+  network: 'imuachain',
   nativeCurrency: {
     decimals: 18,
-    name: 'EXO',
-    symbol: 'EXO',
+    name: 'Imua',
+    symbol: 'Imua',
   },
   rpcUrls: {
     default: {
@@ -56,20 +56,20 @@ export const exocore = {
 
 // Create wagmi config
 export const config = createConfig({
-  chains: [sepolia, mainnet, exocore],
+  chains: [sepolia, mainnet, imua],
   transports: {
     [sepolia.id]: http('https://eth-sepolia.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI'),
     [mainnet.id]: http('https://eth-mainnet.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI'),
-    [exocore.id]: http('https://api-eth.exocore-restaking.com'),
+    [imua.id]: http('https://api-eth.exocore-restaking.com'),
   },
   connectors: [
     walletConnect({
       projectId,
       showQrModal: true,
       metadata: {
-        name: 'Exocore',
-        description: 'Exocore Staking',
-        url: 'https://exocore.io',
+        name: 'Imua',
+        description: 'Imua Staking',
+        url: 'https://imua.xyz',
         icons: ['https://avatars.githubusercontent.com/u/37784886']
       }
     })

@@ -45,8 +45,8 @@ export function useContractUtils() {
 
     const lengths = {
       'asset': 97,
-      'delegation': 139,
-      'associate': 75,
+      'delegation': 138,
+      'associate': 74,
       'dissociate': 33
     }
 
