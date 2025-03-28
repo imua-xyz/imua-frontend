@@ -76,7 +76,7 @@ export function useLSTOperations(token: `0x${string}`) {
     const fee = await getQuote('asset')
     
     return handleTxWithStatus(
-      contract.write.claimPrincipalFromExocore([token, amount], { value: fee }),
+      contract.write.claimPrincipalFromImuachain([token, amount], { value: fee }),
       options
     )
   }, [contract, token, handleTxWithStatus, getQuote])
