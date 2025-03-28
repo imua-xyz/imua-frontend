@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { COSMOS_CONFIG } from '@/config/cosmos'
-import { imua } from '@/config/wagmi'
-import { encodePacked } from 'viem'
-import IAssetsABI from '@/abi/IAssets.abi.json'
-import { createPublicClient, http } from 'viem'
+import { useAssetsPrecompile } from './useAssetsPrecompile'
 
 interface AssetInfo {
   asset_id: string  // Format: "tokenAddress_lzEndpointId"
@@ -57,44 +54,10 @@ export interface StakingPosition {
   }
 }
 
-// Create a public client once for contract reads
-const publicClient = createPublicClient({
-  chain: imua,
-  transport: http(),
-})
-
-// Address of the IAssets precompile contract
-const ASSETS_PRECOMPILE_ADDRESS = '0x0000000000000000000000000000000000000804'
-
-// Helper function to read staker balance data directly from the contract (no hooks)
-async function readStakerBalance(
-  endpointId: number,
-  userAddress: `0x${string}`,
-  tokenAddress: `0x${string}`
-): Promise<{ success: boolean, stakerBalance?: StakerBalance }> {
-  try {
-    const result = await publicClient.readContract({
-      address: ASSETS_PRECOMPILE_ADDRESS,
-      abi: IAssetsABI,
-      functionName: 'getStakerBalanceByToken',
-      args: [
-        endpointId,
-        encodePacked(['address'], [userAddress]),
-        encodePacked(['address'], [tokenAddress])
-      ]
-    }) as [boolean, StakerBalance]
-        
-    return { 
-      success: result[0],
-      stakerBalance: result[1]
-    }
-  } catch (error) {
-    console.error(`Failed to read staker balance for ${tokenAddress} at endpoint ${endpointId}:`, error)
-    return { success: false }
-  }
-}
-
 export function useStakingPosition(userAddress: `0x${string}`, lzEndpointId: number) {
+  // Get the assets precompile contract and its methods
+  const { getStakerBalanceByToken } = useAssetsPrecompile()
+  
   // Convert decimal endpoint ID to hex for staker_id
   const stakerId = userAddress && lzEndpointId 
     ? `${userAddress.toLowerCase()}_0x${lzEndpointId.toString(16)}`
@@ -122,8 +85,8 @@ export function useStakingPosition(userAddress: `0x${string}`, lzEndpointId: num
           // Convert hex endpoint ID back to decimal
           const tokenLzEndpointId = parseInt(hexLzEndpointId, 16)
 
-          // Fetch staker balance directly (no hooks)
-          const { success, stakerBalance } = await readStakerBalance(
+          // Fetch staker balance using the hook method
+          const { success, stakerBalance } = await getStakerBalanceByToken(
             tokenLzEndpointId,
             userAddress,
             tokenAddress
