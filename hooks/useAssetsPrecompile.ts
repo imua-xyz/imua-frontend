@@ -2,7 +2,7 @@ import { useChainId, useWalletClient } from 'wagmi'
 import { getContract } from 'viem'
 import IAssetsABI from '@/abi/IAssets.abi.json'
 import { imua, publicClients } from '@/config/wagmi'
-import { StakerBalance } from './useStakingPosition'
+import { StakerBalance } from '@/types/staking'
 import { encodePacked } from 'viem'
 
 // Address of the IAssets precompile contract

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { COSMOS_CONFIG } from '@/config/cosmos'
 import { useAssetsPrecompile } from './useAssetsPrecompile'
+import { StakingPosition } from '@/types/staking'
+import { useCallback } from 'react'
 
 interface AssetInfo {
   asset_id: string  // Format: "tokenAddress_lzEndpointId"
@@ -35,35 +37,16 @@ export interface StakerBalance {
   totalDeposited: bigint
 }
 
-export interface StakingPosition {
-  assetId: string
-  tokenAddress: `0x${string}`
-  lzEndpointId: string
-  totalBalance: bigint
-  claimableBalance: bigint
-  delegatedBalance: bigint
-  pendingUndelegatedBalance: bigint
-  metadata: {
-    name: string
-    symbol: string
-    decimals: number
-    lzEndpointId: string
-    imuaChainIndex: string
-    metaInfo: string
-    totalStaked: bigint
-  }
-}
-
-export function useStakingPosition(userAddress: `0x${string}`, lzEndpointId: number) {
+export function useAllStakingPositions(userAddress: `0x${string}`, lzEndpointIdOrCustomChainId: number) {
   // Get the assets precompile contract and its methods
   const { getStakerBalanceByToken } = useAssetsPrecompile()
   
   // Convert decimal endpoint ID to hex for staker_id
-  const stakerId = userAddress && lzEndpointId 
-    ? `${userAddress.toLowerCase()}_0x${lzEndpointId.toString(16)}`
+  const stakerId = userAddress && lzEndpointIdOrCustomChainId 
+    ? `${userAddress.toLowerCase()}_0x${lzEndpointIdOrCustomChainId.toString(16)}`
     : undefined
 
-  return useQuery({
+  const allPositions = useQuery({
     queryKey: ['stakingPosition', stakerId],
     queryFn: async (): Promise<StakingPosition[]> => {
       if (!stakerId) {
@@ -101,7 +84,7 @@ export function useStakingPosition(userAddress: `0x${string}`, lzEndpointId: num
           return {
             assetId: asset.asset_id,
             tokenAddress,
-            lzEndpointId: tokenLzEndpointId.toString(),
+            lzEndpointIdOrCustomChainId: tokenLzEndpointId,
             totalBalance: BigInt(asset.info.total_deposit_amount),
             claimableBalance: BigInt(asset.info.withdrawable_amount),
             delegatedBalance: stakerBalance?.delegated || BigInt(0),
@@ -110,7 +93,6 @@ export function useStakingPosition(userAddress: `0x${string}`, lzEndpointId: num
               name: metadataData.asset_basic_info.name,
               symbol: metadataData.asset_basic_info.symbol,
               decimals: metadataData.asset_basic_info.decimals,
-              lzEndpointId: metadataData.asset_basic_info.layer_zero_chain_id,
               imuaChainIndex: metadataData.asset_basic_info.imua_chain_index,
               metaInfo: metadataData.asset_basic_info.meta_info,
               totalStaked: BigInt(metadataData.staking_total_amount)
@@ -122,6 +104,20 @@ export function useStakingPosition(userAddress: `0x${string}`, lzEndpointId: num
       return positions
     },
     refetchInterval: 30000,
-    enabled: !!userAddress && !!lzEndpointId,
+    enabled: !!userAddress && !!lzEndpointIdOrCustomChainId,
   })
+
+  const getPosition = useCallback((tokenAddress?: `0x${string}`) => {
+    if (!allPositions.data || !tokenAddress) return null;
+    
+    return allPositions.data.find(
+      position => position.tokenAddress.toLowerCase() === tokenAddress.toLowerCase() &&
+                 position.lzEndpointIdOrCustomChainId === lzEndpointIdOrCustomChainId
+    ) || null;
+  }, [allPositions.data, lzEndpointIdOrCustomChainId]);
+
+  return {
+    allPositions,
+    getPosition
+  };
 } 

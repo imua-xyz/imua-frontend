@@ -1,6 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
-import { StakingPosition } from '@/hooks/useStakingPosition'
+import { StakingProvider, TxStatus, StakingPosition } from '@/types/staking'
 import { StakeTab } from './StakeTab'
 import { DelegateTab } from './DelegateTab'
 import { UndelegateTab } from './UndelegateTab'
@@ -10,7 +9,7 @@ import { useState } from 'react'
 interface StakingTabsProps {
   onTabChange: (operationType: 'delegation' | 'asset') => void
   onStatusChange: (status: TxStatus, error?: string) => void
-  LSTController: ReturnType<typeof useLSTOperations>
+  stakingProvider: StakingProvider
   selectedToken: `0x${string}`
   vaultAddress: `0x${string}`
   balance: {
@@ -26,7 +25,7 @@ interface StakingTabsProps {
 export function StakingTabs({ 
   onTabChange, 
   onStatusChange, 
-  LSTController, 
+  stakingProvider, 
   selectedToken,
   vaultAddress,
   balance,
@@ -53,7 +52,7 @@ export function StakingTabs({
       <div className="mt-4">
         <TabsContent value="stake">
           <StakeTab 
-            LSTController={LSTController} 
+            stakingProvider={stakingProvider} 
             selectedToken={selectedToken}
             vaultAddress={vaultAddress}
             balance={balance}
@@ -68,7 +67,7 @@ export function StakingTabs({
 
         <TabsContent value="delegate">
           <DelegateTab 
-            LSTController={LSTController} 
+            stakingProvider={stakingProvider} 
             selectedToken={selectedToken}
             balance={balance}
             onStatusChange={onStatusChange}
@@ -78,7 +77,7 @@ export function StakingTabs({
 
         <TabsContent value="undelegate">
           <UndelegateTab 
-            LSTController={LSTController} 
+            stakingProvider={stakingProvider} 
             selectedToken={selectedToken}
             balance={balance}
             onStatusChange={onStatusChange}
@@ -88,7 +87,7 @@ export function StakingTabs({
 
         <TabsContent value="withdraw">
           <WithdrawTab 
-            LSTController={LSTController} 
+            stakingProvider={stakingProvider} 
             balance={balance}
             withdrawableAmount={withdrawableAmount}
             onStatusChange={onStatusChange}

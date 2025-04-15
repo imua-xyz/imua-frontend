@@ -1,4 +1,4 @@
-import { StakingPosition } from '@/hooks/useStakingPosition'
+import { StakingPosition } from '@/types/staking'
 import { formatUnits } from 'viem'
 
 interface StakingPositionsProps {
@@ -7,7 +7,7 @@ interface StakingPositionsProps {
   error?: Error | null
 }
 
-export function StakingPositions({ positions, isLoading, error }: StakingPositionsProps) {
+export function AllStakingPositions({ positions, isLoading, error }: StakingPositionsProps) {
   if (isLoading) {
     return (
       <div className="text-gray-500 text-center py-4">
@@ -76,7 +76,7 @@ export function StakingPositions({ positions, isLoading, error }: StakingPositio
           {/* Additional Metadata */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
-              <p>LZ Endpoint ID: {position.metadata.lzEndpointId}</p>
+              <p>LZ Endpoint ID or Custom Chain ID: {position.lzEndpointIdOrCustomChainId}</p>
               <p>Imua Chain Index: {position.metadata.imuaChainIndex}</p>
             </div>
           </div>

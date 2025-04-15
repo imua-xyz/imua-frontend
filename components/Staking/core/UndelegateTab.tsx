@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
+import { StakingProvider, TxStatus } from '@/types/staking'
 import { useAmountInput } from '@/hooks/useAmountInput'
 import { OperatorSelector } from './OperatorSelector'
 import { formatUnits } from 'viem'
 
 interface UndelegateTabProps {
-  LSTController: ReturnType<typeof useLSTOperations>
+  stakingProvider: StakingProvider
   selectedToken: `0x${string}`
   balance: {
     value: bigint
@@ -22,7 +22,7 @@ interface UndelegateTabProps {
 }
 
 export function UndelegateTab({ 
-  LSTController, 
+  stakingProvider, 
   selectedToken, 
   balance,
   position,
@@ -90,10 +90,10 @@ export function UndelegateTab({
           !amount ||
           !operatorAddress ||
           !selectedToken ||
-          !LSTController
+          !stakingProvider
         }
         onClick={() => handleOperation(() =>
-          LSTController.delegateTo(
+          stakingProvider.undelegateFrom(
             operatorAddress,
             parsedAmount,
             {

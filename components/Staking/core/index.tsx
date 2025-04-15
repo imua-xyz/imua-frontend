@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useAccount, useBalance, useSwitchChain } from 'wagmi'
 import { config, NETWORK_CHAIN_IDS } from '@/config/wagmi'
-import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
+import { StakingProvider, TxStatus, StakingPosition } from '@/types/staking'
 import { useVaultAddress } from '@/hooks/useVaultAddress'
 import { useVault } from '@/hooks/useVault'
-import { StakingPosition } from '@/hooks/useStakingPosition'
 import { TokenSelector } from './TokenSelector'
 import { TokenInfo } from './TokenInfo'
 import { StakingTabs } from './StakingTabs'
@@ -13,16 +12,16 @@ import { Button } from '@/components/ui/button'
 import { CONTRACTS } from '@/config/contracts'
 
 interface StakingProps {
+  stakingProvider: StakingProvider
   onTokenSelect: (token: `0x${string}` | null) => void
   chain: typeof config.chains[number] | undefined
   position: StakingPosition
 }
 
-export function Staking({ onTokenSelect, chain, position }: StakingProps) {
+export function Staking({ stakingProvider, onTokenSelect, chain, position }: StakingProps) {
   const { address: userAddress, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
   const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(null)
-  const LSTController = useLSTOperations(selectedToken!)
   const vaultAddress = useVaultAddress(selectedToken!)
   const vault = useVault(vaultAddress as `0x${string}`)
   const [relayFee, setRelayFee] = useState<bigint>(BigInt(0))
@@ -40,8 +39,8 @@ export function Staking({ onTokenSelect, chain, position }: StakingProps) {
 
   // Update relay fee when tab changes or operation type changes
   const updateRelayFee = async (operationType: 'delegation' | 'asset') => {
-    if (!LSTController) return
-    const fee = await LSTController.getQuote(operationType)
+    if (!stakingProvider) return
+    const fee = await stakingProvider.getQuote(operationType)
     setRelayFee(fee as bigint)
   }
 
@@ -105,7 +104,7 @@ export function Staking({ onTokenSelect, chain, position }: StakingProps) {
           />
 
           <StakingTabs
-            LSTController={LSTController}
+            stakingProvider={stakingProvider}
             selectedToken={selectedToken}
             vaultAddress={vaultAddress as `0x${string}`}
             balance={balance}

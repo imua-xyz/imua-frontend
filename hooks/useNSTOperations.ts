@@ -2,28 +2,23 @@
 import { useCallback } from 'react'
 import { useClientChainGateway } from './useClientChainGateway'
 import { parseEther } from 'viem'
-import { useContractUtils } from './useContractUtils'
-
-export type TxStatus = 'approving' | 'processing' | 'success' | 'error'
-
-interface TxHandlerOptions {
-  onStatus?: (status: TxStatus, error?: string) => void
-}
+import { useTxUtils } from './useTxUtils'
+import { TxHandlerOptions } from '@/types/staking'
 
 export function useNSTOperations() {
-  const { contract, publicClient } = useClientChainGateway()
-  const { handleTxWithStatus, getQuote } = useContractUtils()
+  const { contract, publicClient, getQuote } = useClientChainGateway()
+  const { handleEVMTxWithStatus } = useTxUtils()
 
   const handleCreateCapsule = useCallback(async (
     options?: TxHandlerOptions
   ) => {
     if (!contract) throw new Error('Contract not found')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.createImuaCapsule(),
       options
     )
-  }, [contract, handleTxWithStatus])
+  }, [contract, handleEVMTxWithStatus])
 
   const handleStakeToBeacon = useCallback(async (
     pubkey: `0x${string}`,
@@ -33,14 +28,14 @@ export function useNSTOperations() {
   ) => {
     if (!contract) throw new Error('Contract not found')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.stake(
         [pubkey, signature, depositDataRoot],
         { value: parseEther('32') }
       ),
       options
     )
-  }, [contract, handleTxWithStatus])
+  }, [contract, handleEVMTxWithStatus])
 
   const handleVerifyAndDepositNativeStake = useCallback(async (
     validatorContainer: `0x${string}`[],
@@ -50,14 +45,14 @@ export function useNSTOperations() {
     if (!contract) throw new Error('Contract not found')
     const fee = await getQuote('asset')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.verifyAndDepositNativeStake(
         [validatorContainer, proof],
         { value: fee }
       ),
       options
     )
-  }, [contract, handleTxWithStatus, getQuote])
+  }, [contract, handleEVMTxWithStatus, getQuote])
 
   const handleProcessBeaconWithdrawal = useCallback(async (
     validatorContainer: `0x${string}`[],
@@ -69,14 +64,14 @@ export function useNSTOperations() {
     if (!contract) throw new Error('Contract not found')
     const fee = await getQuote('asset')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.processBeaconChainWithdrawal(
         [validatorContainer, validatorProof, withdrawalContainer, withdrawalProof],
         { value: fee }
       ),
       options
     )
-  }, [contract, handleTxWithStatus])
+  }, [contract, handleEVMTxWithStatus])
 
   const handleWithdrawNonBeaconETH = useCallback(async (
     recipient: `0x${string}`,
@@ -85,11 +80,11 @@ export function useNSTOperations() {
   ) => {
     if (!contract) throw new Error('Contract not found')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.withdrawNonBeaconChainETHFromCapsule([recipient, amount]),
       options
     )
-  }, [contract, handleTxWithStatus])
+  }, [contract, handleEVMTxWithStatus])
 
   return {
     createCapsule: handleCreateCapsule,

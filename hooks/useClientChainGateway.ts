@@ -1,8 +1,9 @@
+import { useCallback } from 'react'
 import { useAccount, useChainId, useWalletClient } from 'wagmi'
 import { CONTRACTS } from '@/config/contracts'
 import { CHAIN_ID_TO_NAME, publicClients } from '@/config/wagmi'
 import { getContract } from 'viem'
-
+import { OperationType } from '@/types/staking'
 export function useClientChainGateway() {
   const { address: userAddress } = useAccount()
   const chainId = useChainId()
@@ -21,11 +22,27 @@ export function useClientChainGateway() {
     }
   }) : null
 
+  const getQuote = useCallback(async (operation: OperationType) : Promise<bigint> => {
+    if (!contract) return BigInt(0)
+
+    const lengths = {
+      'asset': 97,
+      'delegation': 138,
+      'associate': 74,
+      'dissociate': 33
+    }
+
+    const message = '0x' + '00'.repeat(lengths[operation])
+    const fee = await contract.read.quote([message])
+    return fee as bigint
+  }, [contract])
+
   return {
     contract,
     publicClient,
     walletClient,
     contractAddress,
-    userAddress
+    userAddress,
+    getQuote
   }
 }

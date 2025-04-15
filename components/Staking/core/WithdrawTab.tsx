@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useLSTOperations, type TxStatus } from '@/hooks/useLSTOperations'
+import { StakingProvider, TxStatus } from '@/types/staking'
 import { useAmountInput } from '@/hooks/useAmountInput'
 import { formatUnits } from 'ethers'
 
 interface WithdrawTabProps {
-  LSTController: ReturnType<typeof useLSTOperations>
+  stakingProvider: StakingProvider
   balance: {
     value: bigint
     formatted: string
@@ -21,7 +21,7 @@ interface WithdrawTabProps {
 }
 
 export function WithdrawTab({ 
-  LSTController, 
+  stakingProvider, 
   balance, 
   position,
   withdrawableAmount,
@@ -51,7 +51,10 @@ export function WithdrawTab({
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null)
   const [txError, setTxError] = useState<string | null>(null)
 
-  const handleOperation = async (operation: () => Promise<`0x${string}`>) => {
+  // Check if claimPrincipal is available in this stakingProvider
+  const canClaimPrincipal = !!stakingProvider.claimPrincipal;
+
+  const handleOperation = async (operation: () => Promise<string>) => {
     setTxError(null)
     setTxStatus('processing')
 
@@ -75,41 +78,47 @@ export function WithdrawTab({
 
   return (
     <div className="space-y-4">
-      <div>
-        <Input
-          type="text"
-          placeholder={`Claim amount (max: ${position?.claimableBalance ? formatUnits(position.claimableBalance, balance?.decimals || 18) : '0'} ${balance?.symbol || ''})`}
-          value={claimAmount}
-          onChange={(e) => setClaimAmount(e.target.value)}
-        />
-        {claimAmountError && (
-          <p className="text-sm text-red-600 mt-1">
-            {claimAmountError}
-          </p>
-        )}
-      </div>
-      <Button
-        className="w-full"
-        variant="default"
-        disabled={!!txStatus && txStatus !== 'error' || !!claimAmountError || !claimAmount}
-        onClick={() => handleOperation(() =>
-          LSTController.claimPrincipal(
-            parsedClaimAmount,
-            {
-              onStatus: (status, error) => {
-                setTxStatus(status)
-                if (error) setTxError(error)
-                onStatusChange?.(status, error)
-              }
-            }
-          )
-        )}
-      >
-        {txStatus === 'processing' ? 'Processing...' :
-         txStatus === 'success' ? 'Success!' :
-         txStatus === 'error' ? 'Failed!' :
-         '1. Claim Principal'}
-      </Button>
+      {/* Only render the claim section if claimPrincipal is available */}
+      {canClaimPrincipal && (
+        <>
+          <div>
+            <Input
+              type="text"
+              placeholder={`Claim amount (max: ${position?.claimableBalance ? formatUnits(position.claimableBalance, balance?.decimals || 18) : '0'} ${balance?.symbol || ''})`}
+              value={claimAmount}
+              onChange={(e) => setClaimAmount(e.target.value)}
+            />
+            {claimAmountError && (
+              <p className="text-sm text-red-600 mt-1">
+                {claimAmountError}
+              </p>
+            )}
+          </div>
+          <Button
+            className="w-full"
+            variant="default"
+            disabled={!!txStatus && txStatus !== 'error' || !!claimAmountError || !claimAmount}
+            onClick={() => handleOperation(() =>
+              stakingProvider.claimPrincipal!(
+                parsedClaimAmount,
+                {
+                  onStatus: (status, error) => {
+                    setTxStatus(status)
+                    if (error) setTxError(error)
+                    onStatusChange?.(status, error)
+                  }
+                }
+              )
+            )}
+          >
+            {txStatus === 'processing' ? 'Processing...' :
+             txStatus === 'success' ? 'Success!' :
+             txStatus === 'error' ? 'Failed!' :
+             '1. Claim Principal'}
+          </Button>
+        </>
+      )}
+
       <div className="space-y-2">
         <Input
           type="text"
@@ -132,7 +141,7 @@ export function WithdrawTab({
           variant="outline"
           disabled={!!txStatus && txStatus !== 'error' || !!withdrawAmountError || !withdrawAmount}
           onClick={() => handleOperation(() =>
-            LSTController.withdrawPrincipal(
+            stakingProvider.withdrawPrincipal!(
               parsedWithdrawAmount,
               recipientAddress as `0x${string}`,
               {
@@ -148,7 +157,7 @@ export function WithdrawTab({
           {txStatus === 'processing' ? 'Processing...' :
            txStatus === 'success' ? 'Success!' :
            txStatus === 'error' ? 'Failed!' :
-           '2. Withdraw Principal'}
+           `${canClaimPrincipal ? '2. ' : ''}Withdraw Principal`}
         </Button>
       </div>
       {txError && (

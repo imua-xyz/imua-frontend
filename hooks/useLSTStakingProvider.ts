@@ -1,17 +1,12 @@
 import { useCallback } from 'react'
 import { useClientChainGateway } from './useClientChainGateway'
 import { maxUint256, getContract, erc20Abi } from 'viem'
-import { useContractUtils } from './useContractUtils'
+import { useTxUtils } from './useTxUtils'
+import { TxHandlerOptions, TxStatus, StakingProvider } from '@/types/staking'
 
-export type TxStatus = 'approving' | 'processing' | 'success' | 'error'
-
-interface TxHandlerOptions {
-  onStatus?: (status: TxStatus, error?: string) => void
-}
-
-export function useLSTOperations(token: `0x${string}`) {
-  const { contract, publicClient, walletClient, userAddress } = useClientChainGateway()
-  const { handleTxWithStatus, getQuote } = useContractUtils()
+export function useLSTStakingProvider(token: `0x${string}`): StakingProvider {
+  const { contract, publicClient, walletClient, userAddress, getQuote } = useClientChainGateway()
+  const { handleEVMTxWithStatus } = useTxUtils()
 
   const handleDeposit = useCallback(async (
     amount: bigint,
@@ -20,11 +15,11 @@ export function useLSTOperations(token: `0x${string}`) {
     if (!contract || !amount) throw new Error('Invalid parameters')
     const fee = await getQuote('asset')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.deposit([token, amount], { value: fee }),
       options
     )
-  }, [contract, token, handleTxWithStatus, getQuote])
+  }, [contract, token, handleEVMTxWithStatus, getQuote])
 
   const handleDelegateTo = useCallback(async (
     operator: string,
@@ -34,11 +29,11 @@ export function useLSTOperations(token: `0x${string}`) {
     if (!contract || !amount || !operator) throw new Error('Invalid parameters')
     const fee = await getQuote('delegation')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.delegateTo([operator, token, amount], { value: fee }),
       options
     )
-  }, [contract, token, handleTxWithStatus, getQuote])
+  }, [contract, token, handleEVMTxWithStatus, getQuote])
 
   const handleUndelegateFrom = useCallback(async (
     operator: string,
@@ -48,11 +43,11 @@ export function useLSTOperations(token: `0x${string}`) {
     if (!contract || !amount || !operator) throw new Error('Invalid parameters')
     const fee = await getQuote('delegation')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.undelegateFrom([operator, token, amount], { value: fee }),
       options
     )
-  }, [contract, token, handleTxWithStatus, getQuote])
+  }, [contract, token, handleEVMTxWithStatus, getQuote])
 
   const handleDepositAndDelegate = useCallback(async (
     amount: bigint,
@@ -62,11 +57,11 @@ export function useLSTOperations(token: `0x${string}`) {
     if (!contract || !amount || !operator) throw new Error('Invalid parameters')
     const fee = await getQuote('delegation')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.depositThenDelegateTo([token, amount, operator], { value: fee }),
       options
     )
-  }, [contract, token, handleTxWithStatus, getQuote])
+  }, [contract, token, handleEVMTxWithStatus, getQuote])
 
   const handleClaimPrincipal = useCallback(async (
     amount: bigint,
@@ -75,24 +70,24 @@ export function useLSTOperations(token: `0x${string}`) {
     if (!contract || !amount) throw new Error('Invalid parameters')
     const fee = await getQuote('asset')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.claimPrincipalFromImuachain([token, amount], { value: fee }),
       options
     )
-  }, [contract, token, handleTxWithStatus, getQuote])
+  }, [contract, token, handleEVMTxWithStatus, getQuote])
 
   const handleWithdrawPrincipal = useCallback(async (
     amount: bigint,
-    recipient: `0x${string}`,
+    recipient?: `0x${string}`,
     options?: TxHandlerOptions
   ) => {
     if (!contract || !amount || !recipient) throw new Error('Invalid parameters')
     
-    return handleTxWithStatus(
+    return handleEVMTxWithStatus(
       contract.write.withdrawPrincipal([token, amount, recipient]),
       options
     )
-  }, [contract, token, handleTxWithStatus])
+  }, [contract, token, handleEVMTxWithStatus])
 
   const handleStakeWithApproval = useCallback(async (
     amount: bigint,
@@ -140,12 +135,12 @@ export function useLSTOperations(token: `0x${string}`) {
 
   return {
     deposit: handleDeposit,
+    depositAndDelegate: handleDepositAndDelegate,
     delegateTo: handleDelegateTo,
     undelegateFrom: handleUndelegateFrom,
-    depositAndDelegate: handleDepositAndDelegate,
     claimPrincipal: handleClaimPrincipal,
     withdrawPrincipal: handleWithdrawPrincipal,
-    stakeWithApproval: handleStakeWithApproval,
-    getQuote
+    stake: handleStakeWithApproval,
+    getQuote: getQuote
   }
 } 
