@@ -11,26 +11,13 @@ interface StakingTabsProps {
   onStatusChange: (status: TxStatus, error?: string) => void
   stakingProvider: StakingProvider
   selectedToken: `0x${string}`
-  vaultAddress: `0x${string}`
-  balance: {
-    value: bigint
-    formatted: string
-    symbol: string
-    decimals: number
-  } | undefined
-  withdrawableAmount: bigint
-  position: StakingPosition
 }
 
 export function StakingTabs({ 
   onTabChange, 
   onStatusChange, 
   stakingProvider, 
-  selectedToken,
-  vaultAddress,
-  balance,
-  withdrawableAmount,
-  position
+  selectedToken
 }: StakingTabsProps) {
   const [currentTab, setCurrentTab] = useState('stake')
 
@@ -54,8 +41,6 @@ export function StakingTabs({
           <StakeTab 
             stakingProvider={stakingProvider} 
             selectedToken={selectedToken}
-            vaultAddress={vaultAddress}
-            balance={balance}
             onStatusChange={onStatusChange}
             onOperatorAddressChange={(hasOperator) => {
               if (currentTab === 'stake') {
@@ -69,9 +54,7 @@ export function StakingTabs({
           <DelegateTab 
             stakingProvider={stakingProvider} 
             selectedToken={selectedToken}
-            balance={balance}
             onStatusChange={onStatusChange}
-            position={position}
           />
         </TabsContent>
 
@@ -79,19 +62,14 @@ export function StakingTabs({
           <UndelegateTab 
             stakingProvider={stakingProvider} 
             selectedToken={selectedToken}
-            balance={balance}
             onStatusChange={onStatusChange}
-            position={position}
           />
         </TabsContent>
 
         <TabsContent value="withdraw">
           <WithdrawTab 
             stakingProvider={stakingProvider} 
-            balance={balance}
-            withdrawableAmount={withdrawableAmount}
             onStatusChange={onStatusChange}
-            position={position}
           />
         </TabsContent>
       </div>

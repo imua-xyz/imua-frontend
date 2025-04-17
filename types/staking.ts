@@ -10,11 +10,21 @@ export interface StakerBalance {
     clientChainID: number
     stakerAddress: `0x${string}`
     tokenID: `0x${string}`
-    balance: bigint
-    withdrawable: bigint
+    totalBalance: bigint
+    claimable?: bigint // the balance that could be claimed from imuachain(but might not be withdrawable)
+    withdrawable: bigint // the balance that could be withdrawn to user wallet on client chain
     delegated: bigint
     pendingUndelegated: bigint
     totalDeposited: bigint
+}
+
+export interface WalletBalance {
+    customClientChainID: number
+    stakerAddress: string
+    tokenID?: string
+    value: bigint
+    decimals: number
+    symbol: string
 }
 
 export interface StakingPosition {
@@ -35,6 +45,30 @@ export interface StakingPosition {
     }
 }
 
+export interface TokenInfo {
+    address: `0x${string}`
+    name: string
+    symbol: string
+    decimals: number
+}
+
+export interface StakingProviderMetadata {
+    chainName: string
+    evmChainID?: number
+    customChainIdByImua: number
+    portalContract: {
+        name: string
+        address: `0x${string}` | null
+    }
+}
+
+export interface StakingContext {
+    isConnected: boolean
+    isLoading: boolean
+    isStakingEnabled: boolean;
+    whitelistedTokens: TokenInfo[];
+}
+
 export interface StakingProvider {
   // Core staking operations
   stake: (amount: bigint, vaultAddress: `0x${string}`, operatorAddress?: string, options?: TxHandlerOptions) => Promise<`0x${string}`>;
@@ -44,11 +78,16 @@ export interface StakingProvider {
   // Fee estimation
   getQuote: (operation: OperationType) => Promise<bigint>;
 
+  // core data
+  isWalletConnected: boolean;
+  isStakingEnabled: boolean;
+  stakerBalance: StakerBalance | undefined;
+  walletBalance: WalletBalance | undefined;
+  vaultAddress: string | undefined;
+  metadata?: StakingProviderMetadata;
+
   // functions that may not be supported by all staking providers
   deposit?: (amount: bigint, options?: TxHandlerOptions) => Promise<`0x${string}`>;
   depositAndDelegate?: (amount: bigint, operator: string, options?: TxHandlerOptions) => Promise<`0x${string}`>;
   claimPrincipal?: (amount: bigint, options?: TxHandlerOptions) => Promise<`0x${string}`>;
-
-  // Additional helpers specific to this staking mechanism
-  [key: string]: any;
 }

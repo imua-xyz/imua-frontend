@@ -1,12 +1,40 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useBalance } from 'wagmi'
 import { useClientChainGateway } from './useClientChainGateway'
 import { maxUint256, getContract, erc20Abi } from 'viem'
 import { useTxUtils } from './useTxUtils'
-import { TxHandlerOptions, TxStatus, StakingProvider } from '@/types/staking'
+import { TxHandlerOptions, TxStatus, StakingProvider, StakerBalance, WalletBalance } from '@/types/staking'
+import { useAssetsPrecompile } from './useAssetsPrecompile'
+import { useVault } from './useVault'
+import { getMetadataByEvmChainID } from '@/config/stakingPortals'
 
-export function useLSTStakingProvider(token: `0x${string}`): StakingProvider {
-  const { contract, publicClient, walletClient, userAddress, getQuote } = useClientChainGateway()
+export function useLSTStakingProvider(token: `0x${string}` | undefined): StakingProvider {
+  const { contract, publicClient, walletClient, userAddress, chainId, getQuote, isConnected, getVaultAddress } = useClientChainGateway()
+  const metadata = getMetadataByEvmChainID(chainId as number)
+  const lzEndpointIdOrCustomChainId = metadata?.customChainIdByImua
+  
+  const vaultAddressQuery = useQuery({
+    queryKey: ['vaultAddress', token],
+    queryFn: () => getVaultAddress(token),
+    enabled: !!token && !!getVaultAddress
+  })
+  const vaultAddress = vaultAddressQuery.data
+  const isClientChainGatewayAvailable = contract ? true : false
+  const isStakingEnabled = isClientChainGatewayAvailable && !!vaultAddress && !!metadata && !!lzEndpointIdOrCustomChainId
+
   const { handleEVMTxWithStatus } = useTxUtils()
+  const { getStakerBalanceByToken } = useAssetsPrecompile()
+  const { data } = useBalance({address: userAddress, token: token})
+  const walletBalance = {
+    customClientChainID: lzEndpointIdOrCustomChainId || 0,
+    stakerAddress: userAddress as `0x${string}`,
+    tokenID: token,
+    value: data?.value || BigInt(0),
+    decimals: data?.decimals || 0,
+    symbol: data?.symbol || ''
+  }
+  const {withdrawableAmount: withdrawableAmountFromVault} = useVault(vaultAddress)
 
   const handleDeposit = useCallback(async (
     amount: bigint,
@@ -99,21 +127,22 @@ export function useLSTStakingProvider(token: `0x${string}`): StakingProvider {
 
     try {
       // Create token contract instance
-      const tokenContract = getContract({
+      const tokenContract = token?getContract({
         address: token,
         abi: erc20Abi,
         client: {
           public: publicClient,
           wallet: walletClient
         }
-      })
+      }): undefined
 
       // Check allowance using token contract
       const currentAllowance = await tokenContract?.read.allowance([userAddress as `0x${string}`, vaultAddress])
       if (currentAllowance && currentAllowance < amount) {
         options?.onStatus?.('approving')
         const approvalHash = await tokenContract?.write.approve([vaultAddress, maxUint256])
-        
+        if (!approvalHash) throw new Error('Failed to approve token')
+
         await publicClient.waitForTransactionReceipt({ 
           hash: approvalHash,
           timeout: 30_000
@@ -133,6 +162,27 @@ export function useLSTStakingProvider(token: `0x${string}`): StakingProvider {
     }
   }, [contract, publicClient, token, handleDeposit, handleDepositAndDelegate])
 
+  const stakerBalance = useQuery({
+    queryKey: ['stakerBalance', chainId, userAddress, token],
+    queryFn: async (): Promise<StakerBalance | undefined> => {
+      const {success, stakerBalanceResponse} = await getStakerBalanceByToken(userAddress as `0x${string}`, lzEndpointIdOrCustomChainId, token)
+      if (!success || !stakerBalanceResponse) return undefined
+      return {
+        clientChainID: stakerBalanceResponse.clientChainID,
+        stakerAddress: stakerBalanceResponse.stakerAddress,
+        tokenID: stakerBalanceResponse.tokenID,
+        totalBalance: stakerBalanceResponse.balance,
+        claimable: stakerBalanceResponse.withdrawable,
+        withdrawable: withdrawableAmountFromVault || BigInt(0),
+        delegated: stakerBalanceResponse.delegated,
+        pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
+        totalDeposited: stakerBalanceResponse.totalDeposited
+      }
+    },
+    refetchInterval: 30000,
+    enabled: !!userAddress && !!chainId && !!token
+  })
+
   return {
     deposit: handleDeposit,
     depositAndDelegate: handleDepositAndDelegate,
@@ -141,6 +191,12 @@ export function useLSTStakingProvider(token: `0x${string}`): StakingProvider {
     claimPrincipal: handleClaimPrincipal,
     withdrawPrincipal: handleWithdrawPrincipal,
     stake: handleStakeWithApproval,
-    getQuote: getQuote
+    getQuote: getQuote,
+    stakerBalance: stakerBalance?.data,
+    walletBalance: walletBalance,
+    isWalletConnected: isConnected,
+    isStakingEnabled: isStakingEnabled,
+    vaultAddress: vaultAddress,
+    metadata: metadata
   }
 } 

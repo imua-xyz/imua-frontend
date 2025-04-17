@@ -2,7 +2,7 @@
 
 import { useAccount, useChainId, useWalletClient, usePublicClient } from 'wagmi';
 import { getContract } from 'viem';
-import { CONTRACTS } from '@/config/contracts';
+import { getPortalContractByEvmChainID } from '@/config/stakingPortals';
 
 /**
  * Hook for interacting with the UTXOGateway contract
@@ -14,22 +14,19 @@ export function useUTXOGateway() {
   const publicClient = usePublicClient();
   
   // Get contract address for current chain
-  const contractAddress = CONTRACTS.UTXOGateway.address["imuachain_testnet"] as `0x${string}`
+  const portalContract = getPortalContractByEvmChainID(chainId as number)
+  const contractAddress = portalContract && portalContract.name === 'UTXOGateway' ? portalContract.address : null
+  const contractAbi = portalContract && portalContract.name === 'UTXOGateway' ? portalContract.abi : null
+  const isUTXOGatewayAvailable = contractAddress ? true : false
   
   // Create contract instance if we have the necessary dependencies
-  const contract = contractAddress && walletClient && publicClient
+  const contract = contractAddress && contractAbi && walletClient && publicClient
     ? getContract({
         address: contractAddress,
-        abi: CONTRACTS.UTXOGateway.abi,
+        abi: contractAbi,
         client: { public: publicClient, wallet: walletClient },
       })
     : null;
-  
-  // Check if contract is available on the current chain
-  const isContractAvailable = !!contractAddress;
-  
-  // Check if the user is connected to a supported chain
-  const isChainSupported = isContractAvailable;
   
   return {
     contract,
@@ -38,7 +35,6 @@ export function useUTXOGateway() {
     contractAddress,
     userAddress,
     chainId,
-    isContractAvailable,
-    isChainSupported
+    isUTXOGatewayAvailable
   };
 } 

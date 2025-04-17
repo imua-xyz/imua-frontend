@@ -9,34 +9,22 @@ import { formatUnits } from 'viem'
 interface DelegateTabProps {
   stakingProvider: StakingProvider
   selectedToken: `0x${string}`
-  balance: {
-    value: bigint
-    formatted: string
-    symbol: string
-    decimals: number
-  } | undefined
-  position?: {
-    claimableBalance: bigint
-  }
   onStatusChange?: (status: TxStatus, error?: string) => void
 }
 
 export function DelegateTab({ 
   stakingProvider, 
   selectedToken, 
-  balance,
-  position,
   onStatusChange 
 }: DelegateTabProps) {
+  const maxAmount = stakingProvider.stakerBalance?.withdrawable || BigInt(0)
+  const decimals = stakingProvider.walletBalance?.decimals || 0
   const {
     amount,
     parsedAmount,
     error: amountError,
     setAmount
-  } = useAmountInput({
-    decimals: balance?.decimals || 18,
-    maxAmount: position?.claimableBalance
-  })
+  } = useAmountInput({decimals: decimals, maxAmount: maxAmount})
   
   const [operatorAddress, setOperatorAddress] = useState('')
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null)
@@ -72,7 +60,7 @@ export function DelegateTab({
       />
       <Input
         type="text"
-        placeholder={`Amount (max: ${position?.claimableBalance ? formatUnits(position.claimableBalance, balance?.decimals || 18) : '0'} ${balance?.symbol || ''})`}
+        placeholder={`Amount (max: ${maxAmount ? formatUnits(maxAmount, decimals) : '0'} ${stakingProvider.walletBalance?.symbol || ''})`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />

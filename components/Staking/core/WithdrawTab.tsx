@@ -7,34 +7,25 @@ import { formatUnits } from 'ethers'
 
 interface WithdrawTabProps {
   stakingProvider: StakingProvider
-  balance: {
-    value: bigint
-    formatted: string
-    symbol: string
-    decimals: number
-  } | undefined
-  position: {
-    claimableBalance: bigint
-  } | undefined
-  withdrawableAmount: bigint
   onStatusChange?: (status: TxStatus, error?: string) => void
 }
 
 export function WithdrawTab({ 
   stakingProvider, 
-  balance, 
-  position,
-  withdrawableAmount,
   onStatusChange 
 }: WithdrawTabProps) {
+  const decimals = stakingProvider.walletBalance?.decimals || 0
+  const maxClaimAmount = stakingProvider.stakerBalance?.claimable || BigInt(0)
+  const maxWithdrawAmount = stakingProvider.stakerBalance?.withdrawable || BigInt(0)
+
   const {
     amount: claimAmount,
     parsedAmount: parsedClaimAmount,
     error: claimAmountError,
     setAmount: setClaimAmount
   } = useAmountInput({
-    decimals: balance?.decimals || 18,
-    maxAmount: position?.claimableBalance // Max for claim is claimable balance
+    decimals: decimals,
+    maxAmount: maxClaimAmount
   })
 
   const {
@@ -43,8 +34,8 @@ export function WithdrawTab({
     error: withdrawAmountError,
     setAmount: setWithdrawAmount
   } = useAmountInput({
-    decimals: balance?.decimals || 18,
-    maxAmount: withdrawableAmount // Max for withdraw is withdrawable amount
+    decimals: decimals,
+    maxAmount: maxWithdrawAmount
   })
 
   const [recipientAddress, setRecipientAddress] = useState('')
@@ -84,7 +75,7 @@ export function WithdrawTab({
           <div>
             <Input
               type="text"
-              placeholder={`Claim amount (max: ${position?.claimableBalance ? formatUnits(position.claimableBalance, balance?.decimals || 18) : '0'} ${balance?.symbol || ''})`}
+              placeholder={`Claim amount (max: ${maxClaimAmount ? formatUnits(maxClaimAmount, decimals) : '0'} ${stakingProvider.walletBalance?.symbol || ''})`}
               value={claimAmount}
               onChange={(e) => setClaimAmount(e.target.value)}
             />
@@ -122,7 +113,7 @@ export function WithdrawTab({
       <div className="space-y-2">
         <Input
           type="text"
-          placeholder={`Withdraw Amount (max: ${formatUnits(withdrawableAmount, balance?.decimals || 18)} ${balance?.symbol || ''})`}
+          placeholder={`Withdraw Amount (max: ${maxWithdrawAmount ? formatUnits(maxWithdrawAmount, decimals) : '0'} ${stakingProvider.walletBalance?.symbol || ''})`}
           value={withdrawAmount}
           onChange={(e) => setWithdrawAmount(e.target.value)}
         />

@@ -1,12 +1,22 @@
-import { useChainId, useWalletClient } from 'wagmi'
+import { useCallback } from 'react'
+import { useChainId } from 'wagmi'
 import { getContract } from 'viem'
 import IAssetsABI from '@/abi/IAssets.abi.json'
 import { imua, publicClients } from '@/config/wagmi'
-import { StakerBalance } from '@/types/staking'
 import { encodePacked } from 'viem'
 
 // Address of the IAssets precompile contract
 export const ASSETS_PRECOMPILE_ADDRESS = '0x0000000000000000000000000000000000000804'
+interface StakerBalanceResponse {
+  clientChainID: number
+  stakerAddress: `0x${string}`
+  tokenID: `0x${string}`
+  balance: bigint
+  withdrawable: bigint
+  delegated: bigint
+  pendingUndelegated: bigint
+  totalDeposited: bigint
+}
 
 export function useAssetsPrecompile() {
   const chainId = useChainId()
@@ -25,12 +35,12 @@ export function useAssetsPrecompile() {
   })
 
   // Helper method to get staker balance
-  const getStakerBalanceByToken = async (
-    endpointId: number,
+  const getStakerBalanceByToken = useCallback(async (
     userAddress: `0x${string}`,
-    tokenAddress: `0x${string}`
-  ): Promise<{ success: boolean, stakerBalance?: StakerBalance }> => {
-    if (!contract) return { success: false }
+    endpointId?: number,
+    tokenAddress?: `0x${string}`
+  ): Promise<{ success: boolean, stakerBalanceResponse?: StakerBalanceResponse }> => {
+    if (!contract || !tokenAddress || !userAddress || !endpointId) return { success: false }
     
     try {
       // Use the contract instance to call the method
@@ -38,17 +48,17 @@ export function useAssetsPrecompile() {
         endpointId,
         encodePacked(['address'], [userAddress]),
         encodePacked(['address'], [tokenAddress])
-      ]) as [boolean, StakerBalance]
+      ]) as [boolean, StakerBalanceResponse]
       
       return { 
         success: result[0],
-        stakerBalance: result[1]
+        stakerBalanceResponse: result[1]
       }
     } catch (error) {
       console.error(`Failed to read staker balance for ${tokenAddress} at endpoint ${endpointId}:`, error)
       return { success: false }
     }
-  }
+  }, [contract])
 
   return {
     contract,

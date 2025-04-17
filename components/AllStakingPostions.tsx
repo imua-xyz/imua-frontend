@@ -1,13 +1,13 @@
-import { StakingPosition } from '@/types/staking'
 import { formatUnits } from 'viem'
+import { useStakingPositions } from '@/hooks/useStakingPositions'
+import { useAccount } from 'wagmi'
+import { getCustomChainIdByEvmChainID } from '@/config/stakingPortals'
 
-interface StakingPositionsProps {
-  positions?: StakingPosition[]
-  isLoading?: boolean
-  error?: Error | null
-}
+export function AllStakingPositions() {
+  const { chainId, address } = useAccount()
+  const customChainId = getCustomChainIdByEvmChainID(chainId as number)
+  const { positions, isLoading, error } = useStakingPositions(address as `0x${string}`, customChainId as number)
 
-export function AllStakingPositions({ positions, isLoading, error }: StakingPositionsProps) {
   if (isLoading) {
     return (
       <div className="text-gray-500 text-center py-4">

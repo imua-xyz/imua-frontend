@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useAccount, usePublicClient } from 'wagmi';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAccount } from 'wagmi';
 import { encodePacked } from 'viem';
-import { XRP_VAULT_ADDRESS } from '@/config/xrp';
 import { useUTXOGateway } from './useUTXOGateway';
 import { useXrplClient } from './useXrplClient';
 import { useAssetsPrecompile } from './useAssetsPrecompile';
 import { useGemWallet } from './useGemWallet';
 import { useTxUtils } from './useTxUtils';
-import { TxHandlerOptions, StakerBalance, StakingProvider } from '@/types/staking';
-import { XRP_CHAIN_ID, XRP_TOKEN_ENUM, XRP_TOKEN_ADDRESS } from '@/config/xrp';
+import { TxHandlerOptions, StakerBalance, StakingProvider, WalletBalance } from '@/types/staking';
+import { XRP_CHAIN_ID, XRP_TOKEN_ENUM, XRP_TOKEN_ADDRESS, XRP_VAULT_ADDRESS } from '@/config/xrp';
+import { getMetadataByEvmChainID } from '@/config/stakingPortals';
+import { getMetadataByCustomChainID } from '@/config/stakingPortals';
 
 // Helper function to generate a random destination tag
 const generateDestinationTag = (): number => {
@@ -20,35 +22,71 @@ const generateDestinationTag = (): number => {
 export function useXrpStakingProvider(): StakingProvider {
   const { address: evmAddress } = useAccount();
   const { isConnected: isGemWalletConnected, userAddress: xrpAddress, sendTransaction } = useGemWallet();
+  const metadata = getMetadataByEvmChainID(XRP_CHAIN_ID)
   
   const xrplClient = useXrplClient();
 
-  const { contract, isContractAvailable } = useUTXOGateway();
+  const { contract, isUTXOGatewayAvailable } = useUTXOGateway();
   const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { handleEVMTxWithStatus, handleXrplTxWithStatus } = useTxUtils();
+
+  const isStakingEnabled = isUTXOGatewayAvailable && !!metadata
   
   // Fetch staking position
-  const getStakerXrpBalance = useCallback(async () : Promise<{ success: boolean, stakerBalance?: StakerBalance }> => {
-    if (!xrpAddress || !isContractAvailable) return { success: false };
-    
-    try {
-      // First get binded evm address for the xrp address
-      const bindedEvmAddress = await contract?.read.getImuachainAddress([XRP_CHAIN_ID, xrpAddress]);
-      if (!bindedEvmAddress) return { success: false };
+  const stakerBalance = isStakingEnabled ? useQuery({
+    queryKey: ['stakerBalance', xrpAddress],
+    queryFn: async () : Promise<StakerBalance | undefined> => {
+      if (!xrpAddress || !contract) return undefined;
       
-      // Get staker balance from Assets Precompile
-      const { success, stakerBalance } = await getStakerBalanceByToken(
-        XRP_CHAIN_ID,
-        bindedEvmAddress as `0x${string}`,
-        XRP_TOKEN_ADDRESS
-      );
-      
-      return success && stakerBalance ? { success: true, stakerBalance } : { success: false };
-    } catch (error) {
-      console.error('Error fetching staking position:', error);
-      return { success: false };
-    }
-  }, [xrpAddress, contract, getStakerBalanceByToken, isContractAvailable]);
+      try {
+        // First get binded evm address for the xrp address
+        const bindedEvmAddress = await contract?.read.getImuachainAddress([XRP_CHAIN_ID, xrpAddress]);
+        if (!bindedEvmAddress) return undefined;
+        
+        // Get staker balance from Assets Precompile
+        const { success, stakerBalanceResponse } = await getStakerBalanceByToken(
+          bindedEvmAddress as `0x${string}`,
+          XRP_CHAIN_ID,
+          XRP_TOKEN_ADDRESS
+        );
+        
+        if (!success || !stakerBalanceResponse) return undefined;
+        return {
+          clientChainID: stakerBalanceResponse.clientChainID,
+          stakerAddress: stakerBalanceResponse.stakerAddress,
+          tokenID: stakerBalanceResponse.tokenID,
+          totalBalance: stakerBalanceResponse.balance,
+          withdrawable: stakerBalanceResponse.withdrawable,
+          delegated: stakerBalanceResponse.delegated,
+          pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
+          totalDeposited: stakerBalanceResponse.totalDeposited
+        }
+      } catch (error) {
+        console.error('Error fetching staking position:', error);
+        return undefined;
+      }
+    },
+    refetchInterval: 30000,
+    enabled: !!xrpAddress && !!contract
+  }) : undefined
+
+  const walletBalance = useQuery({
+    queryKey: ['walletBalance', xrpAddress],
+    queryFn: async () : Promise<WalletBalance | undefined> => {
+      if (!xrpAddress || !xrplClient) return undefined;
+      const accountInfo = await xrplClient.getAccountInfo(xrpAddress);
+      if (!accountInfo.success) return undefined;
+      return {
+        customClientChainID: XRP_CHAIN_ID,
+        stakerAddress: xrpAddress,
+        tokenID: XRP_TOKEN_ADDRESS,
+        value: accountInfo.data?.balance || BigInt(0),
+        decimals: 6,
+        symbol: "XRP"
+      }
+    },
+    enabled: !!xrpAddress && !!xrplClient
+  })
 
   // Stake XRP
   const stakeXrp = useCallback(async (
@@ -145,6 +183,12 @@ export function useXrpStakingProvider(): StakingProvider {
     delegateTo: delegateXrp,
     undelegateFrom: undelegateXrp,
     withdrawPrincipal: withdrawXrp,
-    getQuote
+    getQuote,
+    stakerBalance: stakerBalance?.data,
+    walletBalance: walletBalance.data,
+    isWalletConnected: isGemWalletConnected,
+    isStakingEnabled: isStakingEnabled,
+    vaultAddress: XRP_VAULT_ADDRESS,
+    metadata: metadata
   };
 }

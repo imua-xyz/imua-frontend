@@ -1,26 +1,22 @@
 "use client"
 
-import { useReadContract, useReadContracts, useChainId } from 'wagmi'
-import { CONTRACTS } from '@/config/contracts'
-import { erc20Abi, Abi } from 'viem'
-import { CHAIN_ID_TO_NAME } from '@/config/wagmi'
-import { VIRTUAL_TOKEN } from '@/config/constants'
-
-interface TokenInfo {
-  address: `0x${string}`
-  name: string
-  symbol: string
-  decimals: number
-}
+import { useReadContract, useReadContracts, useAccount } from 'wagmi'
+import { TokenInfo } from '@/types/staking'
+import { getPortalContractByEvmChainID } from '@/config/stakingPortals'
+import { erc20Abi } from 'viem'
+const VIRTUAL_TOKEN = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as `0x${string}` 
 
 export function useWhitelistedTokens() {
-  const chainId = useChainId()
-  const contractAddress = chainId ? CONTRACTS.CLIENT_CHAIN_GATEWAY.address[CHAIN_ID_TO_NAME[chainId as keyof typeof CHAIN_ID_TO_NAME]] : undefined
+  const {isConnected, chainId} = useAccount()
+  const portalContract = getPortalContractByEvmChainID(chainId as number)
+
+  const contractAddress = portalContract && portalContract.name === 'ClientChainGateway' ? portalContract.address : null
+  const contractAbi = portalContract && portalContract.name === 'ClientChainGateway' ? portalContract.abi : null
 
   // Get token count
   const { data: countData, isLoading: countLoading } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
+    abi: contractAbi,
     functionName: 'getWhitelistedTokensCount',
   })
 
@@ -28,7 +24,7 @@ export function useWhitelistedTokens() {
   const { data: tokenAddresses, isLoading: addressesLoading } = useReadContracts({
     contracts: countData ? Array.from({ length: Number(countData) }, (_, i) => ({
       address: contractAddress as `0x${string}`,
-      abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi as Abi,
+      abi: contractAbi,
       functionName: 'whitelistTokens',
       args: [BigInt(i)]
     })) : []
@@ -91,6 +87,5 @@ export function useWhitelistedTokens() {
     }
   })
 
-  console.log('DEBUG: All tokens:', tokens)
-  return { tokens, isLoading: false }
+  return { isConnected, tokens, isLoading: false }
 } 

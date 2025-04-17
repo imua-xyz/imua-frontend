@@ -1,15 +1,10 @@
 import { truncateAddress } from '@/utils/format'
 import { formatUnits } from 'viem'
+import { StakingProvider } from '@/types/staking'
 
 interface TokenInfoProps {
+  stakingProvider: StakingProvider
   token: `0x${string}`
-  vaultAddress: `0x${string}` | undefined
-  balance: {
-    formatted: string
-    symbol: string
-    decimals: number
-  } | undefined
-  withdrawableAmount: bigint
   relayFee: bigint
 }
 
@@ -46,8 +41,8 @@ function InfoRow({ label, value, isLink, fullAddress, tooltip }: InfoRowProps) {
   )
 }
 
-export function TokenInfo({ token, vaultAddress, balance, withdrawableAmount, relayFee }: TokenInfoProps) {
-  if (!token || !vaultAddress) {
+export function TokenInfo({ stakingProvider, token, relayFee }: TokenInfoProps) {
+  if (!token || !stakingProvider) {
     return null
   }
 
@@ -63,28 +58,28 @@ export function TokenInfo({ token, vaultAddress, balance, withdrawableAmount, re
         />
         <InfoRow 
           label="Vault Address" 
-          value={truncateAddress(vaultAddress)}
-          fullAddress={vaultAddress}
+          value={truncateAddress(stakingProvider.vaultAddress as `0x${string}`)}
+          fullAddress={stakingProvider.vaultAddress as `0x${string}`}
           isLink 
           tooltip="Token vault contract that holds your deposits"
         />
-        {balance && (
+        {stakingProvider.walletBalance && (
           <>
             <InfoRow 
               label="Symbol" 
-              value={balance.symbol} 
+              value={stakingProvider.walletBalance.symbol} 
             />
             <InfoRow 
               label="Decimals" 
-              value={String(balance.decimals)} 
+              value={String(stakingProvider.walletBalance.decimals)} 
             />
             <InfoRow 
               label="Balance" 
-              value={`${balance.formatted} ${balance.symbol}`} 
+              value={`${formatUnits(stakingProvider.walletBalance.value, stakingProvider.walletBalance.decimals)} ${stakingProvider.walletBalance.symbol}`} 
             />
             <InfoRow 
               label="Withdrawable" 
-              value={`${formatUnits(withdrawableAmount, balance.decimals)} ${balance.symbol}`} 
+              value={`${formatUnits(stakingProvider.stakerBalance?.withdrawable || BigInt(0), stakingProvider.walletBalance.decimals)} ${stakingProvider.walletBalance.symbol}`} 
             />
           </>
         )}

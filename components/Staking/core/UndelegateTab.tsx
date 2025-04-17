@@ -9,33 +9,24 @@ import { formatUnits } from 'viem'
 interface UndelegateTabProps {
   stakingProvider: StakingProvider
   selectedToken: `0x${string}`
-  balance: {
-    value: bigint
-    formatted: string
-    symbol: string
-    decimals: number
-  } | undefined
-  position?: {
-    delegatedBalance: bigint
-  }
   onStatusChange?: (status: TxStatus, error?: string) => void
 }
 
 export function UndelegateTab({ 
   stakingProvider, 
   selectedToken, 
-  balance,
-  position,
   onStatusChange 
 }: UndelegateTabProps) {
+  const decimals = stakingProvider.walletBalance?.decimals || 0
+  const maxAmount = stakingProvider.stakerBalance?.delegated || BigInt(0)
   const {
     amount,
     parsedAmount,
     error: amountError,
     setAmount
   } = useAmountInput({
-    decimals: balance?.decimals || 18,
-    maxAmount: position?.delegatedBalance
+    decimals: decimals,
+    maxAmount: maxAmount
   })
   
   const [operatorAddress, setOperatorAddress] = useState('')
@@ -72,7 +63,7 @@ export function UndelegateTab({
       />
       <Input
         type="text"
-        placeholder={`Amount (max: ${position?.delegatedBalance ? formatUnits(position.delegatedBalance, balance?.decimals || 18) : '0'} ${balance?.symbol || ''})`}
+        placeholder={`Amount (max: ${maxAmount ? formatUnits(maxAmount, decimals) : '0'} ${stakingProvider.walletBalance?.symbol || ''})`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />

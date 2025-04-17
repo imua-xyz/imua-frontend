@@ -4,17 +4,10 @@ import { Input } from '@/components/ui/input'
 import { useAmountInput } from '@/hooks/useAmountInput'
 import { OperatorSelector } from './OperatorSelector'
 import { StakingProvider, TxStatus } from '@/types/staking'
-
+import { formatUnits } from 'viem'
 interface StakeTabProps {
   stakingProvider: StakingProvider
   selectedToken: `0x${string}`
-  vaultAddress: `0x${string}`
-  balance: {
-    value: bigint
-    formatted: string
-    symbol: string
-    decimals: number
-  } | undefined
   onStatusChange?: (status: TxStatus, error?: string) => void
   onOperatorAddressChange: (hasOperator: boolean) => void
 }
@@ -22,19 +15,19 @@ interface StakeTabProps {
 export function StakeTab({ 
   stakingProvider, 
   selectedToken,
-  vaultAddress,
-  balance,
   onStatusChange,
   onOperatorAddressChange 
 }: StakeTabProps) {
+  const maxAmount = stakingProvider.walletBalance?.value || BigInt(0)
+  const decimals = stakingProvider.walletBalance?.decimals || 0
   const {
     amount,
     parsedAmount,
     error: amountError,
     setAmount
   } = useAmountInput({
-    decimals: balance?.decimals || 18,
-    maxAmount: balance?.value
+    decimals: decimals,
+    maxAmount: maxAmount
   })
 
   const [operatorAddress, setOperatorAddress] = useState('')
@@ -75,7 +68,7 @@ export function StakeTab({
     <div className="space-y-4">
       <Input
         type="text"
-        placeholder={`Amount (max: ${balance?.formatted || '0'} ${balance?.symbol || ''})`}
+        placeholder={`Amount (max: ${maxAmount ? formatUnits(maxAmount, decimals) : '0'} ${stakingProvider.walletBalance?.symbol || ''})`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />
@@ -109,7 +102,7 @@ export function StakeTab({
         onClick={() => handleOperation(
           () => stakingProvider.stake(
             parsedAmount,
-            vaultAddress,
+            stakingProvider.vaultAddress as `0x${string}`,
             operatorAddress || undefined,
             {
               onStatus: (status, error) => {

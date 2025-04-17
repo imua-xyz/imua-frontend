@@ -37,7 +37,7 @@ export interface StakerBalance {
   totalDeposited: bigint
 }
 
-export function useAllStakingPositions(userAddress: `0x${string}`, lzEndpointIdOrCustomChainId: number) {
+export function useStakingPositions(userAddress: `0x${string}`, lzEndpointIdOrCustomChainId: number): {positions: StakingPosition[], isLoading: boolean, error: Error | null} {
   // Get the assets precompile contract and its methods
   const { getStakerBalanceByToken } = useAssetsPrecompile()
   
@@ -47,7 +47,7 @@ export function useAllStakingPositions(userAddress: `0x${string}`, lzEndpointIdO
     : undefined
 
   const allPositions = useQuery({
-    queryKey: ['stakingPosition', stakerId],
+    queryKey: ['allStakingPositions', stakerId],
     queryFn: async (): Promise<StakingPosition[]> => {
       if (!stakerId) {
         throw new Error('Invalid staker ID: Missing address or endpoint ID')
@@ -69,9 +69,9 @@ export function useAllStakingPositions(userAddress: `0x${string}`, lzEndpointIdO
           const tokenLzEndpointId = parseInt(hexLzEndpointId, 16)
 
           // Fetch staker balance using the hook method
-          const { success, stakerBalance } = await getStakerBalanceByToken(
-            tokenLzEndpointId,
+          const { success, stakerBalanceResponse } = await getStakerBalanceByToken(
             userAddress,
+            tokenLzEndpointId,
             tokenAddress
           )
 
@@ -87,7 +87,7 @@ export function useAllStakingPositions(userAddress: `0x${string}`, lzEndpointIdO
             lzEndpointIdOrCustomChainId: tokenLzEndpointId,
             totalBalance: BigInt(asset.info.total_deposit_amount),
             claimableBalance: BigInt(asset.info.withdrawable_amount),
-            delegatedBalance: stakerBalance?.delegated || BigInt(0),
+            delegatedBalance: stakerBalanceResponse?.delegated || BigInt(0),
             pendingUndelegatedBalance: BigInt(asset.info.pending_undelegation_amount),
             metadata: {
               name: metadataData.asset_basic_info.name,
@@ -107,17 +107,9 @@ export function useAllStakingPositions(userAddress: `0x${string}`, lzEndpointIdO
     enabled: !!userAddress && !!lzEndpointIdOrCustomChainId,
   })
 
-  const getPosition = useCallback((tokenAddress?: `0x${string}`) => {
-    if (!allPositions.data || !tokenAddress) return null;
-    
-    return allPositions.data.find(
-      position => position.tokenAddress.toLowerCase() === tokenAddress.toLowerCase() &&
-                 position.lzEndpointIdOrCustomChainId === lzEndpointIdOrCustomChainId
-    ) || null;
-  }, [allPositions.data, lzEndpointIdOrCustomChainId]);
-
   return {
-    allPositions,
-    getPosition
-  };
+    positions: allPositions.data || [],
+    isLoading: allPositions.isLoading,
+    error: allPositions.error
+  }
 } 
