@@ -19,7 +19,7 @@ This document outlines the technical specifications for implementing XRP staking
 
 - **Route**: `/xrp-staking`
 - **Layout**: Similar to existing LST staking pages with tabs
-- **Components**: 
+- **Components**:
   - XRP wallet connection
   - EVM wallet connection (for delegation and withdrawal)
   - Tab-based interface for different staking operations
@@ -58,7 +58,8 @@ This document outlines the technical specifications for implementing XRP staking
 
 ### 3.4 Withdrawal Flow (Two-step)
 
-1. **Step 1 - Claim**: 
+1. **Step 1 - Claim**:
+
    - User connects EVM wallet
    - User initiates withdrawal via UTXOGateway.withdrawPrincipal()
    - Claim transaction is processed on Imuachain
@@ -220,6 +221,7 @@ The layout follows the existing LST staking page design:
 **Purpose**: Manages XUMM wallet connection and session
 
 **Returns**:
+
 ```typescript
 {
   xumm: XummSdk | null;
@@ -237,6 +239,7 @@ The layout follows the existing LST staking page design:
 **Purpose**: Manages EVM wallet connection for UTXOGateway interaction
 
 **Returns**:
+
 ```typescript
 {
   address: `0x${string}` | undefined;
@@ -252,16 +255,18 @@ The layout follows the existing LST staking page design:
 **Purpose**: Manages XRP staking operations
 
 **Key Functions**:
+
 - `stakeXrp(amount: string)`: Creates and signs XRP payment transaction
 - `trackTransaction(txid: string)`: Monitors transaction status
 
 **Returns**:
+
 ```typescript
 {
   stakeXrp: (amount: string) => Promise<TxResult>;
   trackTransaction: (txid: string) => Promise<TxStatus>;
   getStakingFee: () => Promise<string>;
-  transactionStatus: 'idle' | 'pending' | 'success' | 'error';
+  transactionStatus: "idle" | "pending" | "success" | "error";
 }
 ```
 
@@ -270,11 +275,13 @@ The layout follows the existing LST staking page design:
 **Purpose**: Interacts with UTXOGateway contract for delegation and withdrawal
 
 **Key Functions**:
+
 - `delegateTo(operator: string, amount: string)`: Delegates XRP to operator
 - `undelegateFrom(operator: string, amount: string)`: Undelegates XRP from operator
 - `withdrawPrincipal(amount: string)`: Initiates withdrawal process
 
 **Returns**:
+
 ```typescript
 {
   contract: Contract | null;
@@ -291,6 +298,7 @@ The layout follows the existing LST staking page design:
 **Purpose**: Fetches and manages user's XRP staking positions
 
 **Returns**:
+
 ```typescript
 {
   data: XrpStakingPosition | null;
@@ -304,127 +312,127 @@ The layout follows the existing LST staking page design:
 
 ```typescript
 // Implementation of useUTXOGateway hook
-import { useContractWrite, useContractRead, useAccount } from 'wagmi';
-import { parseUnits } from 'viem';
-import { UTXO_GATEWAY_ABI, UTXO_GATEWAY_ADDRESS } from '@/config/contracts';
+import { useContractWrite, useContractRead, useAccount } from "wagmi";
+import { parseUnits } from "viem";
+import { UTXO_GATEWAY_ABI, UTXO_GATEWAY_ADDRESS } from "@/config/contracts";
 
 export function useUTXOGateway() {
   const { address } = useAccount();
-  
+
   // Token enum value for XRP in the contract
   const XRP_TOKEN_ENUM = 2; // Assuming XRP is enum value 2 in the contract
-  
+
   // Delegate to an operator
-  const { 
+  const {
     writeAsync: delegateToAsync,
     isLoading: isDelegateLoading,
-    error: delegateError 
+    error: delegateError,
   } = useContractWrite({
     address: UTXO_GATEWAY_ADDRESS,
     abi: UTXO_GATEWAY_ABI,
-    functionName: 'delegateTo',
+    functionName: "delegateTo",
   });
-  
+
   // Undelegate from an operator
-  const { 
+  const {
     writeAsync: undelegateFromAsync,
     isLoading: isUndelegateLoading,
-    error: undelegateError 
+    error: undelegateError,
   } = useContractWrite({
     address: UTXO_GATEWAY_ADDRESS,
     abi: UTXO_GATEWAY_ABI,
-    functionName: 'undelegateFrom',
+    functionName: "undelegateFrom",
   });
-  
+
   // Withdraw principal
-  const { 
+  const {
     writeAsync: withdrawPrincipalAsync,
     isLoading: isWithdrawLoading,
-    error: withdrawError 
+    error: withdrawError,
   } = useContractWrite({
     address: UTXO_GATEWAY_ADDRESS,
     abi: UTXO_GATEWAY_ABI,
-    functionName: 'withdrawPrincipal',
+    functionName: "withdrawPrincipal",
   });
-  
+
   // Delegate XRP to an operator
   const delegateTo = async (operator: string, amount: string) => {
-    if (!address) throw new Error('Wallet not connected');
-    
+    if (!address) throw new Error("Wallet not connected");
+
     const amountInSmallestUnit = parseUnits(amount, 6); // XRP has 6 decimals
-    
+
     try {
       const tx = await delegateToAsync({
-        args: [XRP_TOKEN_ENUM, operator, amountInSmallestUnit]
+        args: [XRP_TOKEN_ENUM, operator, amountInSmallestUnit],
       });
-      
+
       return {
         success: true,
-        txHash: tx.hash
+        txHash: tx.hash,
       };
     } catch (error) {
-      console.error('Delegation failed:', error);
+      console.error("Delegation failed:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   };
-  
+
   // Undelegate XRP from an operator
   const undelegateFrom = async (operator: string, amount: string) => {
-    if (!address) throw new Error('Wallet not connected');
-    
+    if (!address) throw new Error("Wallet not connected");
+
     const amountInSmallestUnit = parseUnits(amount, 6);
-    
+
     try {
       const tx = await undelegateFromAsync({
-        args: [XRP_TOKEN_ENUM, operator, amountInSmallestUnit]
+        args: [XRP_TOKEN_ENUM, operator, amountInSmallestUnit],
       });
-      
+
       return {
         success: true,
-        txHash: tx.hash
+        txHash: tx.hash,
       };
     } catch (error) {
-      console.error('Undelegation failed:', error);
+      console.error("Undelegation failed:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   };
-  
+
   // Withdraw XRP principal
   const withdrawPrincipal = async (amount: string) => {
-    if (!address) throw new Error('Wallet not connected');
-    
+    if (!address) throw new Error("Wallet not connected");
+
     const amountInSmallestUnit = parseUnits(amount, 6);
-    
+
     try {
       const tx = await withdrawPrincipalAsync({
-        args: [XRP_TOKEN_ENUM, amountInSmallestUnit]
+        args: [XRP_TOKEN_ENUM, amountInSmallestUnit],
       });
-      
+
       return {
         success: true,
-        txHash: tx.hash
+        txHash: tx.hash,
       };
     } catch (error) {
-      console.error('Withdrawal failed:', error);
+      console.error("Withdrawal failed:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   };
-  
+
   return {
     delegateTo,
     undelegateFrom,
     withdrawPrincipal,
     isLoading: isDelegateLoading || isUndelegateLoading || isWithdrawLoading,
-    error: delegateError || undelegateError || withdrawError
+    error: delegateError || undelegateError || withdrawError,
   };
 }
 ```
@@ -515,99 +523,100 @@ export function useUTXOGateway() {
 
 ```typescript
 // contracts.ts
-export const UTXO_GATEWAY_ADDRESS = '0x1234567890123456789012345678901234567890'; // Replace with actual address
+export const UTXO_GATEWAY_ADDRESS =
+  "0x1234567890123456789012345678901234567890"; // Replace with actual address
 
 export const UTXO_GATEWAY_ABI = [
   // Functions used for XRP staking
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "enum Token",
-        "name": "token",
-        "type": "uint8"
+        internalType: "enum Token",
+        name: "token",
+        type: "uint8",
       },
       {
-        "internalType": "string",
-        "name": "operator",
-        "type": "string"
+        internalType: "string",
+        name: "operator",
+        type: "string",
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "delegateTo",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "delegateTo",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "enum Token",
-        "name": "token",
-        "type": "uint8"
+        internalType: "enum Token",
+        name: "token",
+        type: "uint8",
       },
       {
-        "internalType": "string",
-        "name": "operator",
-        "type": "string"
+        internalType: "string",
+        name: "operator",
+        type: "string",
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "undelegateFrom",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "undelegateFrom",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "enum Token",
-        "name": "token",
-        "type": "uint8"
+        internalType: "enum Token",
+        name: "token",
+        type: "uint8",
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "withdrawPrincipal",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "withdrawPrincipal",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   // Read functions
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "enum ClientChainID",
-        "name": "clientChainId",
-        "type": "uint8"
+        internalType: "enum ClientChainID",
+        name: "clientChainId",
+        type: "uint8",
       },
       {
-        "internalType": "address",
-        "name": "imuachainAddress",
-        "type": "address"
-      }
+        internalType: "address",
+        name: "imuachainAddress",
+        type: "address",
+      },
     ],
-    "name": "getClientAddress",
-    "outputs": [
+    name: "getClientAddress",
+    outputs: [
       {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
+        internalType: "bytes",
+        name: "",
+        type: "bytes",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function"
-  }
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 ```
 
@@ -620,13 +629,13 @@ The application needs to use the correct token enum value when interacting with 
 export enum Token {
   NONE = 0,
   BTC = 1,
-  XRP = 2  // Assuming XRP is enum value 2 in the contract
+  XRP = 2, // Assuming XRP is enum value 2 in the contract
 }
 
 export enum ClientChainID {
   NONE = 0,
   BITCOIN = 1,
-  XRP = 2  // Assuming XRP is enum value 2 in the contract
+  XRP = 2, // Assuming XRP is enum value 2 in the contract
 }
 ```
 
@@ -635,7 +644,7 @@ export enum ClientChainID {
 ### 9.1 XRPL API Integration
 
 - **Endpoint**: Public XRPL nodes or dedicated service
-- **Methods**: 
+- **Methods**:
   - `account_info`: Get XRP account details and balance
   - `tx`: Get transaction details and confirmation status
 
@@ -707,4 +716,4 @@ NEXT_PUBLIC_COSMOS_API_ENDPOINT=cosmos_api_url
 
 This specification outlines the implementation of XRP staking within the Exocore frontend, following the same structure and design patterns as the existing LST staking pages. By integrating XUMM wallet for initial staking and EVM wallets for delegation and withdrawal operations via the UTXOGateway contract, we create a seamless user experience that leverages the best of both XRPL and EVM ecosystems.
 
-The design maintains consistency with the existing Exocore frontend while accommodating the different technical requirements of XRP staking and its integration with the Imua network. This approach allows XRP holders to participate in the Imua staking ecosystem with a familiar and intuitive user interface. 
+The design maintains consistency with the existing Exocore frontend while accommodating the different technical requirements of XRP staking and its integration with the Imua network. This approach allows XRP holders to participate in the Imua staking ecosystem with a familiar and intuitive user interface.

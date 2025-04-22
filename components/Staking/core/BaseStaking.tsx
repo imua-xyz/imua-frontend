@@ -1,38 +1,46 @@
-import { useState } from 'react'
-import { StakingContext, StakingProvider, TxStatus } from '@/types/staking'
-import { TokenSelector } from './TokenSelector'
-import { TokenInfo } from './TokenInfo'
-import { StakingTabs } from './StakingTabs'
-import { getAvailableNetworks } from '@/config/stakingPortals'
+import { useState } from "react";
+import { StakingContext, StakingProvider, TxStatus } from "@/types/staking";
+import { TokenSelector } from "./TokenSelector";
+import { TokenInfo } from "./TokenInfo";
+import { StakingTabs } from "./StakingTabs";
+import { getAvailableNetworks } from "@/config/stakingPortals";
 
 interface BaseStakingProps {
-  selectedToken?: `0x${string}`
-  onTokenSelect: (token: `0x${string}`) => void
-  stakingContext: StakingContext
-  stakingProvider: StakingProvider
+  selectedToken?: `0x${string}`;
+  onTokenSelect: (token: `0x${string}`) => void;
+  stakingContext: StakingContext;
+  stakingProvider: StakingProvider;
 }
 
-export function BaseStaking({ selectedToken, onTokenSelect, stakingContext, stakingProvider }: BaseStakingProps) {
-  const [relayFee, setRelayFee] = useState<bigint>(BigInt(0))
+export function BaseStaking({
+  selectedToken,
+  onTokenSelect,
+  stakingContext,
+  stakingProvider,
+}: BaseStakingProps) {
+  const [relayFee, setRelayFee] = useState<bigint>(BigInt(0));
+  console.log("DEBUG: selectedToken", selectedToken);
+  console.log("DEBUG: is connected", stakingProvider.isWalletConnected);
+  console.log("DEBUG: is staking enabled", stakingProvider.isStakingEnabled);
 
   // Update relay fee when tab changes or operation type changes
-  const updateRelayFee = async (operationType: 'delegation' | 'asset') => {
-    if (!stakingProvider) return
-    const fee = await stakingProvider.getQuote(operationType)
-    setRelayFee(fee)
-  }
+  const updateRelayFee = async (operationType: "delegation" | "asset") => {
+    if (!stakingProvider) return;
+    const fee = await stakingProvider.getQuote(operationType);
+    setRelayFee(fee);
+  };
 
   // Handle transaction status changes
   const handleStatusChange = (status: TxStatus, error?: string) => {
-    console.log('Transaction status:', status, error)
-  }
+    console.log("Transaction status:", status, error);
+  };
 
   // Get available networks for display
-  const availableNetworks = getAvailableNetworks()
+  const availableNetworks = getAvailableNetworks();
 
   return (
     <div className="space-y-6">
-      <TokenSelector 
+      <TokenSelector
         selectedToken={selectedToken}
         onSelect={onTokenSelect}
         stakingContext={stakingContext}
@@ -60,7 +68,7 @@ export function BaseStaking({ selectedToken, onTokenSelect, stakingContext, stak
               </p>
               <div className="mt-2">
                 <ul className="list-disc pl-5 text-yellow-800">
-                  {availableNetworks.map(networkName => (
+                  {availableNetworks.map((networkName) => (
                     <li key={networkName}>{networkName}</li>
                   ))}
                 </ul>
@@ -71,24 +79,24 @@ export function BaseStaking({ selectedToken, onTokenSelect, stakingContext, stak
       )}
 
       {/* Staking UI when everything is enabled */}
-      {stakingProvider.isWalletConnected && 
-       stakingProvider.isStakingEnabled && 
-       selectedToken && (
-        <>
-          <TokenInfo
-            stakingProvider={stakingProvider}
-            token={selectedToken}
-            relayFee={relayFee}
-          />
+      {stakingProvider.isWalletConnected &&
+        stakingProvider.isStakingEnabled &&
+        selectedToken && (
+          <>
+            <TokenInfo
+              stakingProvider={stakingProvider}
+              token={selectedToken}
+              relayFee={relayFee}
+            />
 
-          <StakingTabs
-            stakingProvider={stakingProvider}
-            selectedToken={selectedToken}
-            onTabChange={updateRelayFee}
-            onStatusChange={handleStatusChange}
-          />
-        </>
-      )}
+            <StakingTabs
+              stakingProvider={stakingProvider}
+              selectedToken={selectedToken}
+              onTabChange={updateRelayFee}
+              onStatusChange={handleStatusChange}
+            />
+          </>
+        )}
     </div>
-  )
-} 
+  );
+}

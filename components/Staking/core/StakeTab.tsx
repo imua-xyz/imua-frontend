@@ -1,82 +1,78 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useAmountInput } from '@/hooks/useAmountInput'
-import { OperatorSelector } from './OperatorSelector'
-import { StakingProvider, TxStatus } from '@/types/staking'
-import { formatUnits } from 'viem'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAmountInput } from "@/hooks/useAmountInput";
+import { OperatorSelector } from "./OperatorSelector";
+import { StakingProvider, TxStatus } from "@/types/staking";
+import { formatUnits } from "viem";
 interface StakeTabProps {
-  stakingProvider: StakingProvider
-  selectedToken: `0x${string}`
-  onStatusChange?: (status: TxStatus, error?: string) => void
-  onOperatorAddressChange: (hasOperator: boolean) => void
+  stakingProvider: StakingProvider;
+  selectedToken: `0x${string}`;
+  onStatusChange?: (status: TxStatus, error?: string) => void;
+  onOperatorAddressChange: (hasOperator: boolean) => void;
 }
 
-export function StakeTab({ 
-  stakingProvider, 
+export function StakeTab({
+  stakingProvider,
   selectedToken,
   onStatusChange,
-  onOperatorAddressChange 
+  onOperatorAddressChange,
 }: StakeTabProps) {
-  const maxAmount = stakingProvider.walletBalance?.value || BigInt(0)
-  const decimals = stakingProvider.walletBalance?.decimals || 0
+  const maxAmount = stakingProvider.walletBalance?.value || BigInt(0);
+  const decimals = stakingProvider.walletBalance?.decimals || 0;
   const {
     amount,
     parsedAmount,
     error: amountError,
-    setAmount
+    setAmount,
   } = useAmountInput({
     decimals: decimals,
-    maxAmount: maxAmount
-  })
+    maxAmount: maxAmount,
+  });
 
-  const [operatorAddress, setOperatorAddress] = useState('')
-  const [txStatus, setTxStatus] = useState<TxStatus | null>(null)
-  const [txError, setTxError] = useState<string | null>(null)
+  const [operatorAddress, setOperatorAddress] = useState("");
+  const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
+  const [txError, setTxError] = useState<string | null>(null);
 
   const handleOperatorSelect = (address: string) => {
-    setOperatorAddress(address)
-    onOperatorAddressChange(!!address)
-  }
+    setOperatorAddress(address);
+    onOperatorAddressChange(!!address);
+  };
 
   const handleOperation = async (
     operation: () => Promise<`0x${string}`>,
-    options?: { requiresApproval?: boolean }
+    options?: { requiresApproval?: boolean },
   ) => {
-    setTxError(null)
-    setTxStatus(options?.requiresApproval ? 'approving' : 'processing')
+    setTxError(null);
+    setTxStatus(options?.requiresApproval ? "approving" : "processing");
 
     try {
-      await operation()
-      setTxStatus('success')
+      await operation();
+      setTxStatus("success");
       setTimeout(() => {
-        setTxStatus(null)
-        setTxError(null)
-      }, 3000)
+        setTxStatus(null);
+        setTxError(null);
+      }, 3000);
     } catch (error) {
-      console.error('Operation failed:', error)
-      setTxStatus('error')
-      setTxError(error instanceof Error ? error.message : 'Transaction failed')
+      console.error("Operation failed:", error);
+      setTxStatus("error");
+      setTxError(error instanceof Error ? error.message : "Transaction failed");
       setTimeout(() => {
-        setTxStatus(null)
-        setTxError(null)
-      }, 3000)
+        setTxStatus(null);
+        setTxError(null);
+      }, 3000);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
       <Input
         type="text"
-        placeholder={`Amount (max: ${maxAmount ? formatUnits(maxAmount, decimals) : '0'} ${stakingProvider.walletBalance?.symbol || ''})`}
+        placeholder={`Amount (max: ${maxAmount ? formatUnits(maxAmount, decimals) : "0"} ${stakingProvider.walletBalance?.symbol || ""})`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />
-      {amountError && (
-        <p className="text-sm text-red-600">
-          {amountError}
-        </p>
-      )}
+      {amountError && <p className="text-sm text-red-600">{amountError}</p>}
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <label className="text-sm text-gray-600">Operator (Optional)</label>
@@ -84,48 +80,59 @@ export function StakeTab({
             {operatorAddress ? "Will deposit & delegate" : "Will only deposit"}
           </span>
         </div>
-        <OperatorSelector 
+        <OperatorSelector
           onSelect={handleOperatorSelect}
           value={operatorAddress}
         />
       </div>
       <Button
         className="w-full"
-        variant={txStatus === 'success' ? 'secondary' : txStatus === 'error' ? 'destructive' : 'default'}
+        variant={
+          txStatus === "success"
+            ? "secondary"
+            : txStatus === "error"
+              ? "destructive"
+              : "default"
+        }
         disabled={
-          (!!txStatus && txStatus !== 'error') ||
+          (!!txStatus && txStatus !== "error") ||
           !!amountError ||
           !amount ||
           !selectedToken ||
           !stakingProvider
         }
-        onClick={() => handleOperation(
-          () => stakingProvider.stake(
-            parsedAmount,
-            stakingProvider.vaultAddress as `0x${string}`,
-            operatorAddress || undefined,
-            {
-              onStatus: (status, error) => {
-                setTxStatus(status)
-                if (error) setTxError(error)
-                onStatusChange?.(status, error)
-              }
-            }
-          ),
-          { requiresApproval: true }
-        )}
+        onClick={() =>
+          handleOperation(
+            () =>
+              stakingProvider.stake(
+                parsedAmount,
+                stakingProvider.vaultAddress as `0x${string}`,
+                operatorAddress || undefined,
+                {
+                  onStatus: (status, error) => {
+                    setTxStatus(status);
+                    if (error) setTxError(error);
+                    onStatusChange?.(status, error);
+                  },
+                },
+              ),
+            { requiresApproval: true },
+          )
+        }
       >
-        {txStatus === 'approving' ? 'Approving...' :
-         txStatus === 'processing' ? 'Processing...' :
-         txStatus === 'success' ? 'Success!' :
-         txStatus === 'error' ? 'Failed!' :
-         operatorAddress ? 'Stake' : 'Deposit'}
+        {txStatus === "approving"
+          ? "Approving..."
+          : txStatus === "processing"
+            ? "Processing..."
+            : txStatus === "success"
+              ? "Success!"
+              : txStatus === "error"
+                ? "Failed!"
+                : operatorAddress
+                  ? "Stake"
+                  : "Deposit"}
       </Button>
-      {txError && (
-        <p className="text-sm text-red-600 mt-2">
-          {txError}
-        </p>
-      )}
+      {txError && <p className="text-sm text-red-600 mt-2">{txError}</p>}
     </div>
-  )
-} 
+  );
+}

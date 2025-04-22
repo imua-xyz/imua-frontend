@@ -1,19 +1,22 @@
-import { formatUnits } from 'viem'
-import { useStakingPositions } from '@/hooks/useStakingPositions'
-import { useAccount } from 'wagmi'
-import { getCustomChainIdByEvmChainID } from '@/config/stakingPortals'
+import { formatUnits } from "viem";
+import { useStakingPositions } from "@/hooks/useStakingPositions";
+import { useAccount } from "wagmi";
+import { getCustomChainIdByEvmChainID } from "@/config/stakingPortals";
 
 export function AllStakingPositions() {
-  const { chainId, address } = useAccount()
-  const customChainId = getCustomChainIdByEvmChainID(chainId as number)
-  const { positions, isLoading, error } = useStakingPositions(address as `0x${string}`, customChainId as number)
+  const { chainId, address } = useAccount();
+  const customChainId = getCustomChainIdByEvmChainID(chainId as number);
+  const { positions, isLoading, error } = useStakingPositions(
+    address as `0x${string}`,
+    customChainId as number,
+  );
 
   if (isLoading) {
     return (
       <div className="text-gray-500 text-center py-4">
         Loading staking positions...
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -21,7 +24,7 @@ export function AllStakingPositions() {
       <div className="text-red-500 text-center py-4">
         Failed to load staking positions
       </div>
-    )
+    );
   }
 
   if (!positions?.length) {
@@ -29,7 +32,7 @@ export function AllStakingPositions() {
       <div className="text-gray-500 text-center py-4">
         No staking positions found
       </div>
-    )
+    );
   }
 
   return (
@@ -41,33 +44,35 @@ export function AllStakingPositions() {
             <h3 className="text-lg font-semibold">
               {position.metadata.name} ({position.metadata.symbol})
             </h3>
-            <p className="text-sm text-gray-600">{position.metadata.metaInfo}</p>
+            <p className="text-sm text-gray-600">
+              {position.metadata.metaInfo}
+            </p>
           </div>
 
           {/* Balance Information */}
           <div className="space-y-3">
-            <InfoRow 
-              label="Total Balance" 
+            <InfoRow
+              label="Total Balance"
               value={`${formatUnits(position.totalBalance, position.metadata.decimals)} ${position.metadata.symbol}`}
               tooltip="Total amount of tokens in the staking system"
             />
-            <InfoRow 
-              label="Claimable Balance" 
+            <InfoRow
+              label="Claimable Balance"
               value={`${formatUnits(position.claimableBalance, position.metadata.decimals)} ${position.metadata.symbol}`}
               tooltip="Amount available to withdraw"
             />
-            <InfoRow 
-              label="Delegated Balance" 
+            <InfoRow
+              label="Delegated Balance"
               value={`${formatUnits(position.delegatedBalance, position.metadata.decimals)} ${position.metadata.symbol}`}
               tooltip="Amount currently delegated to operators"
             />
-            <InfoRow 
-              label="Pending Undelegated" 
+            <InfoRow
+              label="Pending Undelegated"
               value={`${formatUnits(position.pendingUndelegatedBalance, position.metadata.decimals)} ${position.metadata.symbol}`}
               tooltip="Amount in the undelegation process"
             />
-            <InfoRow 
-              label="Total Staked in Protocol" 
+            <InfoRow
+              label="Total Staked in Protocol"
               value={`${formatUnits(position.metadata.totalStaked, position.metadata.decimals)} ${position.metadata.symbol}`}
               tooltip="Total amount staked by all users"
             />
@@ -76,24 +81,27 @@ export function AllStakingPositions() {
           {/* Additional Metadata */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
-              <p>LZ Endpoint ID or Custom Chain ID: {position.lzEndpointIdOrCustomChainId}</p>
+              <p>
+                LZ Endpoint ID or Custom Chain ID:{" "}
+                {position.lzEndpointIdOrCustomChainId}
+              </p>
               <p>Imua Chain Index: {position.metadata.imuaChainIndex}</p>
             </div>
           </div>
         </div>
       ))}
     </div>
-  )
+  );
 }
 
-function InfoRow({ 
-  label, 
+function InfoRow({
+  label,
   value,
-  tooltip 
-}: { 
-  label: string
-  value: string
-  tooltip?: string
+  tooltip,
+}: {
+  label: string;
+  value: string;
+  tooltip?: string;
 }) {
   return (
     <div className="flex justify-between items-center group relative">
@@ -105,5 +113,5 @@ function InfoRow({
         </div>
       )}
     </div>
-  )
-} 
+  );
+}
