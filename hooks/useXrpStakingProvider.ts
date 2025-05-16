@@ -20,13 +20,9 @@ import {
   XRP_TOKEN_ENUM,
   XRP_TOKEN_ADDRESS,
   XRP_VAULT_ADDRESS,
+  XRP_STAKING_DESTINATION_TAG,
 } from "@/config/xrp";
 import { getMetadataByEvmChainID } from "@/config/stakingPortals";
-
-// Helper function to generate a random destination tag
-const generateDestinationTag = (): number => {
-  return Math.floor(10000000 + Math.random() * 90000000);
-};
 
 export function useXrpStakingProvider(
   stakingContext: XRPStakingContext,
@@ -135,23 +131,21 @@ export function useXrpStakingProvider(
       const accountInfo = await xrplClient.getAccountInfo(xrpAddress);
       if (!accountInfo.success) throw new Error("Failed to fetch account info");
 
-      const destinationTag = generateDestinationTag();
       const memoData = evmAddress
         ? encodePacked(["address"], [evmAddress]).slice(2)
         : "";
 
       const txPayload = {
-        TransactionType: "Payment",
-        Account: xrpAddress,
-        Destination: vaultAddress,
-        Amount: String(amount),
-        DestinationTag: destinationTag,
-        Memos: [
+        transactionType: "Payment",
+        account: xrpAddress,
+        destination: vaultAddress,
+        amount: String(amount),
+        destinationTag: XRP_STAKING_DESTINATION_TAG,
+        memos: [
           {
-            Memo: {
-              MemoType: "0x6576", // "ev" for Ethereum/EVM in hex
-              MemoData: memoData,
-              MemoFormat: "text/plain",
+            memo: {
+              memoType: "6576", // "ev" for Ethereum/EVM in hex
+              memoData: memoData
             },
           },
         ],
@@ -220,6 +214,8 @@ export function useXrpStakingProvider(
     },
     [contract, handleEVMTxWithStatus],
   );
+
+  console.log("DEBUG: vault address", XRP_VAULT_ADDRESS);
 
   return {
     stake: stakeXrp,

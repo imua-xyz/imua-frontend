@@ -72,7 +72,7 @@ export function XrpClientProvider({ children }: { children: ReactNode }) {
           .catch((e) => console.error("Error disconnecting client:", e));
       }
     };
-  }, [client]);
+  }, []);
 
   // Helper function for client API calls with better error handling
   const safeClientCall = async <T,>(

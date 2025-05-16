@@ -230,13 +230,15 @@ export function useGemWallet() {
 
       try {
         // For Payment transactions
-        if (transaction.TransactionType === "Payment") {
+        if (transaction.transactionType === "Payment") {
           const payment = {
-            amount: transaction.Amount,
-            destination: transaction.Destination,
-            destinationTag: transaction.DestinationTag,
-            memos: transaction.Memos,
+            amount: transaction.amount,
+            destination: transaction.destination,
+            destinationTag: transaction.destinationTag,
+            memos: transaction.memos,
           };
+
+          console.log("DEBUG: payment", payment);
 
           const hash = await sendPayment(payment);
 
