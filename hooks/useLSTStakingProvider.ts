@@ -211,13 +211,17 @@ export function useLSTStakingProvider(
 
   const stakerBalance = useQuery({
     queryKey: ["stakerBalance", chainId, userAddress, token],
-    queryFn: async (): Promise<StakerBalance | undefined> => {
+    queryFn: async (): Promise<StakerBalance> => {
       const { success, stakerBalanceResponse } = await getStakerBalanceByToken(
         userAddress as `0x${string}`,
         lzEndpointIdOrCustomChainId,
         token,
       );
-      if (!success || !stakerBalanceResponse) return undefined;
+      
+      if (!success || !stakerBalanceResponse) {
+        throw new Error("Failed to fetch staker balance");
+      }
+      
       return {
         clientChainID: stakerBalanceResponse.clientChainID,
         stakerAddress: stakerBalanceResponse.stakerAddress,

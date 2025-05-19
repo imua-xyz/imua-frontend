@@ -51,48 +51,53 @@ export function useXrpStakingProvider(
   console.log("DEBUG: is utxogateway available", isUTXOGatewayAvailable);
 
   // Fetch staking position
-  const stakerBalance = isStakingEnabled
-    ? useQuery({
-        queryKey: ["stakerBalance", xrpAddress],
-        queryFn: async (): Promise<StakerBalance | undefined> => {
-          if (!xrpAddress || !contract) return undefined;
-
-          try {
-            // First get binded evm address for the xrp address
-            const bindedEvmAddress = await contract?.read.getImuachainAddress([
-              XRP_CHAIN_ID,
-              xrpAddress,
-            ]);
-            if (!bindedEvmAddress) return undefined;
-
-            // Get staker balance from Assets Precompile
-            const { success, stakerBalanceResponse } =
-              await getStakerBalanceByToken(
-                bindedEvmAddress as `0x${string}`,
-                XRP_CHAIN_ID,
-                XRP_TOKEN_ADDRESS,
-              );
-
-            if (!success || !stakerBalanceResponse) return undefined;
-            return {
-              clientChainID: stakerBalanceResponse.clientChainID,
-              stakerAddress: stakerBalanceResponse.stakerAddress,
-              tokenID: stakerBalanceResponse.tokenID,
-              totalBalance: stakerBalanceResponse.balance,
-              withdrawable: stakerBalanceResponse.withdrawable,
-              delegated: stakerBalanceResponse.delegated,
-              pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
-              totalDeposited: stakerBalanceResponse.totalDeposited,
-            };
-          } catch (error) {
-            console.error("Error fetching staking position:", error);
-            return undefined;
-          }
-        },
-        refetchInterval: 30000,
-        enabled: !!xrpAddress && !!contract,
-      })
-    : undefined;
+  const stakerBalance = useQuery({
+    queryKey: ["stakerBalance", xrpAddress],
+    queryFn: async (): Promise<StakerBalance> => {
+      if (!xrpAddress || !contract) {
+        throw new Error("Required dependencies not available");
+      }
+  
+      try {
+        // First get binded evm address for the xrp address
+        const bindedEvmAddress = await contract?.read.getImuachainAddress([
+          XRP_CHAIN_ID,
+          xrpAddress,
+        ]);
+        if (!bindedEvmAddress) {
+          throw new Error("No bound EVM address found");
+        }
+  
+        // Get staker balance from Assets Precompile
+        const { success, stakerBalanceResponse } =
+          await getStakerBalanceByToken(
+            bindedEvmAddress as `0x${string}`,
+            XRP_CHAIN_ID,
+            XRP_TOKEN_ADDRESS,
+          );
+  
+        if (!success || !stakerBalanceResponse) {
+          throw new Error("Failed to fetch staker balance");
+        }
+        
+        return {
+          clientChainID: stakerBalanceResponse.clientChainID,
+          stakerAddress: stakerBalanceResponse.stakerAddress,
+          tokenID: stakerBalanceResponse.tokenID,
+          totalBalance: stakerBalanceResponse.balance,
+          withdrawable: stakerBalanceResponse.withdrawable,
+          delegated: stakerBalanceResponse.delegated,
+          pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
+          totalDeposited: stakerBalanceResponse.totalDeposited,
+        };
+      } catch (error) {
+        console.error("Error fetching staking position:", error);
+        throw error; // Let React Query handle the error
+      }
+    },
+    refetchInterval: 30000,
+    enabled: isStakingEnabled && !!xrpAddress && !!contract,
+  });
 
   const walletBalance = useQuery({
     queryKey: ["walletBalance", xrpAddress],
@@ -132,7 +137,7 @@ export function useXrpStakingProvider(
       if (!accountInfo.success) throw new Error("Failed to fetch account info");
 
       const memoData = evmAddress
-        ? encodePacked(["address"], [evmAddress]).slice(2)
+        ? Buffer.from(evmAddress, "utf8").toString("hex")
         : "";
 
       const txPayload = {
@@ -144,7 +149,7 @@ export function useXrpStakingProvider(
         memos: [
           {
             memo: {
-              memoType: "6576", // "ev" for Ethereum/EVM in hex
+              memoType: "4465736372697074696F6E",
               memoData: memoData
             },
           },

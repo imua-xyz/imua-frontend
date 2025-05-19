@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useXRPContextProvider } from "@/hooks/useXRPContextProvider";
 import { useXrpStakingProvider } from "@/hooks/useXrpStakingProvider";
+import { XRP_CHAIN_ID } from "@/config/xrp";
 
 export default function XRPStakingPage() {
   const [mounted, setMounted] = useState(false);
@@ -87,7 +88,7 @@ export default function XRPStakingPage() {
                 <CardTitle>Your Staking Positions</CardTitle>
               </CardHeader>
               <CardContent>
-                {address && isConnected && <AllStakingPositions />}
+                {address && isConnected && <AllStakingPositions userAddress={address} lzEndpointIdOrCustomChainId={XRP_CHAIN_ID} />}
               </CardContent>
             </Card>
           </div>
