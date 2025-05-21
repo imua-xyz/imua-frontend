@@ -217,11 +217,11 @@ export function useLSTStakingProvider(
         lzEndpointIdOrCustomChainId,
         token,
       );
-      
+
       if (!success || !stakerBalanceResponse) {
         throw new Error("Failed to fetch staker balance");
       }
-      
+
       return {
         clientChainID: stakerBalanceResponse.clientChainID,
         stakerAddress: stakerBalanceResponse.stakerAddress,

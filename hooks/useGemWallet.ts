@@ -40,7 +40,7 @@ export function useGemWallet() {
 
     const checkExpiration = () => {
       // Only check when document is focused
-      if (typeof document !== 'undefined' && document.hasFocus()) {
+      if (typeof document !== "undefined" && document.hasFocus()) {
         if (Date.now() > sessionExpiresAt) {
           console.log("Session expired, disconnecting...");
           disconnect();
@@ -50,10 +50,10 @@ export function useGemWallet() {
 
     // Check immediately
     checkExpiration();
-    
+
     // Also check periodically
     const intervalId = setInterval(checkExpiration, 60000); // every minute
-    
+
     return () => clearInterval(intervalId);
   }, [isWalletConnected, sessionExpiresAt, disconnect]);
 
@@ -64,19 +64,19 @@ export function useGemWallet() {
     // Check for network changes
     const checkNetworkChanges = async () => {
       // Only run when the window is focused
-      if (typeof document !== 'undefined' && document.hasFocus()) {
+      if (typeof document !== "undefined" && document.hasFocus()) {
         try {
           const networkResponse = await getNetwork();
           const currentNetwork = networkResponse.result;
-          
+
           // Only update state if there's an actual network change
           if (currentNetwork && walletNetwork) {
             // Deep equality check instead of just checking network name
-            const isChanged = 
+            const isChanged =
               currentNetwork.network !== walletNetwork.network ||
               currentNetwork.websocket !== walletNetwork.websocket ||
               currentNetwork.chain !== walletNetwork.chain;
-              
+
             if (isChanged) {
               console.log("Network genuinely changed, reconnecting...");
               await connect();
@@ -90,10 +90,10 @@ export function useGemWallet() {
 
     // Check immediately on mount
     checkNetworkChanges();
-    
+
     // Then poll periodically
     const intervalId = setInterval(checkNetworkChanges, 10000); // every 10 seconds
-    
+
     return () => clearInterval(intervalId);
   }, [isWalletConnected, installed, walletNetwork, connect]);
 

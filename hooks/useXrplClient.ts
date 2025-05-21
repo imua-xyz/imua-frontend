@@ -21,7 +21,7 @@ export function useXrplClient() {
     connect,
     disconnect,
     getAccountInfo,
-    getTransactionStatus
+    getTransactionStatus,
   } = useXrpClientStore();
 
   // Auto-connect to XRPL when wallet is connected
@@ -30,7 +30,10 @@ export function useXrplClient() {
       // If wallet is connected and has network info
       if (isWalletConnected && walletNetwork) {
         // If client is not connected or connected to a different network
-        if (!isConnected || (currentNetwork?.websocket !== walletNetwork.websocket)) {
+        if (
+          !isConnected ||
+          currentNetwork?.websocket !== walletNetwork.websocket
+        ) {
           await connect(walletNetwork);
         }
       } else if (!isWalletConnected && isConnected) {
@@ -40,7 +43,14 @@ export function useXrplClient() {
     };
 
     autoConnect();
-  }, [isWalletConnected, walletNetwork, isConnected, currentNetwork, connect, disconnect]);
+  }, [
+    isWalletConnected,
+    walletNetwork,
+    isConnected,
+    currentNetwork,
+    connect,
+    disconnect,
+  ]);
 
   // Return the client interface
   return {
@@ -50,6 +60,6 @@ export function useXrplClient() {
     error,
     network: currentNetwork,
     getAccountInfo,
-    getTransactionStatus
+    getTransactionStatus,
   };
 }

@@ -51,7 +51,12 @@ export default function EVMStakingPage() {
               <CardTitle>Your Staking Positions</CardTitle>
             </CardHeader>
             <CardContent>
-              {address && isConnected && customChainId && <AllStakingPositions userAddress={address} lzEndpointIdOrCustomChainId={customChainId} />}
+              {address && isConnected && customChainId && (
+                <AllStakingPositions
+                  userAddress={address}
+                  lzEndpointIdOrCustomChainId={customChainId}
+                />
+              )}
             </CardContent>
           </Card>
         </div>

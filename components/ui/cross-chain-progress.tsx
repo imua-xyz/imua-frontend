@@ -2,12 +2,12 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, XCircle, Loader2, ArrowRight, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TxStatus } from "@/types/staking";
@@ -37,38 +37,42 @@ interface CrossChainProgressProps {
   onViewDetails?: () => void;
 }
 
-export function CrossChainProgress({ 
-  progress, 
-  open, 
+export function CrossChainProgress({
+  progress,
+  open,
   onClose,
-  onViewDetails 
+  onViewDetails,
 }: CrossChainProgressProps) {
   const [progressValue, setProgressValue] = useState(0);
-  
+
   // Calculate progress percentage based on steps
   useEffect(() => {
     const totalSteps = progress.steps.length;
     const completedSteps = progress.steps.filter(
-      step => step.status === "success"
+      (step) => step.status === "success",
     ).length;
-    
+
     // If there's an error, stop at current step
-    const hasError = progress.steps.some(step => step.status === "error");
-    
+    const hasError = progress.steps.some((step) => step.status === "error");
+
     if (hasError) {
       // Calculate progress up to the error step
-      const errorIndex = progress.steps.findIndex(step => step.status === "error");
-      setProgressValue(((errorIndex) / (totalSteps - 1)) * 100);
+      const errorIndex = progress.steps.findIndex(
+        (step) => step.status === "error",
+      );
+      setProgressValue((errorIndex / (totalSteps - 1)) * 100);
     } else if (progress.overallStatus === "success") {
       setProgressValue(100);
     } else {
       // Calculate progress based on completed + half credit for processing
       const processingCredit = progress.steps.some(
-        step => step.status === "processing"
-      ) ? 0.5 : 0;
-      
+        (step) => step.status === "processing",
+      )
+        ? 0.5
+        : 0;
+
       setProgressValue(
-        ((completedSteps + processingCredit) / totalSteps) * 100
+        ((completedSteps + processingCredit) / totalSteps) * 100,
       );
     }
   }, [progress]);
@@ -78,27 +82,31 @@ export function CrossChainProgress({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center">
-            {progress.operation.charAt(0).toUpperCase() + progress.operation.slice(1)} Progress
+            {progress.operation.charAt(0).toUpperCase() +
+              progress.operation.slice(1)}{" "}
+            Progress
           </DialogTitle>
         </DialogHeader>
-        
+
         {/* Chain indication */}
         <div className="flex items-center justify-center text-sm text-muted-foreground mb-4">
           <span>{progress.sourceChain}</span>
           <ArrowRight className="mx-2" size={16} />
           <span>{progress.destinationChain}</span>
         </div>
-        
+
         {/* Overall progress bar */}
         <Progress value={progressValue} className="h-2 mb-6" />
-        
+
         {/* Steps list */}
         <div className="space-y-4">
           {progress.steps.map((step, index) => (
-            <div 
-              key={step.id} 
+            <div
+              key={step.id}
               className={`flex items-start p-3 rounded-lg border ${
-                index === progress.currentStepIndex ? "bg-muted border-primary/20" : ""
+                index === progress.currentStepIndex
+                  ? "bg-muted border-primary/20"
+                  : ""
               }`}
             >
               {/* Status icon */}
@@ -119,17 +127,17 @@ export function CrossChainProgress({
                   <Clock className="h-5 w-5 text-yellow-500" />
                 )}
               </div>
-              
+
               {/* Step content */}
               <div className="flex-1">
                 <h4 className="font-medium text-sm">{step.title}</h4>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {step.description}
                 </p>
-                
+
                 {/* Transaction hash if available */}
                 {step.txHash && step.explorerUrl && (
-                  <a 
+                  <a
                     href={step.explorerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -142,17 +150,16 @@ export function CrossChainProgress({
             </div>
           ))}
         </div>
-        
+
         <DialogFooter className="flex justify-between sm:justify-between mt-4">
-          {progress.overallStatus === "success" || progress.overallStatus === "error" ? (
+          {progress.overallStatus === "success" ||
+          progress.overallStatus === "error" ? (
             <>
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
               {onViewDetails && (
-                <Button onClick={onViewDetails}>
-                  View Details
-                </Button>
+                <Button onClick={onViewDetails}>View Details</Button>
               )}
             </>
           ) : (

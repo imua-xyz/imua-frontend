@@ -1,17 +1,13 @@
 import { formatUnits } from "viem";
 import { useStakingPositions } from "@/hooks/useStakingPositions";
-import { useAccount } from "wagmi";
-import { getCustomChainIdByEvmChainID } from "@/config/stakingPortals";
 
-export function AllStakingPositions(
-  {
-    userAddress,
-    lzEndpointIdOrCustomChainId,
-  }: {
-    userAddress: `0x${string}`;
-    lzEndpointIdOrCustomChainId: number;
-  },
-) {
+export function AllStakingPositions({
+  userAddress,
+  lzEndpointIdOrCustomChainId,
+}: {
+  userAddress: `0x${string}`;
+  lzEndpointIdOrCustomChainId: number;
+}) {
   const { positions, isLoading, error } = useStakingPositions(
     userAddress,
     lzEndpointIdOrCustomChainId,
@@ -48,7 +44,8 @@ export function AllStakingPositions(
           {/* Token Info Header */}
           <div className="mb-4">
             <h3 className="text-lg font-semibold">
-              {position.metadata.name} {position.metadata.symbol ? `(${position.metadata.symbol})` : ""}
+              {position.metadata.name}{" "}
+              {position.metadata.symbol ? `(${position.metadata.symbol})` : ""}
             </h3>
             <p className="text-sm text-gray-600">
               {position.metadata.metaInfo}

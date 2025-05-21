@@ -19,8 +19,9 @@ export const XUMM_API_KEY = process.env.XUMM_API_KEY || "";
 export const XUMM_API_SECRET = process.env.XUMM_API_SECRET || "";
 
 // XRP Vault Configuration
-export const XRP_VAULT_ADDRESS = process.env.NEXT_PUBLIC_XRP_VAULT_ADDRESS || "";
-export const XRP_STAKING_DESTINATION_TAG=9999
+export const XRP_VAULT_ADDRESS =
+  process.env.NEXT_PUBLIC_XRP_VAULT_ADDRESS || "";
+export const XRP_STAKING_DESTINATION_TAG = 9999;
 
 // UI Configuration
 export const XRP_TESTNET_EXPLORER_URL =

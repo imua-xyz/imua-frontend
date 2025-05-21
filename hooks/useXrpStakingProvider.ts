@@ -50,7 +50,7 @@ export function useXrpStakingProvider(
       if (!xrpAddress || !contract) {
         throw new Error("Required dependencies not available");
       }
-  
+
       try {
         // First get binded evm address for the xrp address
         const bindedEvmAddress = await contract?.read.getImuachainAddress([
@@ -60,7 +60,7 @@ export function useXrpStakingProvider(
         if (!bindedEvmAddress) {
           throw new Error("No bound EVM address found");
         }
-  
+
         // Get staker balance from Assets Precompile
         const { success, stakerBalanceResponse } =
           await getStakerBalanceByToken(
@@ -68,11 +68,11 @@ export function useXrpStakingProvider(
             XRP_CHAIN_ID,
             XRP_TOKEN_ADDRESS,
           );
-  
+
         if (!success || !stakerBalanceResponse) {
           throw new Error("Failed to fetch staker balance");
         }
-        
+
         return {
           clientChainID: stakerBalanceResponse.clientChainID,
           stakerAddress: stakerBalanceResponse.stakerAddress,
@@ -143,7 +143,7 @@ export function useXrpStakingProvider(
           {
             memo: {
               memoType: "4465736372697074696F6E",
-              memoData: memoData
+              memoData: memoData,
             },
           },
         ],

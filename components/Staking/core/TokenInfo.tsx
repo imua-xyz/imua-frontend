@@ -1,4 +1,3 @@
-import { truncateAddress } from "@/utils/format";
 import { formatUnits } from "viem";
 import { StakingProvider } from "@/types/staking";
 
@@ -54,11 +53,7 @@ export function TokenInfo({
     <div className="bg-gray-50 rounded-lg p-4">
       <h2 className="text-xl font-semibold mb-4">Token Information</h2>
       <div className="space-y-2">
-        <InfoRow
-          label="Token Address"
-          value={token}
-          fullAddress={token}
-        />
+        <InfoRow label="Token Address" value={token} fullAddress={token} />
         <InfoRow
           label="Vault Address"
           value={stakingProvider.vaultAddress as `0x${string}`}

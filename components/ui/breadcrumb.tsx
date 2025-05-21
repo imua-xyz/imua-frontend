@@ -15,20 +15,28 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items, className = "" }: BreadcrumbProps) {
   return (
-    <nav className={`flex items-center text-sm ${className}`} aria-label="Breadcrumb">
+    <nav
+      className={`flex items-center text-sm ${className}`}
+      aria-label="Breadcrumb"
+    >
       <ol className="flex items-center space-x-2">
         {items.map((item, index) => (
           <li key={index} className="flex items-center">
             {index > 0 && (
-              <ChevronRight size={14} className="mx-2 text-muted-foreground flex-shrink-0" />
+              <ChevronRight
+                size={14}
+                className="mx-2 text-muted-foreground flex-shrink-0"
+              />
             )}
-            
+
             {item.href ? (
-              <Link 
-                href={item.href} 
+              <Link
+                href={item.href}
                 className="flex items-center px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
               >
-                {index === 0 && !item.icon && <Home size={14} className="mr-1.5" />}
+                {index === 0 && !item.icon && (
+                  <Home size={14} className="mr-1.5" />
+                )}
                 {item.icon && <span className="mr-1.5">{item.icon}</span>}
                 <span>{item.label}</span>
               </Link>
