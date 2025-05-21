@@ -1,0 +1,125 @@
+import { useCallback } from "react";
+import { useClientChainGateway } from "./useClientChainGateway";
+import { useXrplClient } from "./useXrplClient";
+import { TxHandlerOptions, TxStatus } from "@/types/staking";
+import { GemWalletResponse } from "@/types/staking";
+
+export function useTxUtils() {
+  const { contract, publicClient } = useClientChainGateway();
+  const xrplClient = useXrplClient();
+
+  const handleEVMTxWithStatus = useCallback(
+    async (
+      txPromise: Promise<`0x${string}`>,
+      options?: TxHandlerOptions,
+      status: TxStatus = "processing",
+    ) => {
+      if (!publicClient) throw new Error("Public client not found");
+      try {
+        options?.onStatus?.(status);
+        const hash = await txPromise;
+
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash,
+          timeout: 30_000,
+        });
+
+        if (receipt.status === "success") {
+          options?.onStatus?.("success");
+          return hash;
+        } else {
+          options?.onStatus?.("error", "Transaction failed");
+          throw new Error("Transaction failed");
+        }
+      } catch (error) {
+        options?.onStatus?.(
+          "error",
+          error instanceof Error ? error.message : "Transaction failed",
+        );
+        throw error;
+      }
+    },
+    [publicClient],
+  );
+
+  const handleXrplTxWithStatus = useCallback(
+    async (
+      txPromise: Promise<GemWalletResponse>,
+      options?: TxHandlerOptions,
+    ) => {
+      options?.onStatus?.("processing");
+      const MAX_WAIT_TIME = 60000; // 30 seconds timeout
+      const POLLING_INTERVAL = 2000; // Check every 2 seconds
+
+      try {
+        const response = await txPromise;
+
+        if (!response.data?.hash) {
+          options?.onStatus?.(
+            "error",
+            "Transaction failed to be broadcasted and returned without a hash",
+          );
+          throw new Error(
+            "Transaction failed to be broadcasted and returned without a hash",
+          );
+        }
+
+        const txResponse = response.data.hash;
+        const txHash = txResponse.result.hash;
+        const startTime = Date.now();
+        let isValidated = false;
+
+        // Poll until transaction is validated or timeout
+        while (!isValidated && Date.now() - startTime < MAX_WAIT_TIME) {
+          // Check transaction status
+          const status = await xrplClient.getTransactionStatus(txHash);
+
+          if (!status.success) {
+            // Continue polling if we just can't get the status yet
+            await new Promise((resolve) =>
+              setTimeout(resolve, POLLING_INTERVAL),
+            );
+            continue;
+          }
+
+          // If transaction is finalized (included in a validated ledger)
+          if (status.data?.finalized) {
+            if (status.data?.success) {
+              options?.onStatus?.("success");
+              return txHash;
+            } else {
+              options?.onStatus?.("error", "Transaction failed on the ledger");
+              throw new Error("Transaction failed on the ledger");
+            }
+          }
+
+          // Wait before checking again
+          await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
+        }
+
+        // If we've reached here, we timed out
+        if (!isValidated) {
+          options?.onStatus?.(
+            "error",
+            "Transaction submitted but validation timed out",
+          );
+          return txHash; // Return the hash anyway since the tx might still validate later
+        }
+
+        return txHash;
+      } catch (error) {
+        options?.onStatus?.(
+          "error",
+          error instanceof Error ? error.message : "Transaction failed",
+        );
+        throw error;
+      }
+    },
+    [xrplClient],
+  );
+
+  return {
+    handleEVMTxWithStatus,
+    handleXrplTxWithStatus,
+  };
+}

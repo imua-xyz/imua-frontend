@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export function Header() {
   return (
@@ -10,5 +10,5 @@ export function Header() {
         <ConnectButton />
       </div>
     </header>
-  )
+  );
 }

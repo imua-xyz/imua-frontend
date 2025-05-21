@@ -1,31 +1,73 @@
-import { useAccount, useChainId, useWalletClient } from 'wagmi'
-import { CONTRACTS } from '@/config/contracts'
-import { CHAIN_ID_TO_NAME, publicClients } from '@/config/wagmi'
-import { getContract } from 'viem'
+import { useCallback } from "react";
+import { useAccount, useWalletClient } from "wagmi";
+import { publicClients } from "@/config/wagmi";
+import { getContract } from "viem";
+import { OperationType } from "@/types/staking";
+import { getPortalContractByEvmChainID } from "@/config/stakingPortals";
 
 export function useClientChainGateway() {
-  const { address: userAddress } = useAccount()
-  const chainId = useChainId()
-  const { data: walletClient } = useWalletClient()
-  const publicClient = publicClients[chainId as keyof typeof publicClients]
-  const contractAddress = chainId ? 
-    CONTRACTS.CLIENT_CHAIN_GATEWAY.address[CHAIN_ID_TO_NAME[chainId as keyof typeof CHAIN_ID_TO_NAME]] : 
-    undefined
+  const { address: userAddress, chainId, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = publicClients[chainId as keyof typeof publicClients];
+  const portalContract = getPortalContractByEvmChainID(chainId as number);
 
-  const contract = contractAddress && walletClient ? getContract({
-    address: contractAddress as `0x${string}`,
-    abi: CONTRACTS.CLIENT_CHAIN_GATEWAY.abi,
-    client: {
-      public: publicClient,
-      wallet: walletClient
-    }
-  }) : null
+  const contractAddress =
+    portalContract && portalContract.name === "ClientChainGateway"
+      ? portalContract.address
+      : null;
+  const contractAbi =
+    portalContract && portalContract.name === "ClientChainGateway"
+      ? portalContract.abi
+      : null;
+
+  const contract =
+    contractAddress && contractAbi && publicClient && walletClient
+      ? getContract({
+          address: contractAddress as `0x${string}`,
+          abi: contractAbi,
+          client: {
+            public: publicClient,
+            wallet: walletClient,
+          },
+        })
+      : null;
+
+  const getQuote = useCallback(
+    async (operation: OperationType): Promise<bigint> => {
+      if (!contract) return BigInt(0);
+
+      const lengths = {
+        asset: 97,
+        delegation: 138,
+        associate: 74,
+        dissociate: 33,
+      };
+
+      const message = "0x" + "00".repeat(lengths[operation]);
+      const fee = await contract.read.quote([message]);
+      return fee as bigint;
+    },
+    [contract],
+  );
+
+  const getVaultAddress = useCallback(
+    async (token?: `0x${string}`): Promise<`0x${string}` | undefined> => {
+      if (!contract || !token) return undefined;
+      const vaultAddress = await contract.read.tokenToVault([token]);
+      return vaultAddress as `0x${string}`;
+    },
+    [contract],
+  );
 
   return {
     contract,
     publicClient,
     walletClient,
     contractAddress,
-    userAddress
-  }
+    userAddress,
+    chainId,
+    isConnected,
+    getQuote,
+    getVaultAddress,
+  };
 }
