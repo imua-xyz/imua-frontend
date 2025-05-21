@@ -37,13 +37,6 @@ export function useXrpStakingProvider(
 
   const xrplClient = useXrplClient();
 
-  // Connect to XRP network when network changes
-  useEffect(() => {
-    if (network) {
-      xrplClient.connect(network);
-    }
-  }, [network?.websocket, xrplClient]);
-
   const { contract, isUTXOGatewayAvailable } = useUTXOGateway();
   const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { handleEVMTxWithStatus, handleXrplTxWithStatus } = useTxUtils();

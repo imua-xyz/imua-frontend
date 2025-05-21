@@ -11,6 +11,7 @@ interface StakingTabsProps {
   onStatusChange: (status: TxStatus, error?: string) => void;
   stakingProvider: StakingProvider;
   selectedToken: `0x${string}`;
+  sourceChain: string;
 }
 
 export function StakingTabs({
@@ -18,6 +19,7 @@ export function StakingTabs({
   onStatusChange,
   stakingProvider,
   selectedToken,
+  sourceChain,
 }: StakingTabsProps) {
   const [currentTab, setCurrentTab] = useState("stake");
 
@@ -56,6 +58,8 @@ export function StakingTabs({
                 onTabChange(hasOperator ? "delegation" : "asset");
               }
             }}
+            sourceChain={sourceChain}
+            destinationChain={"imuachain"}
           />
         </TabsContent>
 

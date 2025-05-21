@@ -10,6 +10,7 @@ export function useXRPContextProvider(): XRPStakingContext {
     network,
     installed,
     connect,
+    disconnect,
     sendTransaction,
   } = useGemWallet();
   const { isConnected: isWagmiConnected } = useAccount();
@@ -28,11 +29,14 @@ export function useXRPContextProvider(): XRPStakingContext {
   return {
     whitelistedTokens,
     isConnected: isGemWalletConnected && isWagmiConnected,
+    isGemWalletConnected: isGemWalletConnected,
+    isWagmiConnected: isWagmiConnected,
     isLoading: false,
     isStakingEnabled: true,
     userAddress: userAddress,
     network: network,
     connect: connect,
+    disconnect: disconnect,
     sendTransaction: sendTransaction,
     isInstalled: installed,
   };

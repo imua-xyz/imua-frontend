@@ -1,15 +1,23 @@
-import { useState } from "react";
+// components/Staking/core/StakeTab.tsx
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { OperatorSelector } from "./OperatorSelector";
 import { StakingProvider, TxStatus } from "@/types/staking";
 import { formatUnits } from "viem";
+import { 
+  CrossChainProgress, 
+  CrossChainProgress as CrossChainProgressType 
+} from "@/components/ui/cross-chain-progress";
+
 interface StakeTabProps {
   stakingProvider: StakingProvider;
   selectedToken: `0x${string}`;
   onStatusChange?: (status: TxStatus, error?: string) => void;
   onOperatorAddressChange: (hasOperator: boolean) => void;
+  sourceChain: string;
+  destinationChain: string;
 }
 
 export function StakeTab({
@@ -17,6 +25,8 @@ export function StakeTab({
   selectedToken,
   onStatusChange,
   onOperatorAddressChange,
+  sourceChain,
+  destinationChain,
 }: StakeTabProps) {
   const maxAmount = stakingProvider.walletBalance?.value || BigInt(0);
   const decimals = stakingProvider.walletBalance?.decimals || 0;
@@ -33,11 +43,132 @@ export function StakeTab({
   const [operatorAddress, setOperatorAddress] = useState("");
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  
+  // Cross-chain progress tracking
+  const [showProgress, setShowProgress] = useState(false);
+  const [crossChainProgress, setCrossChainProgress] = useState<CrossChainProgressType>({
+    sourceChain,
+    destinationChain,
+    operation: operatorAddress ? "stake" : "deposit",
+    steps: [
+      {
+        id: "approval",
+        title: "Token Approval",
+        description: "Approve tokens for staking",
+        status: "pending",
+      },
+      {
+        id: "transaction",
+        title: "Submit Transaction",
+        description: `Sending ${operatorAddress ? "stake" : "deposit"} transaction`,
+        status: "pending",
+      },
+      {
+        id: "confirmation",
+        title: "Transaction Confirmation",
+        description: "Waiting for transaction to be confirmed",
+        status: "pending",
+      },
+      {
+        id: "relaying",
+        title: "Cross-Chain Message",
+        description: `Relaying message to ${destinationChain}`,
+        status: "pending",
+      },
+      {
+        id: "completion",
+        title: "Process Completion",
+        description: "Verifying final balance update",
+        status: "pending",
+      },
+    ],
+    currentStepIndex: 0,
+    overallStatus: null,
+  });
 
   const handleOperatorSelect = (address: string) => {
     setOperatorAddress(address);
     onOperatorAddressChange(!!address);
+    
+    // Update operation type in progress tracking
+    setCrossChainProgress(prev => ({
+      ...prev,
+      operation: address ? "stake" : "deposit"
+    }));
   };
+
+  // Update progress based on transaction status
+  useEffect(() => {
+    if (!txStatus) return;
+    
+    let updatedProgress = { ...crossChainProgress };
+    
+    switch (txStatus) {
+      case "approving":
+        updatedProgress.currentStepIndex = 0;
+        updatedProgress.steps[0].status = "processing";
+        updatedProgress.overallStatus = "approving";
+        break;
+        
+      case "processing":
+        // If we're moving from approval to processing
+        if (updatedProgress.steps[0].status === "processing") {
+          updatedProgress.steps[0].status = "success";
+        }
+        updatedProgress.currentStepIndex = 1;
+        updatedProgress.steps[1].status = "processing";
+        updatedProgress.overallStatus = "processing";
+        break;
+        
+      case "success":
+        // Transaction confirmed on source chain
+        updatedProgress.steps[0].status = "success"; // Approval
+        updatedProgress.steps[1].status = "success"; // Transaction
+        updatedProgress.currentStepIndex = 2;
+        updatedProgress.steps[2].status = "success"; // Confirmation
+        updatedProgress.currentStepIndex = 3;
+        updatedProgress.steps[3].status = "processing"; // Now relaying
+        updatedProgress.overallStatus = "relaying";
+        
+        // Simulate relay completion after a delay (in real app, you'd monitor this)
+        setTimeout(() => {
+          setCrossChainProgress(prev => {
+            const updated = { ...prev };
+            updated.steps[3].status = "success"; // Relay complete
+            updated.currentStepIndex = 4;
+            updated.steps[4].status = "processing"; // Verifying completion
+            updated.overallStatus = "confirming";
+            
+            // Simulate final completion
+            setTimeout(() => {
+              setCrossChainProgress(prev => {
+                const final = { ...prev };
+                final.steps[4].status = "success";
+                final.overallStatus = "success";
+                return final;
+              });
+            }, 3000);
+            
+            return updated;
+          });
+        }, 5000);
+        break;
+        
+      case "error":
+        // Find the current processing step and mark it as error
+        const processingIndex = updatedProgress.steps.findIndex(
+          step => step.status === "processing"
+        );
+        
+        if (processingIndex >= 0) {
+          updatedProgress.steps[processingIndex].status = "error";
+        }
+        updatedProgress.overallStatus = "error";
+        break;
+    }
+    
+    setCrossChainProgress(updatedProgress);
+  }, [txStatus]);
 
   const handleOperation = async (
     operation: () => Promise<`0x${string}`>,
@@ -45,22 +176,47 @@ export function StakeTab({
   ) => {
     setTxError(null);
     setTxStatus(options?.requiresApproval ? "approving" : "processing");
-
+    setShowProgress(true);
+    
     try {
-      await operation();
+      const txHash = await operation();
+      
+      // Update transaction hash in progress
+      setCrossChainProgress(prev => {
+        const updated = { ...prev };
+        const currentStep = updated.steps[updated.currentStepIndex];
+        currentStep.txHash = txHash;
+        currentStep.explorerUrl = ``;
+        return updated;
+      });
+      
       setTxStatus("success");
-      setTimeout(() => {
-        setTxStatus(null);
-        setTxError(null);
-      }, 3000);
     } catch (error) {
       console.error("Operation failed:", error);
       setTxStatus("error");
       setTxError(error instanceof Error ? error.message : "Transaction failed");
+    }
+  };
+
+  const handleCloseProgress = () => {
+    // Only allow closing if complete or error
+    if (
+      crossChainProgress.overallStatus === "success" ||
+      crossChainProgress.overallStatus === "error"
+    ) {
+      setShowProgress(false);
+      
+      // Reset progress for next operation
       setTimeout(() => {
         setTxStatus(null);
         setTxError(null);
-      }, 3000);
+        setCrossChainProgress(prev => ({
+          ...prev,
+          steps: prev.steps.map(step => ({ ...step, status: "pending" })),
+          currentStepIndex: 0,
+          overallStatus: null,
+        }));
+      }, 500);
     }
   };
 
@@ -73,6 +229,7 @@ export function StakeTab({
         onChange={(e) => setAmount(e.target.value)}
       />
       {amountError && <p className="text-sm text-red-600">{amountError}</p>}
+      
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <label className="text-sm text-gray-600">Operator (Optional)</label>
@@ -85,6 +242,7 @@ export function StakeTab({
           value={operatorAddress}
         />
       </div>
+      
       <Button
         className="w-full"
         variant={
@@ -132,7 +290,20 @@ export function StakeTab({
                   ? "Stake"
                   : "Deposit"}
       </Button>
+      
       {txError && <p className="text-sm text-red-600 mt-2">{txError}</p>}
+      
+      {/* Cross-chain progress dialog */}
+      <CrossChainProgress
+        progress={crossChainProgress}
+        open={showProgress}
+        onClose={handleCloseProgress}
+        onViewDetails={() => {
+          // Navigate to transaction history or details page
+          handleCloseProgress();
+          // You could add navigation here
+        }}
+      />
     </div>
   );
 }

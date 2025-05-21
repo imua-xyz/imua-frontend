@@ -20,6 +20,7 @@ export function EVMStaking() {
         onTokenSelect={setSelectedToken}
         stakingContext={stakingContext}
         stakingProvider={stakingProvider}
+        sourceChain={"evm"}
       />
     </Card>
   );

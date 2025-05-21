@@ -56,15 +56,13 @@ export function TokenInfo({
       <div className="space-y-2">
         <InfoRow
           label="Token Address"
-          value={truncateAddress(token)}
+          value={token}
           fullAddress={token}
-          isLink
         />
         <InfoRow
           label="Vault Address"
-          value={truncateAddress(stakingProvider.vaultAddress as `0x${string}`)}
+          value={stakingProvider.vaultAddress as `0x${string}`}
           fullAddress={stakingProvider.vaultAddress as `0x${string}`}
-          isLink
           tooltip="Token vault contract that holds your deposits"
         />
         {stakingProvider.walletBalance && (

@@ -1,0 +1,167 @@
+// stores/useGemWalletStore.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { getAddress, getNetwork, sendPayment, isInstalled } from '@gemwallet/api';
+import { GemWalletNetwork, GemWalletResponse } from '@/types/staking';
+
+interface GemWalletState {
+  isWalletConnected: boolean;
+  userAddress: string | undefined;
+  walletNetwork: GemWalletNetwork | undefined;
+  isLoading: boolean;
+  installed: boolean;
+  sessionExpiresAt: number | null; // Unix timestamp in milliseconds
+  
+  // Actions
+  checkInstallation: () => Promise<void>;
+  connect: () => Promise<GemWalletResponse>;
+  disconnect: () => Promise<GemWalletResponse>;
+  sendTransaction: (transaction: any) => Promise<GemWalletResponse>;
+}
+
+export const useGemWalletStore = create<GemWalletState>()(
+  persist(
+    (set, get) => ({
+      isWalletConnected: false,
+      userAddress: undefined,
+      walletNetwork: undefined,
+      isLoading: false,
+      installed: false,
+      sessionExpiresAt: null,
+      
+      checkInstallation: async () => {
+        try {
+          const installed = await isInstalled();
+          set({ installed: installed.result.isInstalled });
+        } catch (error) {
+          console.error("Error checking GemWallet installation:", error);
+          set({ installed: false });
+        }
+      },
+      
+      connect: async () => {
+        const { installed } = get();
+        if (!installed) {
+          return { success: false, error: "GemWallet is not installed" };
+        }
+        
+        set({ isLoading: true });
+        
+        try {
+          // Get user address from GemWallet
+          const addressResponse = await getAddress();
+          const address = addressResponse.result?.address;
+          
+          if (!address) {
+            return {
+              success: false,
+              error: "Failed to get address",
+            };
+          }
+          
+          // Get network information
+          const networkResponse = await getNetwork();
+          const network = networkResponse.result;
+
+          // Set expiration 24 hours from now
+          const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+          
+          // Update state
+          set({
+            isWalletConnected: true,
+            userAddress: address,
+            walletNetwork: network,
+            isLoading: false,
+            sessionExpiresAt: expiresAt,
+          });
+          
+          return {
+            success: true,
+            xrpAddress: address,
+            data: network,
+          };
+        } catch (error) {
+          console.error("Error connecting to GemWallet:", error);
+          set({ isLoading: false });
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error connecting to GemWallet",
+          };
+        }
+      },
+      
+      disconnect: async () => {
+        try {
+          set({
+            isWalletConnected: false,
+            userAddress: undefined,
+            walletNetwork: undefined,
+          });
+          
+          return { success: true };
+        } catch (error) {
+          console.error("Error disconnecting from GemWallet:", error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error disconnecting from GemWallet",
+          };
+        }
+      },
+      
+      sendTransaction: async (transaction: any) => {
+        const { installed, isWalletConnected, userAddress } = get();
+        
+        if (!installed || !isWalletConnected) {
+          return { success: false, error: "GemWallet not connected" };
+        }
+        
+        try {
+          // For Payment transactions
+          if (transaction.transactionType === "Payment") {
+            const payment = {
+              amount: transaction.amount,
+              destination: transaction.destination,
+              destinationTag: transaction.destinationTag,
+              memos: transaction.memos,
+            };
+            
+            const hash = await sendPayment(payment);
+            
+            if (hash === null) {
+              return { success: false, error: "User refused the payment" };
+            }
+            
+            if (!hash) {
+              return { success: false, error: "Failed to send payment" };
+            }
+            
+            return {
+              success: true,
+              xrpAddress: userAddress,
+              data: { hash },
+            };
+          } else {
+            return {
+              success: false,
+              error: "Only Payment transactions are supported at this time",
+            };
+          }
+        } catch (error) {
+          console.error("Error sending transaction via GemWallet:", error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error sending transaction",
+          };
+        }
+      }
+    }),
+    {
+      name: 'gemwallet-storage', // localStorage key
+      partialize: (state) => ({ 
+        isWalletConnected: state.isWalletConnected,
+        userAddress: state.userAddress,
+        walletNetwork: state.walletNetwork
+      })
+    }
+  )
+);

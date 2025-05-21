@@ -10,6 +10,7 @@ interface BaseStakingProps {
   onTokenSelect: (token: `0x${string}`) => void;
   stakingContext: StakingContext;
   stakingProvider: StakingProvider;
+  sourceChain: string;
 }
 
 export function BaseStaking({
@@ -17,6 +18,7 @@ export function BaseStaking({
   onTokenSelect,
   stakingContext,
   stakingProvider,
+  sourceChain,
 }: BaseStakingProps) {
   const [relayFee, setRelayFee] = useState<bigint>(BigInt(0));
   console.log("DEBUG: selectedToken", selectedToken);
@@ -94,6 +96,7 @@ export function BaseStaking({
               selectedToken={selectedToken}
               onTabChange={updateRelayFee}
               onStatusChange={handleStatusChange}
+              sourceChain={sourceChain}
             />
           </>
         )}

@@ -24,6 +24,7 @@ export function XRPStaking({
         onTokenSelect={setSelectedToken}
         stakingContext={stakingContext}
         stakingProvider={stakingProvider}
+        sourceChain={"xrpl"}
       />
     </Card>
   );

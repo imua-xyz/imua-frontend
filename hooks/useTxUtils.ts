@@ -48,7 +48,7 @@ export function useTxUtils() {
       options?: TxHandlerOptions,
     ) => {
       options?.onStatus?.("processing");
-      const MAX_WAIT_TIME = 30000; // 30 seconds timeout
+      const MAX_WAIT_TIME = 60000; // 30 seconds timeout
       const POLLING_INTERVAL = 2000; // Check every 2 seconds
 
       try {
@@ -64,7 +64,8 @@ export function useTxUtils() {
           );
         }
 
-        const txHash = response.data.hash;
+        const txResponse = response.data.hash;
+        const txHash = txResponse.result.hash;
         const startTime = Date.now();
         let isValidated = false;
 

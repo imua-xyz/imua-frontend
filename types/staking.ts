@@ -139,6 +139,9 @@ export interface XRPStakingContext extends StakingContext {
   isInstalled: boolean;
   userAddress?: string;
   network?: GemWalletNetwork;
+  isGemWalletConnected: boolean;
+  isWagmiConnected: boolean;
   connect: () => Promise<GemWalletResponse>;
+  disconnect: () => Promise<GemWalletResponse>;
   sendTransaction: (transaction: any) => Promise<GemWalletResponse>;
 }
