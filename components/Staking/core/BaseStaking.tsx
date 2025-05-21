@@ -21,9 +21,6 @@ export function BaseStaking({
   sourceChain,
 }: BaseStakingProps) {
   const [relayFee, setRelayFee] = useState<bigint>(BigInt(0));
-  console.log("DEBUG: selectedToken", selectedToken);
-  console.log("DEBUG: is connected", stakingProvider.isWalletConnected);
-  console.log("DEBUG: is staking enabled", stakingProvider.isStakingEnabled);
 
   // Update relay fee when tab changes or operation type changes
   const updateRelayFee = async (operationType: "delegation" | "asset") => {

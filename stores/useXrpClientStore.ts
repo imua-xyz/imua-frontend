@@ -182,12 +182,10 @@ export const useXrpClientStore = create<XrpClientState>()((set, get) => ({
     }
 
     try {
-      console.log("DEBUG: XRP transaction hash:", hash);
       const response = await (client as Client).request({
         command: "tx",
         transaction: hash,
       });
-      console.log("DEBUG: XRP transaction status response:", response);
 
       return {
         success: true,

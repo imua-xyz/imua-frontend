@@ -63,7 +63,6 @@ export function useStakingPositions(
       );
       const assetData = await assetResponse.json();
       const assetInfos: AssetInfo[] = assetData.asset_infos;
-      console.log("DEBUG: assetInfos", assetInfos);
 
       // Fetch positions with metadata
       const positions = await Promise.all(
@@ -111,7 +110,6 @@ export function useStakingPositions(
           };
         }),
       );
-      console.log("DEBUG: positions", positions);
 
       return positions;
     },

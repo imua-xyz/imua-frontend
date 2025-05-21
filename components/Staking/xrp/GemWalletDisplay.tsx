@@ -26,7 +26,6 @@ export function GemWalletDisplay() {
       const fetchBalance = async () => {
         try {
           const info = await getAccountInfo(userAddress);
-          console.log("DEBUG: Gem wallet display info", info);
           if (info.success) {
             // Format balance to show max 6 decimal places
             const formattedBalance = (

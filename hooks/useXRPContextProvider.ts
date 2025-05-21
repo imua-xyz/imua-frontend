@@ -23,9 +23,6 @@ export function useXRPContextProvider(): XRPStakingContext {
     },
   ];
 
-  console.log("isGemWalletConnected", isGemWalletConnected);
-  console.log("isWagmiConnected", isWagmiConnected);
-
   return {
     whitelistedTokens,
     isConnected: isGemWalletConnected && isWagmiConnected,

@@ -41,8 +41,6 @@ export function useXrpStakingProvider(
   const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { handleEVMTxWithStatus, handleXrplTxWithStatus } = useTxUtils();
 
-  console.log("DEBUG: is utxogateway available", isUTXOGatewayAvailable);
-
   // Fetch staking position
   const stakerBalance = useQuery({
     queryKey: ["stakerBalance", xrpAddress],
@@ -97,7 +95,6 @@ export function useXrpStakingProvider(
     queryFn: async (): Promise<WalletBalance | undefined> => {
       if (!xrpAddress || !xrplClient) return undefined;
       const accountInfo = await xrplClient.getAccountInfo(xrpAddress);
-      console.log("DEBUG: walletBalance accountInfo", accountInfo);
       if (!accountInfo.success) return undefined;
       return {
         customClientChainID: XRP_CHAIN_ID,
@@ -212,8 +209,6 @@ export function useXrpStakingProvider(
     },
     [contract, handleEVMTxWithStatus],
   );
-
-  console.log("DEBUG: vault address", XRP_VAULT_ADDRESS);
 
   return {
     stake: stakeXrp,
