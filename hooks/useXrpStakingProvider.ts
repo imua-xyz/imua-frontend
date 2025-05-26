@@ -206,7 +206,7 @@ export function useXrpStakingProvider(
 
   // Get relaying fee
   const getQuote = useCallback(async (): Promise<bigint> => {
-    return BigInt(0); // 12 drops in XRP
+    return BigInt(0);
   }, []);
 
   // Delegate XRP to an operator

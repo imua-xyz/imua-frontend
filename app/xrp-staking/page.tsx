@@ -14,13 +14,7 @@ import { GemWalletDisplay } from "@/components/Staking/xrp/GemWalletDisplay";
 import { Header } from "@/components/layout/header";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import {
-  AlertCircle,
-  ChevronRight,
-  Plus,
-  Wallet,
-  WalletIcon,
-} from "lucide-react";
+import { AlertCircle, Plus, Wallet, WalletIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
