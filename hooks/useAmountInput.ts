@@ -3,10 +3,15 @@ import { formatUnits, parseUnits } from "viem";
 
 interface UseAmountInputProps {
   decimals: number;
+  minimumAmount?: bigint;
   maxAmount?: bigint;
 }
 
-export function useAmountInput({ decimals, maxAmount }: UseAmountInputProps) {
+export function useAmountInput({
+  decimals,
+  minimumAmount,
+  maxAmount,
+}: UseAmountInputProps) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +38,17 @@ export function useAmountInput({ decimals, maxAmount }: UseAmountInputProps) {
         setError("Amount must be greater than 0");
         setAmount(value);
         return;
+      }
+
+      // Check if amount is less than minimum
+      if (minimumAmount !== undefined) {
+        if (parsedAmount < minimumAmount) {
+          setError(
+            `Amount must be greater than ${formatUnits(minimumAmount, decimals)}`,
+          );
+          setAmount(value);
+          return;
+        }
       }
 
       // Check if amount exceeds max (including zero max)

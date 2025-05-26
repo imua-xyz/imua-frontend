@@ -126,7 +126,7 @@ function MountedXRPStakingPage() {
                       <Button
                         onClick={() =>
                           window.open(
-                            "https://gemwallet.app/download",
+                            "https://chromewebstore.google.com/detail/gemwallet/egebedonbdapoieedfcfkofloclfghab",
                             "_blank",
                           )
                         }

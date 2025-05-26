@@ -104,6 +104,8 @@ export interface StakingProvider {
   walletBalance: WalletBalance | undefined;
   vaultAddress: string | undefined;
   metadata?: StakingProviderMetadata;
+  minimumStakeAmount?: bigint;
+  isDepositThenDelegateDisabled?: boolean;
 
   // functions that may not be supported by all staking providers
   deposit?: (

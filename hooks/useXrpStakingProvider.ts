@@ -23,6 +23,7 @@ import {
   XRP_STAKING_DESTINATION_TAG,
 } from "@/config/xrp";
 import { getMetadataByEvmChainID } from "@/config/stakingPortals";
+import { MINIMUM_STAKE_AMOUNT_DROPS } from "@/config/xrp";
 
 export function useXrpStakingProvider(
   stakingContext: XRPStakingContext,
@@ -222,5 +223,7 @@ export function useXrpStakingProvider(
     isStakingEnabled: isStakingEnabled,
     vaultAddress: XRP_VAULT_ADDRESS,
     metadata: metadata,
+    minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
+    isDepositThenDelegateDisabled: true,
   };
 }

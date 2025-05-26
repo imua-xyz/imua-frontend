@@ -14,6 +14,9 @@ export const XRPL_MAINNET_REST = process.env.XRPL_MAINNET_REST || "";
 export const XRPL_TESTNET_WEBSOCKET = process.env.XRPL_TESTNET_WEBSOCKET || "";
 export const XRPL_TESTNET_REST = process.env.XRPL_TESTNET_REST || "";
 
+export const MINIMUM_STAKE_AMOUNT_DROPS =
+  process.env.NEXT_PUBLIC_MINIMUM_STAKE_AMOUNT_DROPS || "50000000";
+
 // XUMM App Configuration (would come from environment variables)
 export const XUMM_API_KEY = process.env.XUMM_API_KEY || "";
 export const XUMM_API_SECRET = process.env.XUMM_API_SECRET || "";
@@ -22,12 +25,6 @@ export const XUMM_API_SECRET = process.env.XUMM_API_SECRET || "";
 export const XRP_VAULT_ADDRESS =
   process.env.NEXT_PUBLIC_XRP_VAULT_ADDRESS || "";
 export const XRP_STAKING_DESTINATION_TAG = 9999;
-
-// UI Configuration
-export const XRP_TESTNET_EXPLORER_URL =
-  process.env.XRP_TESTNET_EXPLORER_URL || "";
-export const XRP_MAINNET_EXPLORER_URL =
-  process.env.XRP_MAINNET_EXPLORER_URL || "";
 
 export const MIN_STAKE_AMOUNT = process.env.MIN_STAKE_AMOUNT || "";
 export const DEFAULT_LEDGER_WAIT_TIME =
