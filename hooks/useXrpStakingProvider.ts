@@ -23,6 +23,7 @@ import {
   XRP_STAKING_DESTINATION_TAG,
 } from "@/config/xrp";
 import { getMetadataByEvmChainID } from "@/config/stakingPortals";
+import { MINIMUM_STAKE_AMOUNT_DROPS } from "@/config/xrp";
 
 export function useXrpStakingProvider(
   stakingContext: XRPStakingContext,
@@ -50,19 +51,19 @@ export function useXrpStakingProvider(
       }
 
       try {
-        // First get binded evm address for the xrp address
-        const bindedEvmAddress = await contract?.read.getImuachainAddress([
+        // First get bound evm address for the xrp address
+        const boundEvmAddress = await contract?.read.getImuachainAddress([
           XRP_CHAIN_ID,
-          xrpAddress,
+          "0x" + Buffer.from(xrpAddress, "utf8").toString("hex"),
         ]);
-        if (!bindedEvmAddress) {
+        if (!boundEvmAddress) {
           throw new Error("No bound EVM address found");
         }
 
         // Get staker balance from Assets Precompile
         const { success, stakerBalanceResponse } =
           await getStakerBalanceByToken(
-            bindedEvmAddress as `0x${string}`,
+            boundEvmAddress as `0x${string}`,
             XRP_CHAIN_ID,
             XRP_TOKEN_ADDRESS,
           );
@@ -126,8 +127,25 @@ export function useXrpStakingProvider(
       const accountInfo = await xrplClient.getAccountInfo(xrpAddress);
       if (!accountInfo.success) throw new Error("Failed to fetch account info");
 
-      const memoData = evmAddress
-        ? Buffer.from(evmAddress, "utf8").toString("hex")
+      // Determine which address to use for memo data
+      // 1. If boundImuaAddress exists, use that
+      // 2. If not and evmAddress exists, use the connected EVM wallet address
+      // 3. Otherwise, leave it empty
+      let memoAddress = "";
+      let effectiveAddress: `0x${string}` | null = null;
+
+      if (stakingContext.boundImuaAddress) {
+        // Use the already bound address (priority)
+        memoAddress = stakingContext.boundImuaAddress;
+        effectiveAddress = stakingContext.boundImuaAddress;
+      } else if (evmAddress) {
+        // Fallback to connected EVM wallet address
+        memoAddress = evmAddress;
+        effectiveAddress = evmAddress as `0x${string}`;
+      }
+
+      const memoData = memoAddress
+        ? Buffer.from(memoAddress.slice(2), "hex").toString("hex")
         : "";
 
       const txPayload = {
@@ -146,13 +164,41 @@ export function useXrpStakingProvider(
         ],
       };
 
-      return handleXrplTxWithStatus(sendTransaction(txPayload), options);
+      const { hash, success, error } = await handleXrplTxWithStatus(
+        sendTransaction(txPayload),
+        options,
+      );
+
+      // If transaction was successful and:
+      // 1. We don't have a bound address yet
+      // 2. We used the EVM address in the memo
+      // 3. We have the checkBoundAddress method available
+      if (
+        success &&
+        !stakingContext.boundImuaAddress &&
+        effectiveAddress &&
+        stakingContext.checkBoundAddress
+      ) {
+        // Schedule binding checks after successful deposit
+        setTimeout(async () => {
+          await stakingContext.checkBoundAddress();
+
+          // Check again after a longer delay if still not found
+          setTimeout(async () => {
+            await stakingContext.checkBoundAddress();
+          }, 15000); // Second check after 15 seconds
+        }, 5000); // First check after 5 seconds
+      }
+
+      return { hash, success, error };
     },
     [
       isGemWalletConnected,
       xrpAddress,
       evmAddress,
       xrplClient,
+      stakingContext.boundImuaAddress,
+      stakingContext.checkBoundAddress,
       handleXrplTxWithStatus,
       sendTransaction,
     ],
@@ -160,7 +206,7 @@ export function useXrpStakingProvider(
 
   // Get relaying fee
   const getQuote = useCallback(async (): Promise<bigint> => {
-    return BigInt(0); // 12 drops in XRP
+    return BigInt(0);
   }, []);
 
   // Delegate XRP to an operator
@@ -222,5 +268,7 @@ export function useXrpStakingProvider(
     isStakingEnabled: isStakingEnabled,
     vaultAddress: XRP_VAULT_ADDRESS,
     metadata: metadata,
+    minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
+    isDepositThenDelegateDisabled: true,
   };
 }

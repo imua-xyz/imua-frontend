@@ -10,23 +10,34 @@ import {
 import { GemWalletNetwork, GemWalletResponse } from "@/types/staking";
 
 interface GemWalletState {
+  // Existing wallet properties
   isWalletConnected: boolean;
   userAddress: string | undefined;
   walletNetwork: GemWalletNetwork | undefined;
   isLoading: boolean;
   installed: boolean;
-  sessionExpiresAt: number | null; // Unix timestamp in milliseconds
+  sessionExpiresAt: number | null;
 
-  // Actions
+  // New binding properties
+  boundImuaAddress: `0x${string}` | null;
+  isCheckingBinding: boolean;
+  bindingError: string | null;
+
+  // Existing wallet actions
   checkInstallation: () => Promise<void>;
   connect: () => Promise<GemWalletResponse>;
   disconnect: () => Promise<GemWalletResponse>;
   sendTransaction: (transaction: any) => Promise<GemWalletResponse>;
+
+  // New binding actions
+  setBoundAddress: (address: `0x${string}` | null) => void;
+  setBindingStatus: (isChecking: boolean, error?: string | null) => void;
 }
 
 export const useGemWalletStore = create<GemWalletState>()(
   persist(
     (set, get) => ({
+      // Existing wallet state
       isWalletConnected: false,
       userAddress: undefined,
       walletNetwork: undefined,
@@ -34,6 +45,12 @@ export const useGemWalletStore = create<GemWalletState>()(
       installed: false,
       sessionExpiresAt: null,
 
+      // New binding state
+      boundImuaAddress: null,
+      isCheckingBinding: false,
+      bindingError: null,
+
+      // Existing wallet actions
       checkInstallation: async () => {
         try {
           const installed = await isInstalled();
@@ -104,6 +121,9 @@ export const useGemWalletStore = create<GemWalletState>()(
             isWalletConnected: false,
             userAddress: undefined,
             walletNetwork: undefined,
+            // Clear binding information on disconnect
+            boundImuaAddress: null,
+            bindingError: null,
           });
 
           return { success: true };
@@ -168,13 +188,28 @@ export const useGemWalletStore = create<GemWalletState>()(
           };
         }
       },
+
+      // New binding actions
+      setBoundAddress: (address) => {
+        set({ boundImuaAddress: address });
+      },
+
+      setBindingStatus: (isChecking, error = null) => {
+        set({
+          isCheckingBinding: isChecking,
+          bindingError: error,
+        });
+      },
     }),
     {
       name: "gemwallet-storage", // localStorage key
       partialize: (state) => ({
+        // Persist existing wallet data
         isWalletConnected: state.isWalletConnected,
         userAddress: state.userAddress,
         walletNetwork: state.walletNetwork,
+        // Also persist the bound address
+        boundImuaAddress: state.boundImuaAddress,
       }),
     },
   ),

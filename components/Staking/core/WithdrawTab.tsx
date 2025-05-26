@@ -46,13 +46,25 @@ export function WithdrawTab({
   // Check if claimPrincipal is available in this stakingProvider
   const canClaimPrincipal = !!stakingProvider.claimPrincipal;
 
-  const handleOperation = async (operation: () => Promise<string>) => {
+  const handleOperation = async (
+    operation: () => Promise<{
+      hash: string;
+      success: boolean;
+      error?: string;
+    }>,
+  ) => {
     setTxError(null);
     setTxStatus("processing");
 
     try {
-      await operation();
-      setTxStatus("success");
+      const { success, error } = await operation();
+      if (success) {
+        setTxStatus("success");
+      } else {
+        setTxStatus("error");
+        setTxError(error || "Transaction failed");
+      }
+
       setTimeout(() => {
         setTxStatus(null);
         setTxError(null);

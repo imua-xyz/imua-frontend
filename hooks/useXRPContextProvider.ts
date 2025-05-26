@@ -9,9 +9,11 @@ export function useXRPContextProvider(): XRPStakingContext {
     userAddress,
     network,
     installed,
+    boundImuaAddress,
     connect,
     disconnect,
     sendTransaction,
+    checkBoundAddress,
   } = useGemWallet();
   const { isConnected: isWagmiConnected } = useAccount();
   const whitelistedTokens: TokenInfo[] = [
@@ -36,5 +38,7 @@ export function useXRPContextProvider(): XRPStakingContext {
     disconnect: disconnect,
     sendTransaction: sendTransaction,
     isInstalled: installed,
+    boundImuaAddress: boundImuaAddress,
+    checkBoundAddress: checkBoundAddress,
   };
 }

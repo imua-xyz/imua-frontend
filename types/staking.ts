@@ -78,22 +78,22 @@ export interface StakingProvider {
     vaultAddress: `0x${string}`,
     operatorAddress?: string,
     options?: TxHandlerOptions,
-  ) => Promise<`0x${string}`>;
+  ) => Promise<{ hash: string; success: boolean; error?: string }>;
   withdrawPrincipal: (
     amount: bigint,
     recipient?: `0x${string}`,
     options?: TxHandlerOptions,
-  ) => Promise<`0x${string}`>;
+  ) => Promise<{ hash: string; success: boolean; error?: string }>;
   delegateTo: (
     operator: string,
     amount: bigint,
     options?: TxHandlerOptions,
-  ) => Promise<`0x${string}`>;
+  ) => Promise<{ hash: string; success: boolean; error?: string }>;
   undelegateFrom: (
     operator: string,
     amount: bigint,
     options?: TxHandlerOptions,
-  ) => Promise<`0x${string}`>;
+  ) => Promise<{ hash: string; success: boolean; error?: string }>;
   // Fee estimation
   getQuote: (operation: OperationType) => Promise<bigint>;
 
@@ -104,21 +104,23 @@ export interface StakingProvider {
   walletBalance: WalletBalance | undefined;
   vaultAddress: string | undefined;
   metadata?: StakingProviderMetadata;
+  minimumStakeAmount?: bigint;
+  isDepositThenDelegateDisabled?: boolean;
 
   // functions that may not be supported by all staking providers
   deposit?: (
     amount: bigint,
     options?: TxHandlerOptions,
-  ) => Promise<`0x${string}`>;
+  ) => Promise<{ hash: string; success: boolean; error?: string }>;
   depositAndDelegate?: (
     amount: bigint,
     operator: string,
     options?: TxHandlerOptions,
-  ) => Promise<`0x${string}`>;
+  ) => Promise<{ hash: string; success: boolean; error?: string }>;
   claimPrincipal?: (
     amount: bigint,
     options?: TxHandlerOptions,
-  ) => Promise<`0x${string}`>;
+  ) => Promise<{ hash: string; success: boolean; error?: string }>;
 }
 
 export interface GemWalletNetwork {
@@ -141,7 +143,9 @@ export interface XRPStakingContext extends StakingContext {
   network?: GemWalletNetwork;
   isGemWalletConnected: boolean;
   isWagmiConnected: boolean;
+  boundImuaAddress: `0x${string}` | null;
   connect: () => Promise<GemWalletResponse>;
   disconnect: () => Promise<GemWalletResponse>;
   sendTransaction: (transaction: any) => Promise<GemWalletResponse>;
+  checkBoundAddress: () => Promise<`0x${string}` | null>;
 }

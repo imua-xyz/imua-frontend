@@ -37,6 +37,7 @@ export function StakeTab({
     setAmount,
   } = useAmountInput({
     decimals: decimals,
+    minimumAmount: stakingProvider.minimumStakeAmount,
     maxAmount: maxAmount,
   });
 
@@ -44,13 +45,18 @@ export function StakeTab({
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
+  // Check if deposit-then-delegate is disabled
+  const isDepositThenDelegateDisabled =
+    !!stakingProvider.isDepositThenDelegateDisabled;
+
   // Cross-chain progress tracking
   const [showProgress, setShowProgress] = useState(false);
   const [crossChainProgress, setCrossChainProgress] =
     useState<CrossChainProgressType>({
       sourceChain,
       destinationChain,
-      operation: operatorAddress ? "stake" : "deposit",
+      operation:
+        !isDepositThenDelegateDisabled && operatorAddress ? "stake" : "deposit",
       steps: [
         {
           id: "approval",
@@ -61,7 +67,7 @@ export function StakeTab({
         {
           id: "transaction",
           title: "Submit Transaction",
-          description: `Sending ${operatorAddress ? "stake" : "deposit"} transaction`,
+          description: `Sending ${!isDepositThenDelegateDisabled && operatorAddress ? "stake" : "deposit"} transaction`,
           status: "pending",
         },
         {
@@ -88,6 +94,8 @@ export function StakeTab({
     });
 
   const handleOperatorSelect = (address: string) => {
+    if (isDepositThenDelegateDisabled) return;
+
     setOperatorAddress(address);
     onOperatorAddressChange(!!address);
 
@@ -102,77 +110,90 @@ export function StakeTab({
   useEffect(() => {
     if (!txStatus) return;
 
-    const updatedProgress = { ...crossChainProgress };
+    // Using functional update pattern
+    setCrossChainProgress((prev) => {
+      const updatedProgress = { ...prev };
 
-    switch (txStatus) {
-      case "approving":
-        updatedProgress.currentStepIndex = 0;
-        updatedProgress.steps[0].status = "processing";
-        updatedProgress.overallStatus = "approving";
-        break;
+      switch (txStatus) {
+        case "approving":
+          updatedProgress.currentStepIndex = 0;
+          updatedProgress.steps[0].status = "processing";
+          updatedProgress.overallStatus = "approving";
+          break;
 
-      case "processing":
-        // If we're moving from approval to processing
-        if (updatedProgress.steps[0].status === "processing") {
-          updatedProgress.steps[0].status = "success";
-        }
-        updatedProgress.currentStepIndex = 1;
-        updatedProgress.steps[1].status = "processing";
-        updatedProgress.overallStatus = "processing";
-        break;
+        case "processing":
+          // If we're moving from approval to processing
+          if (updatedProgress.steps[0].status === "processing") {
+            updatedProgress.steps[0].status = "success";
+          }
+          updatedProgress.currentStepIndex = 1;
+          updatedProgress.steps[1].status = "processing";
+          updatedProgress.overallStatus = "processing";
+          break;
 
-      case "success":
-        // Transaction confirmed on source chain
-        updatedProgress.steps[0].status = "success"; // Approval
-        updatedProgress.steps[1].status = "success"; // Transaction
-        updatedProgress.currentStepIndex = 2;
-        updatedProgress.steps[2].status = "success"; // Confirmation
-        updatedProgress.currentStepIndex = 3;
-        updatedProgress.steps[3].status = "processing"; // Now relaying
-        updatedProgress.overallStatus = "relaying";
+        case "success":
+          // Transaction confirmed on source chain
+          updatedProgress.steps[0].status = "success"; // Approval
+          updatedProgress.steps[1].status = "success"; // Transaction
+          updatedProgress.currentStepIndex = 2;
+          updatedProgress.steps[2].status = "success"; // Confirmation
+          updatedProgress.currentStepIndex = 3;
+          updatedProgress.steps[3].status = "processing"; // Now relaying
+          updatedProgress.overallStatus = "relaying";
+          break;
 
-        // Simulate relay completion after a delay (in real app, you'd monitor this)
-        setTimeout(() => {
+        case "error":
+          // Find the current processing step and mark it as error
+          const processingIndex = updatedProgress.steps.findIndex(
+            (step) => step.status === "processing",
+          );
+
+          if (processingIndex >= 0) {
+            updatedProgress.steps[processingIndex].status = "error";
+          }
+          updatedProgress.overallStatus = "error";
+          break;
+      }
+
+      return updatedProgress;
+    });
+
+    // For the success case, handle timeouts separately
+    if (txStatus === "success") {
+      const timeoutId = setTimeout(() => {
+        setCrossChainProgress((prev) => {
+          const updated = { ...prev };
+          updated.steps[3].status = "success"; // Relay complete
+          updated.currentStepIndex = 4;
+          updated.steps[4].status = "processing"; // Verifying completion
+          updated.overallStatus = "confirming";
+          return updated;
+        });
+
+        const innerTimeoutId = setTimeout(() => {
           setCrossChainProgress((prev) => {
-            const updated = { ...prev };
-            updated.steps[3].status = "success"; // Relay complete
-            updated.currentStepIndex = 4;
-            updated.steps[4].status = "processing"; // Verifying completion
-            updated.overallStatus = "confirming";
-
-            // Simulate final completion
-            setTimeout(() => {
-              setCrossChainProgress((prev) => {
-                const final = { ...prev };
-                final.steps[4].status = "success";
-                final.overallStatus = "success";
-                return final;
-              });
-            }, 3000);
-
-            return updated;
+            const final = { ...prev };
+            final.steps[4].status = "success";
+            final.overallStatus = "success";
+            return final;
           });
-        }, 5000);
-        break;
+        }, 3000);
 
-      case "error":
-        // Find the current processing step and mark it as error
-        const processingIndex = updatedProgress.steps.findIndex(
-          (step) => step.status === "processing",
-        );
+        // Clean up inner timeout if component unmounts
+        return () => clearTimeout(innerTimeoutId);
+      }, 5000);
 
-        if (processingIndex >= 0) {
-          updatedProgress.steps[processingIndex].status = "error";
-        }
-        updatedProgress.overallStatus = "error";
-        break;
+      // Clean up timeout if component unmounts or txStatus changes
+      return () => clearTimeout(timeoutId);
     }
-
-    setCrossChainProgress(updatedProgress);
-  }, [txStatus, crossChainProgress]);
+  }, [txStatus]); // Only depend on txStatus
 
   const handleOperation = async (
-    operation: () => Promise<`0x${string}`>,
+    operation: () => Promise<{
+      hash: string;
+      success: boolean;
+      error?: string;
+    }>,
     options?: { requiresApproval?: boolean },
   ) => {
     setTxError(null);
@@ -180,18 +201,23 @@ export function StakeTab({
     setShowProgress(true);
 
     try {
-      const txHash = await operation();
+      const { hash, success, error } = await operation();
 
       // Update transaction hash in progress
       setCrossChainProgress((prev) => {
         const updated = { ...prev };
         const currentStep = updated.steps[updated.currentStepIndex];
-        currentStep.txHash = txHash;
+        currentStep.txHash = hash;
         currentStep.explorerUrl = ``;
         return updated;
       });
 
-      setTxStatus("success");
+      if (success) {
+        setTxStatus("success");
+      } else {
+        setTxStatus("error");
+        setTxError(error || "Transaction failed");
+      }
     } catch (error) {
       console.error("Operation failed:", error);
       setTxStatus("error");
@@ -225,24 +251,39 @@ export function StakeTab({
     <div className="space-y-4">
       <Input
         type="text"
-        placeholder={`Amount (max: ${maxAmount ? formatUnits(maxAmount, decimals) : "0"} ${stakingProvider.walletBalance?.symbol || ""})`}
+        placeholder={`Amount (min: ${stakingProvider.minimumStakeAmount ? formatUnits(stakingProvider.minimumStakeAmount, decimals) : "0"}, max: ${maxAmount ? formatUnits(maxAmount, decimals) : "0"} ${stakingProvider.walletBalance?.symbol || ""} )`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />
       {amountError && <p className="text-sm text-red-600">{amountError}</p>}
 
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <label className="text-sm text-gray-600">Operator (Optional)</label>
-          <span className="text-xs text-gray-500">
-            {operatorAddress ? "Will deposit & delegate" : "Will only deposit"}
-          </span>
+      {/* Only show operator selector if deposit-then-delegate is allowed */}
+      {!isDepositThenDelegateDisabled && (
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <label className="text-sm text-gray-600">Operator (Optional)</label>
+            <span className="text-xs text-gray-500">
+              {operatorAddress
+                ? "Will deposit & delegate"
+                : "Will only deposit"}
+            </span>
+          </div>
+          <OperatorSelector
+            onSelect={handleOperatorSelect}
+            value={operatorAddress}
+          />
         </div>
-        <OperatorSelector
-          onSelect={handleOperatorSelect}
-          value={operatorAddress}
-        />
-      </div>
+      )}
+
+      {/* Show info message when deposit-then-delegate is disabled */}
+      {isDepositThenDelegateDisabled && (
+        <div className="rounded-lg bg-yellow-50 p-3">
+          <p className="text-sm text-yellow-800">
+            You will need to delegate separately after depositing. This protocol
+            requires a two-step process.
+          </p>
+        </div>
+      )}
 
       <Button
         className="w-full"
@@ -266,7 +307,9 @@ export function StakeTab({
               stakingProvider.stake(
                 parsedAmount,
                 stakingProvider.vaultAddress as `0x${string}`,
-                operatorAddress || undefined,
+                !isDepositThenDelegateDisabled
+                  ? operatorAddress || undefined
+                  : undefined,
                 {
                   onStatus: (status, error) => {
                     setTxStatus(status);
@@ -287,9 +330,11 @@ export function StakeTab({
               ? "Success!"
               : txStatus === "error"
                 ? "Failed!"
-                : operatorAddress
-                  ? "Stake"
-                  : "Deposit"}
+                : isDepositThenDelegateDisabled
+                  ? "Deposit"
+                  : operatorAddress
+                    ? "Stake"
+                    : "Deposit"}
       </Button>
 
       {txError && <p className="text-sm text-red-600 mt-2">{txError}</p>}

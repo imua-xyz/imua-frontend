@@ -13,7 +13,7 @@ export const imua = {
   nativeCurrency: {
     decimals: 18,
     name: "Imua",
-    symbol: "Imua",
+    symbol: "IMUA",
   },
   rpcUrls: {
     default: {
