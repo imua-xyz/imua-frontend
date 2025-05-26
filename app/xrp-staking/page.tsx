@@ -50,11 +50,20 @@ function MountedXRPStakingPage() {
   const isXrpTestnet = stakingContext.network?.network === "Testnet";
   const correctXrpNetwork = isXrpTestnet;
 
-  // Only count as connected if on the correct networks
+  // Check if the bound address exists and matches the connected wallet
+  const boundImuaAddress = stakingContext.boundImuaAddress;
+  const isCorrectWalletAddress =
+    !boundImuaAddress || // No bound address yet, any wallet is acceptable
+    (address && address.toLowerCase() === boundImuaAddress.toLowerCase()); // Wallet matches bound address
+
+  // Only count as connected if on the correct networks and using the correct wallet address
   const isGemWalletConnectedOnTestnet =
     stakingContext.isGemWalletConnected && correctXrpNetwork;
   const bothWalletsConnected =
-    isEthWalletConnected && isImuaNetwork && isGemWalletConnectedOnTestnet;
+    isEthWalletConnected &&
+    isImuaNetwork &&
+    isGemWalletConnectedOnTestnet &&
+    isCorrectWalletAddress;
 
   // Handler to add Imua network to MetaMask
   const addImuaNetworkToMetaMask = async () => {
@@ -117,11 +126,17 @@ function MountedXRPStakingPage() {
               {/* Ethereum Wallet Connection */}
               <Card
                 className={
-                  isEthWalletConnected && isImuaNetwork
-                    ? "border-green-500/30 bg-green-50/30 dark:bg-green-950/10"
-                    : isEthWalletConnected && !isImuaNetwork
-                      ? "border-yellow-500/30 bg-yellow-50/30 dark:bg-yellow-950/10"
-                      : ""
+                  isEthWalletConnected &&
+                  boundImuaAddress &&
+                  !isCorrectWalletAddress
+                    ? "border-red-500/30 bg-red-50/30 dark:bg-red-950/10"
+                    : isEthWalletConnected &&
+                        isImuaNetwork &&
+                        isCorrectWalletAddress
+                      ? "border-green-500/30 bg-green-50/30 dark:bg-green-950/10"
+                      : isEthWalletConnected && !isImuaNetwork
+                        ? "border-yellow-500/30 bg-yellow-50/30 dark:bg-yellow-950/10"
+                        : ""
                 }
               >
                 <CardContent className="text-center p-6">
@@ -129,11 +144,17 @@ function MountedXRPStakingPage() {
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                       <Wallet
                         className={`w-6 h-6 ${
-                          isEthWalletConnected && isImuaNetwork
-                            ? "text-green-500"
-                            : isEthWalletConnected
-                              ? "text-yellow-500"
-                              : "text-primary"
+                          isEthWalletConnected &&
+                          boundImuaAddress &&
+                          !isCorrectWalletAddress
+                            ? "text-red-500"
+                            : isEthWalletConnected &&
+                                isImuaNetwork &&
+                                isCorrectWalletAddress
+                              ? "text-green-500"
+                              : isEthWalletConnected && !isImuaNetwork
+                                ? "text-yellow-500"
+                                : "text-primary"
                         }`}
                       />
                     </div>
@@ -148,6 +169,22 @@ function MountedXRPStakingPage() {
                       <p className="mb-4 text-muted-foreground">
                         Ethereum wallet is required for cross-chain staking.
                       </p>
+                      <div className="flex justify-center">
+                        <ConnectButton />
+                      </div>
+                    </>
+                  ) : boundImuaAddress && !isCorrectWalletAddress ? (
+                    <>
+                      <h3 className="text-lg font-bold mb-2">
+                        Wrong Wallet Address
+                      </h3>
+                      <p className="mb-4 text-rose-500">
+                        This XRP address is already bound to a different Imua
+                        address. Please connect the wallet with address:
+                      </p>
+                      <div className="p-2 bg-muted rounded-md mb-4 break-all text-xs">
+                        {boundImuaAddress}
+                      </div>
                       <div className="flex justify-center">
                         <ConnectButton />
                       </div>
@@ -424,16 +461,29 @@ function MountedXRPStakingPage() {
                 <span className="text-sm text-muted-foreground">
                   {isEthWalletConnected &&
                   isImuaNetwork &&
+                  isCorrectWalletAddress &&
                   isGemWalletConnectedOnTestnet
                     ? "Complete"
-                    : `${(isEthWalletConnected && isImuaNetwork ? 1 : 0) + (isGemWalletConnectedOnTestnet ? 1 : 0)}/2`}
+                    : `${
+                        (isEthWalletConnected &&
+                        isImuaNetwork &&
+                        isCorrectWalletAddress
+                          ? 1
+                          : 0) + (isGemWalletConnectedOnTestnet ? 1 : 0)
+                      }/2`}
                 </span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-500 ease-in-out"
                   style={{
-                    width: `${(isEthWalletConnected && isImuaNetwork ? 50 : 0) + (isGemWalletConnectedOnTestnet ? 50 : 0)}%`,
+                    width: `${
+                      (isEthWalletConnected &&
+                      isImuaNetwork &&
+                      isCorrectWalletAddress
+                        ? 50
+                        : 0) + (isGemWalletConnectedOnTestnet ? 50 : 0)
+                    }%`,
                   }}
                 ></div>
               </div>

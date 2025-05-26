@@ -32,9 +32,15 @@ export function useGemWallet() {
   const checkBoundAddress = useCallback(async (): Promise<
     `0x${string}` | null
   > => {
-    if (!userAddress || !utxoGateway || isCheckingBinding) return null;
+    console.log("DEBUG: checkBoundAddress called");
+
+    if (!userAddress || !utxoGateway || isCheckingBinding) {
+      console.log("DEBUG: early return triggered");
+      return null;
+    }
 
     try {
+      console.log("DEBUG: setting binding status to true");
       setBindingStatus(true);
 
       // Convert XRP address to bytes format
@@ -46,6 +52,8 @@ export function useGemWallet() {
         XRP_CHAIN_ID,
         xrpAddressBytes,
       ]);
+
+      console.log("DEBUG: bound address from contract", boundAddress);
 
       // Check if the returned address is not the zero address
       const isValidAddress =
@@ -95,9 +103,21 @@ export function useGemWallet() {
 
   // Check for bound address when wallet connects or changes
   useEffect(() => {
+    console.log("DEBUG: useEffect for checking bound address called");
+    console.log("DEBUG: isWalletConnected", isWalletConnected);
+    console.log("DEBUG: userAddress", userAddress);
+    console.log("DEBUG: utxoGateway", utxoGateway);
+    console.log("DEBUG: boundImuaAddress", boundImuaAddress);
     // Only check if we have a wallet connection and no bound address
     if (isWalletConnected && userAddress && utxoGateway && !boundImuaAddress) {
-      checkBoundAddress();
+      // Use an IIFE to properly await the async function
+      (async () => {
+        try {
+          await checkBoundAddress();
+        } catch (error) {
+          console.error("Error checking bound address:", error);
+        }
+      })();
     }
   }, [
     isWalletConnected,
