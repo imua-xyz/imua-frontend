@@ -189,7 +189,11 @@ export function StakeTab({
   }, [txStatus]); // Only depend on txStatus
 
   const handleOperation = async (
-    operation: () => Promise<`0x${string}`>,
+    operation: () => Promise<{
+      hash: string;
+      success: boolean;
+      error?: string;
+    }>,
     options?: { requiresApproval?: boolean },
   ) => {
     setTxError(null);
@@ -197,18 +201,23 @@ export function StakeTab({
     setShowProgress(true);
 
     try {
-      const txHash = await operation();
+      const { hash, success, error } = await operation();
 
       // Update transaction hash in progress
       setCrossChainProgress((prev) => {
         const updated = { ...prev };
         const currentStep = updated.steps[updated.currentStepIndex];
-        currentStep.txHash = txHash;
+        currentStep.txHash = hash;
         currentStep.explorerUrl = ``;
         return updated;
       });
 
-      setTxStatus("success");
+      if (success) {
+        setTxStatus("success");
+      } else {
+        setTxStatus("error");
+        setTxError(error || "Transaction failed");
+      }
     } catch (error) {
       console.error("Operation failed:", error);
       setTxStatus("error");

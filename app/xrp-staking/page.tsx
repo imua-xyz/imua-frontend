@@ -1,9 +1,9 @@
-// app/xrp-staking/page.tsx - Updated to enforce Testnet
+// app/xrp-staking/page.tsx - Updated with Imua network check and guide
 "use client";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAccount } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { AllStakingPositions } from "@/components/AllStakingPostions";
 import { XRPStaking } from "@/components/Staking/xrp/XRPStaking";
@@ -14,23 +14,74 @@ import { GemWalletDisplay } from "@/components/Staking/xrp/GemWalletDisplay";
 import { Header } from "@/components/layout/header";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Wallet, WalletIcon } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronRight,
+  Plus,
+  Wallet,
+  WalletIcon,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { imua } from "@/config/wagmi";
 
 // Separate component for mounted state to fix hydration issue
 function MountedXRPStakingPage() {
-  const { address, isConnected: isEthWalletConnected } = useAccount();
+  const { address, chain, isConnected: isEthWalletConnected } = useAccount();
+  const { switchChain, status: switchChainStatus } = useSwitchChain();
   const stakingContext = useXRPContextProvider();
   const stakingProvider = useXrpStakingProvider(stakingContext);
+  const [isAddNetworkDialogOpen, setIsAddNetworkDialogOpen] = useState(false);
 
-  // Check if connected to Testnet
-  const isTestnet = stakingContext.network?.network === "Testnet";
-  const correctNetwork = isTestnet;
+  // Check if connected to Imua network
+  const isImuaNetwork = chain?.id === imua.id;
 
-  // Only count as connected if on the correct network
+  // Check if connected to XRP Testnet
+  const isXrpTestnet = stakingContext.network?.network === "Testnet";
+  const correctXrpNetwork = isXrpTestnet;
+
+  // Only count as connected if on the correct networks
   const isGemWalletConnectedOnTestnet =
-    stakingContext.isGemWalletConnected && correctNetwork;
+    stakingContext.isGemWalletConnected && correctXrpNetwork;
   const bothWalletsConnected =
-    isEthWalletConnected && isGemWalletConnectedOnTestnet;
+    isEthWalletConnected && isImuaNetwork && isGemWalletConnectedOnTestnet;
+
+  // Handler to add Imua network to MetaMask
+  const addImuaNetworkToMetaMask = async () => {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: `0x${imua.id.toString(16)}`,
+              chainName: imua.name,
+              nativeCurrency: {
+                name: imua.nativeCurrency.name,
+                symbol: imua.nativeCurrency.symbol,
+                decimals: 18,
+              },
+              rpcUrls: [imua.rpcUrls.default.http[0]],
+              blockExplorerUrls: ["https://exoscan.org/"],
+            },
+          ],
+        });
+        setIsAddNetworkDialogOpen(false);
+      } catch (error) {
+        console.error("Error adding Imua network to MetaMask:", error);
+      }
+    }
+  };
 
   return (
     <div>
@@ -58,40 +109,199 @@ function MountedXRPStakingPage() {
 
       <main className="container mx-auto">
         {/* Connection Status Cards */}
-        {(!isGemWalletConnectedOnTestnet || !isEthWalletConnected) && (
+        {(!isGemWalletConnectedOnTestnet ||
+          !isEthWalletConnected ||
+          !isImuaNetwork) && (
           <div className="mb-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Ethereum Wallet Connection */}
               <Card
                 className={
-                  isEthWalletConnected
+                  isEthWalletConnected && isImuaNetwork
                     ? "border-green-500/30 bg-green-50/30 dark:bg-green-950/10"
-                    : ""
+                    : isEthWalletConnected && !isImuaNetwork
+                      ? "border-yellow-500/30 bg-yellow-50/30 dark:bg-yellow-950/10"
+                      : ""
                 }
               >
                 <CardContent className="text-center p-6">
                   <div className="flex justify-center mb-4">
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                       <Wallet
-                        className={`w-6 h-6 ${isEthWalletConnected ? "text-green-500" : "text-primary"}`}
+                        className={`w-6 h-6 ${
+                          isEthWalletConnected && isImuaNetwork
+                            ? "text-green-500"
+                            : isEthWalletConnected
+                              ? "text-yellow-500"
+                              : "text-primary"
+                        }`}
                       />
                     </div>
                   </div>
-                  <h3 className="text-lg font-bold mb-2">
-                    {isEthWalletConnected
-                      ? "Ethereum Wallet Connected"
-                      : "Connect Ethereum Wallet"}
-                  </h3>
-                  <p className="mb-4 text-muted-foreground">
-                    {isEthWalletConnected
-                      ? "Your Ethereum wallet is successfully connected."
-                      : "Ethereum wallet is required for cross-chain staking."}
-                  </p>
 
-                  {!isEthWalletConnected && (
-                    <div className="flex justify-center">
-                      <ConnectButton />
-                    </div>
+                  {/* Different states based on connection */}
+                  {!isEthWalletConnected ? (
+                    <>
+                      <h3 className="text-lg font-bold mb-2">
+                        Connect Ethereum Wallet
+                      </h3>
+                      <p className="mb-4 text-muted-foreground">
+                        Ethereum wallet is required for cross-chain staking.
+                      </p>
+                      <div className="flex justify-center">
+                        <ConnectButton />
+                      </div>
+                    </>
+                  ) : !isImuaNetwork ? (
+                    <>
+                      <h3 className="text-lg font-bold mb-2">
+                        Switch to Imua Network
+                      </h3>
+                      <p className="mb-4 text-muted-foreground">
+                        Please switch your wallet to the Imua network to
+                        continue.
+                      </p>
+                      <div className="flex flex-col gap-2 items-center">
+                        {switchChain ? (
+                          <Button
+                            onClick={() => switchChain({ chainId: imua.id })}
+                            disabled={switchChainStatus === "pending"}
+                          >
+                            {switchChainStatus === "pending"
+                              ? "Switching..."
+                              : "Switch to Imua Network"}
+                          </Button>
+                        ) : (
+                          <Dialog
+                            open={isAddNetworkDialogOpen}
+                            onOpenChange={setIsAddNetworkDialogOpen}
+                          >
+                            <DialogTrigger asChild>
+                              <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Imua Network
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  Add Imua Network to MetaMask
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Configure your wallet with the Imua network
+                                  details below.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label
+                                    htmlFor="network-name"
+                                    className="text-right"
+                                  >
+                                    Network
+                                  </Label>
+                                  <Input
+                                    id="network-name"
+                                    value={imua.name}
+                                    className="col-span-3"
+                                    readOnly
+                                  />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label
+                                    htmlFor="rpc-url"
+                                    className="text-right"
+                                  >
+                                    RPC URL
+                                  </Label>
+                                  <Input
+                                    id="rpc-url"
+                                    value={imua.rpcUrls.default.http[0]}
+                                    className="col-span-3"
+                                    readOnly
+                                  />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label
+                                    htmlFor="chain-id"
+                                    className="text-right"
+                                  >
+                                    Chain ID
+                                  </Label>
+                                  <Input
+                                    id="chain-id"
+                                    value={imua.id}
+                                    className="col-span-3"
+                                    readOnly
+                                  />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label
+                                    htmlFor="symbol"
+                                    className="text-right"
+                                  >
+                                    Symbol
+                                  </Label>
+                                  <Input
+                                    id="symbol"
+                                    value={imua.nativeCurrency.symbol}
+                                    className="col-span-3"
+                                    readOnly
+                                  />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label
+                                    htmlFor="explorer"
+                                    className="text-right"
+                                  >
+                                    Explorer
+                                  </Label>
+                                  <Input
+                                    id="explorer"
+                                    value={"https://exoscan.org/"}
+                                    className="col-span-3"
+                                    readOnly
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter className="sm:justify-center">
+                                <Button
+                                  type="button"
+                                  onClick={addImuaNetworkToMetaMask}
+                                >
+                                  Add to MetaMask
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setIsAddNetworkDialogOpen(false)
+                                  }
+                                >
+                                  Cancel
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {chain
+                            ? `Currently on: ${chain.name} (Chain ID: ${chain.id})`
+                            : "No network detected"}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-lg font-bold mb-2">
+                        Ethereum Wallet Connected
+                      </h3>
+                      <p className="mb-4 text-muted-foreground">
+                        Your Ethereum wallet is successfully connected to the
+                        Imua network.
+                      </p>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -134,7 +344,7 @@ function MountedXRPStakingPage() {
                         Install GemWallet
                       </Button>
                     </div>
-                  ) : stakingContext.isGemWalletConnected && !isTestnet ? (
+                  ) : stakingContext.isGemWalletConnected && !isXrpTestnet ? (
                     <div>
                       <p className="mb-4 text-rose-500">
                         You are connected to{" "}
@@ -176,6 +386,35 @@ function MountedXRPStakingPage() {
           </div>
         )}
 
+        {/* Connection explanation */}
+        {!bothWalletsConnected && (
+          <Alert className="mb-8">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Why do I need to connect two wallets?</AlertTitle>
+            <AlertDescription>
+              <p className="mt-2">
+                XRP staking requires both wallets for cross-chain operations:
+              </p>
+              <ul className="list-disc pl-6 mt-2 space-y-1">
+                <li>
+                  <span className="font-medium">XRP Wallet (GemWallet):</span>{" "}
+                  For sending XRP deposits
+                </li>
+                <li>
+                  <span className="font-medium">
+                    Ethereum Wallet on Imua Network:
+                  </span>{" "}
+                  For delegation, undelegation, and withdrawal operations
+                </li>
+              </ul>
+              <p className="mt-2">
+                Your first deposit will bind your XRP address to your Imua
+                address, enabling cross-chain operations.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Progress Indicator for Wallet Connection */}
         {!bothWalletsConnected && (
           <div className="mb-8 flex justify-center">
@@ -183,18 +422,18 @@ function MountedXRPStakingPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Connection Progress</span>
                 <span className="text-sm text-muted-foreground">
-                  {isEthWalletConnected && isGemWalletConnectedOnTestnet
+                  {isEthWalletConnected &&
+                  isImuaNetwork &&
+                  isGemWalletConnectedOnTestnet
                     ? "Complete"
-                    : isEthWalletConnected || isGemWalletConnectedOnTestnet
-                      ? "1/2"
-                      : "0/2"}
+                    : `${(isEthWalletConnected && isImuaNetwork ? 1 : 0) + (isGemWalletConnectedOnTestnet ? 1 : 0)}/2`}
                 </span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-500 ease-in-out"
                   style={{
-                    width: `${(isEthWalletConnected ? 50 : 0) + (isGemWalletConnectedOnTestnet ? 50 : 0)}%`,
+                    width: `${(isEthWalletConnected && isImuaNetwork ? 50 : 0) + (isGemWalletConnectedOnTestnet ? 50 : 0)}%`,
                   }}
                 ></div>
               </div>

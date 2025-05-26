@@ -13,7 +13,7 @@ export function useTxUtils() {
       txPromise: Promise<`0x${string}`>,
       options?: TxHandlerOptions,
       status: TxStatus = "processing",
-    ) => {
+    ): Promise<{ hash: string; success: boolean; error?: string }> => {
       if (!publicClient) throw new Error("Public client not found");
       try {
         options?.onStatus?.(status);
@@ -26,17 +26,21 @@ export function useTxUtils() {
 
         if (receipt.status === "success") {
           options?.onStatus?.("success");
-          return hash;
+          return { hash, success: true };
         } else {
           options?.onStatus?.("error", "Transaction failed");
-          throw new Error("Transaction failed");
+          return { hash, success: false };
         }
       } catch (error) {
         options?.onStatus?.(
           "error",
           error instanceof Error ? error.message : "Transaction failed",
         );
-        throw error;
+        return {
+          hash: "",
+          success: false,
+          error: error instanceof Error ? error.message : "Transaction failed",
+        };
       }
     },
     [publicClient],
@@ -46,7 +50,7 @@ export function useTxUtils() {
     async (
       txPromise: Promise<GemWalletResponse>,
       options?: TxHandlerOptions,
-    ) => {
+    ): Promise<{ hash: string; success: boolean; error?: string }> => {
       options?.onStatus?.("processing");
       const MAX_WAIT_TIME = 60000; // 30 seconds timeout
       const POLLING_INTERVAL = 2000; // Check every 2 seconds
@@ -59,9 +63,12 @@ export function useTxUtils() {
             "error",
             "Transaction failed to be broadcasted and returned without a hash",
           );
-          throw new Error(
-            "Transaction failed to be broadcasted and returned without a hash",
-          );
+          return {
+            hash: "",
+            success: false,
+            error:
+              "Transaction failed to be broadcasted and returned without a hash",
+          };
         }
 
         const txResponse = response.data.hash;
@@ -86,10 +93,14 @@ export function useTxUtils() {
           if (status.data?.finalized) {
             if (status.data?.success) {
               options?.onStatus?.("success");
-              return txHash;
+              return { hash: txHash, success: true };
             } else {
               options?.onStatus?.("error", "Transaction failed on the ledger");
-              throw new Error("Transaction failed on the ledger");
+              return {
+                hash: txHash,
+                success: false,
+                error: "Transaction failed on the ledger",
+              };
             }
           }
 
@@ -103,16 +114,24 @@ export function useTxUtils() {
             "error",
             "Transaction submitted but validation timed out",
           );
-          return txHash; // Return the hash anyway since the tx might still validate later
+          return {
+            hash: txHash,
+            success: false,
+            error: "Transaction submitted but validation timed out",
+          }; // Return the hash anyway since the tx might still validate later
         }
 
-        return txHash;
+        return { hash: txHash, success: true };
       } catch (error) {
         options?.onStatus?.(
           "error",
           error instanceof Error ? error.message : "Transaction failed",
         );
-        throw error;
+        return {
+          hash: "",
+          success: false,
+          error: error instanceof Error ? error.message : "Transaction failed",
+        };
       }
     },
     [xrplClient],

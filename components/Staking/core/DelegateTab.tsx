@@ -30,13 +30,25 @@ export function DelegateTab({
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
-  const handleOperation = async (operation: () => Promise<`0x${string}`>) => {
+  const handleOperation = async (
+    operation: () => Promise<{
+      hash: string;
+      success: boolean;
+      error?: string;
+    }>,
+  ) => {
     setTxError(null);
     setTxStatus("processing");
 
     try {
-      await operation();
-      setTxStatus("success");
+      const { success, error } = await operation();
+      if (success) {
+        setTxStatus("success");
+      } else {
+        setTxStatus("error");
+        setTxError(error || "Transaction failed");
+      }
+
       setTimeout(() => {
         setTxStatus(null);
         setTxError(null);

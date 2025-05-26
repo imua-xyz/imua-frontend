@@ -127,8 +127,25 @@ export function useXrpStakingProvider(
       const accountInfo = await xrplClient.getAccountInfo(xrpAddress);
       if (!accountInfo.success) throw new Error("Failed to fetch account info");
 
-      const memoData = evmAddress
-        ? Buffer.from(evmAddress, "utf8").toString("hex")
+      // Determine which address to use for memo data
+      // 1. If boundImuaAddress exists, use that
+      // 2. If not and evmAddress exists, use the connected EVM wallet address
+      // 3. Otherwise, leave it empty
+      let memoAddress = "";
+      let effectiveAddress: `0x${string}` | null = null;
+
+      if (stakingContext.boundImuaAddress) {
+        // Use the already bound address (priority)
+        memoAddress = stakingContext.boundImuaAddress;
+        effectiveAddress = stakingContext.boundImuaAddress;
+      } else if (evmAddress) {
+        // Fallback to connected EVM wallet address
+        memoAddress = evmAddress;
+        effectiveAddress = evmAddress as `0x${string}`;
+      }
+
+      const memoData = memoAddress
+        ? Buffer.from(memoAddress.slice(2), "hex").toString("hex")
         : "";
 
       const txPayload = {
@@ -147,13 +164,41 @@ export function useXrpStakingProvider(
         ],
       };
 
-      return handleXrplTxWithStatus(sendTransaction(txPayload), options);
+      const { hash, success, error } = await handleXrplTxWithStatus(
+        sendTransaction(txPayload),
+        options,
+      );
+
+      // If transaction was successful and:
+      // 1. We don't have a bound address yet
+      // 2. We used the EVM address in the memo
+      // 3. We have the checkBoundAddress method available
+      if (
+        success &&
+        !stakingContext.boundImuaAddress &&
+        effectiveAddress &&
+        stakingContext.checkBoundAddress
+      ) {
+        // Schedule binding checks after successful deposit
+        setTimeout(async () => {
+          await stakingContext.checkBoundAddress();
+
+          // Check again after a longer delay if still not found
+          setTimeout(async () => {
+            await stakingContext.checkBoundAddress();
+          }, 15000); // Second check after 15 seconds
+        }, 5000); // First check after 5 seconds
+      }
+
+      return { hash, success, error };
     },
     [
       isGemWalletConnected,
       xrpAddress,
       evmAddress,
       xrplClient,
+      stakingContext.boundImuaAddress,
+      stakingContext.checkBoundAddress,
       handleXrplTxWithStatus,
       sendTransaction,
     ],
