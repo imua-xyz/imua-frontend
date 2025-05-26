@@ -51,19 +51,19 @@ export function useXrpStakingProvider(
       }
 
       try {
-        // First get binded evm address for the xrp address
-        const bindedEvmAddress = await contract?.read.getImuachainAddress([
+        // First get bound evm address for the xrp address
+        const boundEvmAddress = await contract?.read.getImuachainAddress([
           XRP_CHAIN_ID,
-          xrpAddress,
+          "0x" + Buffer.from(xrpAddress, "utf8").toString("hex"),
         ]);
-        if (!bindedEvmAddress) {
+        if (!boundEvmAddress) {
           throw new Error("No bound EVM address found");
         }
 
         // Get staker balance from Assets Precompile
         const { success, stakerBalanceResponse } =
           await getStakerBalanceByToken(
-            bindedEvmAddress as `0x${string}`,
+            boundEvmAddress as `0x${string}`,
             XRP_CHAIN_ID,
             XRP_TOKEN_ADDRESS,
           );
