@@ -145,7 +145,7 @@ export function useXrpStakingProvider(
       }
 
       const memoData = memoAddress
-        ? Buffer.from(memoAddress.slice(2), "hex").toString("hex")
+        ? Buffer.from(memoAddress, "utf8").toString("hex")
         : "";
 
       const txPayload = {
