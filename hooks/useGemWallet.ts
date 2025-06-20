@@ -15,6 +15,7 @@ export function useGemWallet() {
     isLoading,
     installed,
     sessionExpiresAt,
+    manuallyDisconnected,
     boundImuaAddress,
     isCheckingBinding,
     bindingError,
@@ -88,7 +89,7 @@ export function useGemWallet() {
   // Auto-reconnect if session exists on mount
   useEffect(() => {
     const attemptReconnect = async () => {
-      if (!installed || isWalletConnected) return;
+      if (!installed || isWalletConnected || manuallyDisconnected) return;
       await connect();
     };
 

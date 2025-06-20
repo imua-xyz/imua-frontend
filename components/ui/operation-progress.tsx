@@ -1,4 +1,4 @@
-// components/ui/cross-chain-progress.tsx
+// components/ui/operation-progress.tsx
 import { useState, useEffect } from "react";
 import { CheckCircle, XCircle, Loader2, ArrowRight, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TxStatus } from "@/types/staking";
 
-export type CrossChainStep = {
+export type OperationStep = {
   id: string;
   title: string;
   description: string;
@@ -21,29 +21,67 @@ export type CrossChainStep = {
   explorerUrl?: string;
 };
 
-export type CrossChainProgress = {
-  sourceChain: string;
-  destinationChain: string;
-  operation: "deposit" | "stake" | "withdraw" | "claim";
-  steps: CrossChainStep[];
+export const approvalStep: OperationStep = {
+  id: "approval",
+  title: "Token Approval",
+  description: "Approve tokens for staking",
+  status: "pending",
+};
+
+export const transactionStep: OperationStep = {
+  id: "transaction",
+  title: "Submit Transaction",
+  description: "Sending transaction",
+  status: "pending",
+};
+
+export const confirmationStep: OperationStep = {
+  id: "confirmation",
+  title: "Transaction Confirmation",
+  description: "Waiting for transaction to be confirmed",
+  status: "pending",
+};
+
+export const relayingStep: OperationStep = {
+  id: "relaying",
+  title: "Cross-Chain Message",
+  description: "Relaying message to destination chain",
+  status: "pending",
+};  
+
+export const completionStep: OperationStep = {
+  id: "completion",
+  title: "Process Completion",
+  description: "Verifying final balance update",
+  status: "pending",
+};
+
+export type OperationProgress = {
+  operation: string;
+  chainInfo?: {
+    sourceChain?: string;
+    destinationChain?: string;
+  };
+  steps: OperationStep[];
   currentStepIndex: number;
   overallStatus: TxStatus | "relaying" | "confirming" | null;
 };
 
-interface CrossChainProgressProps {
-  progress: CrossChainProgress;
+interface OperationProgressProps {
+  progress: OperationProgress;
   open: boolean;
   onClose: () => void;
   onViewDetails?: () => void;
 }
 
-export function CrossChainProgress({
+export function OperationProgress({
   progress,
   open,
   onClose,
   onViewDetails,
-}: CrossChainProgressProps) {
+}: OperationProgressProps) {
   const [progressValue, setProgressValue] = useState(0);
+  const isCrossChain = !!(progress.chainInfo?.sourceChain && progress.chainInfo?.destinationChain);
 
   // Calculate progress percentage based on steps
   useEffect(() => {
@@ -88,12 +126,14 @@ export function CrossChainProgress({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Chain indication */}
-        <div className="flex items-center justify-center text-sm text-muted-foreground mb-4">
-          <span>{progress.sourceChain}</span>
-          <ArrowRight className="mx-2" size={16} />
-          <span>{progress.destinationChain}</span>
-        </div>
+        {/* Chain indication - only show if cross-chain */}
+        {isCrossChain && (
+          <div className="flex items-center justify-center text-sm text-muted-foreground mb-4">
+            <span>{progress.chainInfo?.sourceChain}</span>
+            <ArrowRight className="mx-2" size={16} />
+            <span>{progress.chainInfo?.destinationChain}</span>
+          </div>
+        )}
 
         {/* Overall progress bar */}
         <Progress value={progressValue} className="h-2 mb-6" />

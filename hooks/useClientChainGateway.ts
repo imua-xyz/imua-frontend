@@ -51,8 +51,8 @@ export function useClientChainGateway() {
   );
 
   const getVaultAddress = useCallback(
-    async (token?: `0x${string}`): Promise<`0x${string}` | undefined> => {
-      if (!contract || !token) return undefined;
+    async (token?: `0x${string}`): Promise<`0x${string}`> => {
+      if (!contract || !token) throw new Error("Contract or token not found");
       const vaultAddress = await contract.read.tokenToVault([token]);
       return vaultAddress as `0x${string}`;
     },

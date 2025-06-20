@@ -1,0 +1,144 @@
+// components/layout/WalletDetailsModal.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useWallet } from "@/stores/useWalletStore";
+import { Copy, X, ExternalLink, CheckCircle } from "lucide-react";
+import { useDisconnect } from "wagmi";
+import { Token } from "@/types/tokens";
+
+interface WalletDetailsModalProps {
+  token: Token;
+  isOpen: boolean;
+  onClose: () => void;
+  walletType: "evm" | "xrp";
+}
+
+export function WalletDetailsModal({ token, isOpen, onClose, walletType }: WalletDetailsModalProps) {
+  const {
+    evmAddress,
+    xrpAddress,
+    disconnectXrp,
+  } = useWallet(token);
+  
+  const [copied, setCopied] = useState(false);
+  const { disconnect } = useDisconnect();
+  
+  const address = walletType === "evm" ? evmAddress : xrpAddress;
+  const displayName = walletType === "evm" ? "Imua Chain Wallet" : "XRP Wallet";
+  const balance = walletType === "evm" ? "6.13 ETH" : "128.45 XRP"; // This would come from actual balance hooks
+  
+  const copyAddress = () => {
+    if (address) {
+      navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+  
+  const handleDisconnect = () => {
+    if (walletType === "xrp") {
+      disconnectXrp();
+    } else {
+      disconnect();
+    }
+    onClose();
+  };
+  
+  const openExplorer = () => {
+    const url = walletType === "evm" 
+      ? `https://exoscan.org/address/${evmAddress}`
+      : `https://testnet.xrpl.org/accounts/${xrpAddress}`;
+    window.open(url, '_blank');
+  };
+  
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white dark:bg-[#15151c] rounded-2xl w-full max-w-md overflow-hidden shadow-xl"
+          >
+            {/* Header */}
+            <div className="relative p-6 border-b border-gray-200 dark:border-gray-800">
+              <button 
+                onClick={onClose}
+                className="absolute top-6 right-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <X size={20} />
+              </button>
+              <div className="flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
+                  <img 
+                    src={walletType === "evm" ? "/eth-logo.svg" : "/xrp-logo.svg"} 
+                    alt={displayName} 
+                    className="w-6 h-6"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Address */}
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                  {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : ""}
+                </h3>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">
+                  {displayName}
+                </div>
+              </div>
+              
+              {/* Balance */}
+              <div className="text-center text-2xl font-bold text-gray-900 dark:text-white">
+                {balance}
+              </div>
+              
+              {/* Actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={copyAddress}
+                  className="flex items-center justify-center space-x-2 bg-gray-100 dark:bg-[#1a1a24] hover:bg-gray-200 dark:hover:bg-[#21212f] transition-colors rounded-xl py-3 px-4"
+                >
+                  {copied ? (
+                    <>
+                      <CheckCircle size={18} className="text-green-500" />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={18} className="text-gray-500 dark:text-gray-400" />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">Copy Address</span>
+                    </>
+                  )}
+                </button>
+                
+                <button 
+                  onClick={openExplorer}
+                  className="flex items-center justify-center space-x-2 bg-gray-100 dark:bg-[#1a1a24] hover:bg-gray-200 dark:hover:bg-[#21212f] transition-colors rounded-xl py-3 px-4"
+                >
+                  <ExternalLink size={18} className="text-gray-500 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">View in Explorer</span>
+                </button>
+              </div>
+              
+              {/* Disconnect Button */}
+              <button 
+                onClick={handleDisconnect}
+                className="w-full mt-4 py-3 rounded-xl text-sm font-medium bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+              >
+                Disconnect
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}

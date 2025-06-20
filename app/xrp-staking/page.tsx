@@ -89,7 +89,7 @@ function MountedXRPStakingPage() {
   return (
     <div>
       {/* Keep the standard header for Ethereum wallet */}
-      <Header />
+      <Header token={null} />
 
       {/* Breadcrumb navigation */}
       <div className="border-b">

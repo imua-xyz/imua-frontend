@@ -2,6 +2,7 @@ import { createConfig, http } from "wagmi";
 import { sepolia, mainnet } from "wagmi/chains";
 import { createPublicClient, http as viem_http } from "viem";
 import { walletConnect } from "wagmi/connectors";
+import { getDefaultWallets } from "@rainbow-me/rainbowkit";
 
 const projectId = "f6e3c67c095bd29425c6c94ff24b08db"; // Get this from WalletConnect dashboard
 
@@ -45,6 +46,11 @@ export const publicClients = {
   }),
 };
 
+const { connectors } = getDefaultWallets({
+  appName: "Imua Staking",
+  projectId,
+});
+
 // Create wagmi config
 export const config = createConfig({
   chains: [sepolia, mainnet, imua],
@@ -57,16 +63,7 @@ export const config = createConfig({
     ),
     [imua.id]: http("https://api-eth.exocore-restaking.com"),
   },
-  connectors: [
-    walletConnect({
-      projectId,
-      showQrModal: true,
-      metadata: {
-        name: "Imua",
-        description: "Imua Staking",
-        url: "https://imua.xyz",
-        icons: ["https://avatars.githubusercontent.com/u/37784886"],
-      },
-    }),
-  ],
+  connectors,
 });
+
+export type ValidEVMChain = "Sepolia" | "Mainnet" | "Imua";

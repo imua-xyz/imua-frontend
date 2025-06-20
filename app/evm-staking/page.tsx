@@ -24,7 +24,7 @@ export default function EVMStakingPage() {
 
   return (
     <div>
-      <Header />
+      <Header token={null} />
       <main className="container mx-auto p-4">
         <div className="mb-4">
           <Link href="/" passHref>

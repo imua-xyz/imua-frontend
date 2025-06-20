@@ -17,7 +17,7 @@ export default function Home() {
 
   return (
     <div>
-      <Header />
+      <Header token={null} />
       <main className="container mx-auto p-4 flex items-center justify-center min-h-[70vh]">
         <div className="max-w-md w-full">
           <Card className="shadow-lg border-2 border-gray-100 dark:border-gray-800">

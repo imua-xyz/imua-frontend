@@ -17,6 +17,7 @@ interface GemWalletState {
   isLoading: boolean;
   installed: boolean;
   sessionExpiresAt: number | null;
+  manuallyDisconnected: boolean;
 
   // New binding properties
   boundImuaAddress: `0x${string}` | null;
@@ -44,7 +45,7 @@ export const useGemWalletStore = create<GemWalletState>()(
       isLoading: false,
       installed: false,
       sessionExpiresAt: null,
-
+      manuallyDisconnected: false,
       // New binding state
       boundImuaAddress: null,
       isCheckingBinding: false,
@@ -95,6 +96,7 @@ export const useGemWalletStore = create<GemWalletState>()(
             walletNetwork: network,
             isLoading: false,
             sessionExpiresAt: expiresAt,
+            manuallyDisconnected: false,
           });
 
           return {
@@ -124,6 +126,7 @@ export const useGemWalletStore = create<GemWalletState>()(
             // Clear binding information on disconnect
             boundImuaAddress: null,
             bindingError: null,
+            manuallyDisconnected: true,
           });
 
           return { success: true };
@@ -210,6 +213,7 @@ export const useGemWalletStore = create<GemWalletState>()(
         walletNetwork: state.walletNetwork,
         // Also persist the bound address
         boundImuaAddress: state.boundImuaAddress,
+        manuallyDisconnected: state.manuallyDisconnected,
       }),
     },
   ),
