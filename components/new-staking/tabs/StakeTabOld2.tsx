@@ -37,6 +37,7 @@ export function StakeTab({
 
   // Balance and amount state
   const balance = stakingService.walletBalance?.value || BigInt(0);
+  console.log("DEBUG: stake tab balance", balance);
   const maxAmount = balance;
   const decimals = stakingService.walletBalance?.decimals || 0;
   const {
@@ -60,24 +61,23 @@ export function StakeTab({
   // Transaction state
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
   // Cross-chain progress tracking
   const [showProgress, setShowProgress] = useState(false);
-//   const [crossChainProgress, setCrossChainProgress] = useState<CrossChainProgress>({
-//     sourceChain,
-//     destinationChain,
-//     operation: isStakeMode && selectedOperator ? "stake" : "deposit",
-//     steps: [
-//       approvalStep,
-//       transactionStep,
-//       confirmationStep,
-//       relayingStep,
-//       completionStep,
-//     ],
-//     currentStepIndex: 0,
-//     overallStatus: null,
-//   });
+  const [crossChainProgress, setCrossChainProgress] = useState<CrossChainProgress>({
+    sourceChain,
+    destinationChain,
+    operation: isStakeMode && selectedOperator ? "stake" : "deposit",
+    steps: [
+      approvalStep,
+      transactionStep,
+      confirmationStep,
+      relayingStep,
+      completionStep,
+    ],
+    currentStepIndex: 0,
+    overallStatus: null,
+  });
 
   // Try to restore last used operator from localStorage
   useEffect(() => {
@@ -108,6 +108,12 @@ export function StakeTab({
     // Save selected operator to localStorage
     localStorage.setItem(`lastOperator_${token.symbol}`, operator.address);
     
+    // Update operation type in progress tracking
+    setCrossChainProgress((prev) => ({
+      ...prev,
+      operation: isStakeMode ? "stake" : "deposit",
+    }));
+    
     // Close the modal
     setShowOperatorModal(false);
     
@@ -133,6 +139,7 @@ export function StakeTab({
     try {
       const result = await stakingService.stake(
         parsedAmount,
+        stakingService.vaultAddress as `0x${string}`,
         isStakeMode && !isDepositThenDelegateDisabled && selectedOperator
           ? selectedOperator.address
           : undefined,
@@ -144,28 +151,18 @@ export function StakeTab({
         },
       );
 
-      if (result.hash) {
-        setTxHash(result.hash);
-      }
-
       if (result.success) {
         setTxStatus("success");
         if (onSuccess) onSuccess();
       } else {
         setTxStatus("error");
-        setTxError("Transaction rejected by the user Or Transaction failed");
+        setTxError(result.error || "Transaction failed");
       }
     } catch (error) {
       console.error("Operation failed:", error);
       setTxStatus("error");
-      setTxError("Transaction rejected by the user Or Transaction failed");
+      setTxError(error instanceof Error ? error.message : "Transaction failed");
     }
-
-    setTimeout(() => {
-      setTxStatus(null);
-      setTxError(null);
-      setTxHash(undefined);
-    }, 10000);
   };
 
   // Format button text based on state
@@ -193,6 +190,19 @@ export function StakeTab({
 
   return (
     <div className="space-y-6">
+      {/* Header with Token Info - Always visible */}
+      <div className="flex items-center">
+        <img
+          src={token.iconUrl}
+          alt={token.symbol}
+          className="w-24 h-6 mr-3"
+        />
+        <div>
+          <h2 className="text-lg font-bold text-white">
+            {isStakeMode ? "Stake" : "Deposit"} {token.symbol}
+          </h2>
+        </div>
+      </div>
 
       {/* Step indicator */}
       <div className="flex items-center justify-center">
@@ -210,10 +220,14 @@ export function StakeTab({
       </div>
 
       {/* Balance display - Always visible */}
-      {/* <div className="flex justify-between text-sm">
-        <span className="text-[#9999aa]">Balance</span>
-        <span className="text-white">{formatUnits(balance, decimals)} {token.symbol}</span>
-      </div> */}
+      <div className="flex justify-between">
+        <span className="text-sm text-[#9999aa]">
+          Your balance
+        </span>
+        <span className="text-sm font-medium text-white">
+          {formatUnits(balance, decimals)} {token.symbol}
+        </span>
+      </div>
 
       {/* STEP 1: Amount Entry */}
       {currentStep === "amount" && (
@@ -237,7 +251,7 @@ export function StakeTab({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white"
-              placeholder={`Enter amount (min: ${stakingService.minimumStakeAmount ? formatUnits(stakingService.minimumStakeAmount, decimals) : "0"}, max: ${formatUnits(balance, decimals)})`}
+              placeholder={`Enter amount (min: ${stakingService.minimumStakeAmount ? formatUnits(stakingService.minimumStakeAmount, decimals) : "0"})`}
             />
 
             {amountError && (
@@ -245,11 +259,11 @@ export function StakeTab({
             )}
 
             {/* Estimated value in USD if available */}
-            {/* {parsedAmount && parsedAmount > BigInt(0) && (
+            {parsedAmount && parsedAmount > BigInt(0) && (
               <div className="text-xs text-right text-[#9999aa]">
                 ≈ ${(Number(formatUnits(parsedAmount, decimals)) * 1200).toLocaleString()}
               </div>
-            )} */}
+            )}
           </div>
 
           {/* Stake mode toggle (if deposit-then-delegate is allowed) */}
@@ -398,7 +412,7 @@ export function StakeTab({
             <Button
               className="flex-1 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
               disabled={
-                (!!txStatus) ||
+                (!!txStatus && txStatus !== "error") ||
                 (isStakeMode && !isDepositThenDelegateDisabled && !selectedOperator)
               }
               onClick={handleOperation}
@@ -424,22 +438,19 @@ export function StakeTab({
 
       {/* Progress overlay */}
       <CrossChainProgress
-        sourceChain={sourceChain}
-        destinationChain={destinationChain}
-        operation={isStakeMode && selectedOperator ? "stake" : "deposit"}
-        txHash={txHash}
-        explorerUrl={token.network.explorerUrl}
         txStatus={txStatus}
+        progress={crossChainProgress}
         open={showProgress}
         onClose={() => {
+          if (
+            crossChainProgress.overallStatus === "success" ||
+            crossChainProgress.overallStatus === "error"
+          ) {
             setShowProgress(false);
           }
-        }
+        }}
         onViewDetails={() => {
           // Navigate to transaction history
-          if (token.network.explorerUrl && txHash) {
-            window.open(`${token.network.explorerUrl}${txHash}`, "_blank");
-          }
         }}
       />
     </div>

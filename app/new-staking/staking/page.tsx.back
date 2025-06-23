@@ -14,7 +14,6 @@ import { StakeTab } from "@/components/new-staking/tabs/StakeTab";
 import { DelegateTab } from "@/components/new-staking/tabs/DelegateTab";
 import { UndelegateTab } from "@/components/new-staking/tabs/UndelegateTab";
 import { WithdrawTab } from "@/components/new-staking/tabs/WithdrawTab";
-import { Header } from "@/components/layout/header";
 
 type TabType = "stake" | "delegate" | "undelegate" | "withdraw";
 
@@ -122,7 +121,16 @@ export default function StakingPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
-      <Header token={selectedToken} />
+      {/* Larger header with more padding */}
+      <header className="flex items-center justify-between px-8 py-5 border-b border-[#222233]">
+        <div className="flex items-center">
+          <img src="/imua-logo.avif" alt="Imua" className="h-8 mr-3" />
+          <span className="text-white text-xl font-medium">Imua</span>
+        </div>
+        <button className="p-2.5 rounded-full hover:bg-[#222233]">
+          <Settings size={24} className="text-[#9999aa]" />
+        </button>
+      </header>
 
       {/* Main content area - wider with more breathing room */}
       <div className="max-w-2xl mx-auto px-6 py-12">

@@ -25,20 +25,28 @@ export type CrossChainProgress = {
 };
 
 interface CrossChainProgressProps {
-  progress: CrossChainProgress;
+  sourceChain: string;
+  destinationChain: string;
+  operation: "deposit" | "stake" | "withdraw" | "claim" | string;
   open: boolean;
+  txStatus: TxStatus | null;
+  txHash?: string;
+  explorerUrl?: string;
   onClose: () => void;
   onViewDetails?: () => void;
-  txStatus: TxStatus | null;
   onStatusChange?: (status: TxStatus | "relaying" | "confirming" | "success" | "error" | null) => void;
 }
 
 export function CrossChainProgress({
-  progress: initialProgress,
+  sourceChain,
+  destinationChain,
+  operation,
+  txHash,
+  explorerUrl,
   open,
+  txStatus,
   onClose,
   onViewDetails,
-  txStatus,
   onStatusChange,
 }: CrossChainProgressProps) {
   // Initialize with default steps if not provided
@@ -47,21 +55,25 @@ export function CrossChainProgress({
       { ...approvalStep },
       { 
         ...transactionStep, 
-        description: `Sending ${initialProgress.operation} transaction` 
+        description: `Sending ${operation} transaction` 
       },
       { ...confirmationStep },
       { 
         ...relayingStep, 
-        description: `Relaying message to ${initialProgress.destinationChain}` 
+        description: `Relaying message to ${destinationChain}` 
       },
       { ...completionStep }
     ];
     
     return {
-      ...initialProgress,
-      steps: initialProgress.steps || defaultSteps,
-      currentStepIndex: initialProgress.currentStepIndex || 0,
-      overallStatus: initialProgress.overallStatus || null
+      sourceChain,
+      destinationChain,
+      operation,
+      steps: defaultSteps,
+      currentStepIndex: 0,
+      overallStatus: null,
+      txHash,
+      explorerUrl
     };
   });
 
@@ -140,14 +152,14 @@ export function CrossChainProgress({
       }
 
       // Update transaction hash if available
-      if (initialProgress.txHash && steps[1]) {
-        steps[1].txHash = initialProgress.txHash;
-        steps[1].explorerUrl = initialProgress.explorerUrl;
+      if (txHash && steps[1]) {
+        steps[1].txHash = txHash;
+        steps[1].explorerUrl = explorerUrl;
       }
 
       return { ...updatedProgress, steps };
     });
-  }, [txStatus, initialProgress.txHash, initialProgress.explorerUrl, onStatusChange]);
+  }, [txStatus, txHash, explorerUrl, onStatusChange]);
 
   // Convert to OperationProgress format
   const operationProgress = {
@@ -163,6 +175,7 @@ export function CrossChainProgress({
 
   // Reset progress when dialog is closed
   const handleClose = () => {
+    console.log("DEBUG: handleClose", progress.overallStatus);
     // Only allow closing if complete or error
     if (
       progress.overallStatus === "success" ||

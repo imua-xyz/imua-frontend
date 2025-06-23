@@ -32,6 +32,7 @@ import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 
 export function useXRPStaking(): StakingService {
+  const vaultAddress = XRP_VAULT_ADDRESS;
   const isGemWalletConnected = useGemWalletStore(state => state.isWalletConnected);
   const xrpAddress = useGemWalletStore(state => state.userAddress);
   const walletNetwork = useGemWalletStore(state => state.walletNetwork);
@@ -137,7 +138,6 @@ export function useXRPStaking(): StakingService {
   const stakeXrp = useCallback(
     async (
       amount: bigint,
-      vaultAddress: `0x${string}`,
       operatorAddress?: string,
       options?: TxHandlerOptions,
     ) => {
@@ -217,6 +217,7 @@ export function useXRPStaking(): StakingService {
       return { hash, success, error };
     },
     [
+      vaultAddress,
       isGemWalletConnected,
       isWagmiConnected,
       xrpAddress,
@@ -300,7 +301,7 @@ export function useXRPStaking(): StakingService {
       issues: issues,
       nativeWalletAddress: xrpAddress as `0x${string}`,
     },
-    vaultAddress: XRP_VAULT_ADDRESS,
+    vaultAddress: vaultAddress,
     minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
     isDepositThenDelegateDisabled: true,
   };

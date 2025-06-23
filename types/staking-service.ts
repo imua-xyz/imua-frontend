@@ -16,11 +16,9 @@ export interface StakingService {
   minimumStakeAmount?: bigint;
   isDepositThenDelegateDisabled?: boolean;
 
-
   // Core staking operations
   stake: (
     amount: bigint,
-    vaultAddress: `0x${string}`,
     operatorAddress?: string,
     options?: TxHandlerOptions,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;

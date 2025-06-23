@@ -26,12 +26,7 @@ export function useEVMLSTStaking(
   const { address: userAddress, chainId, isConnected } = useAccount();
   const { contract, publicClient, walletClient } = usePortalContract(token.network);
   const { getStakerBalanceByToken } = useAssetsPrecompile();
-  // const { data: balance } = useBalance({ address: userAddress, token: token.address });
-  const balance = {
-    value: BigInt(10),
-    decimals: 18,
-    symbol: token.symbol,
-  };
+  const { data: balance } = useBalance({ address: userAddress, token: token.address });
   const [vaultAddress, setVaultAddress] = useState<`0x${string}` | null>(null);
 
   const lzEndpointIdOrCustomChainId = token.network.customChainIdByImua;
@@ -39,8 +34,6 @@ export function useEVMLSTStaking(
   const issues = isReady? undefined : {
     needsConnectToNative: true,
   };
-
-  console.log("DEBUG: isReady", isReady);
 
   const vaultAddressQuery = useQuery({
     queryKey: ["vaultAddress",token.network.evmChainID, token.address],
@@ -54,9 +47,8 @@ export function useEVMLSTStaking(
     enabled: !!token && !!contract && !vaultAddress,
   });
 
-  // const { withdrawableAmount: withdrawableAmountFromVault } =
-  //   useVault(vaultAddressQuery.data);
-  const withdrawableAmountFromVault = BigInt(10);
+  const { withdrawableAmount: withdrawableAmountFromVault } =
+    useVault(vaultAddressQuery.data);
 
   const walletBalance = {
     customClientChainID: lzEndpointIdOrCustomChainId || 0,
@@ -91,12 +83,12 @@ export function useEVMLSTStaking(
       const fee = await getQuote("asset");
 
       return handleEVMTxWithStatus(
-        contract.write.deposit([token, amount], { value: fee }),
+        contract.write.deposit([token.address, amount], { value: fee }),
         publicClient,
         options,
       );
     },
-    [contract, token, handleEVMTxWithStatus, getQuote],
+    [contract, token.address, handleEVMTxWithStatus, getQuote],
   );
 
   const handleDelegateTo = useCallback(
@@ -106,12 +98,12 @@ export function useEVMLSTStaking(
       const fee = await getQuote("delegation");
 
       return handleEVMTxWithStatus(
-        contract.write.delegateTo([operator, token, amount], { value: fee }),
+        contract.write.delegateTo([operator, token.address, amount], { value: fee }),
         publicClient,
         options,
       );
     },
-    [contract, token, handleEVMTxWithStatus, getQuote],
+    [contract, token.address, handleEVMTxWithStatus, getQuote],
   );
 
   const handleUndelegateFrom = useCallback(
@@ -121,14 +113,14 @@ export function useEVMLSTStaking(
       const fee = await getQuote("delegation");
 
       return handleEVMTxWithStatus(
-        contract.write.undelegateFrom([operator, token, amount], {
+        contract.write.undelegateFrom([operator, token.address, amount], {
           value: fee,
         }),
         publicClient,
         options,
       );
     },
-    [contract, token, handleEVMTxWithStatus, getQuote],
+    [contract, token.address, handleEVMTxWithStatus, getQuote],
   );
 
   const handleDepositAndDelegate = useCallback(
@@ -138,14 +130,14 @@ export function useEVMLSTStaking(
       const fee = await getQuote("delegation");
 
       return handleEVMTxWithStatus(
-        contract.write.depositThenDelegateTo([token, amount, operator], {
+        contract.write.depositThenDelegateTo([token.address, amount, operator], {
           value: fee,
         }),
         publicClient,
         options,
       );
     },
-    [contract, token, handleEVMTxWithStatus, getQuote],
+    [contract, token.address, handleEVMTxWithStatus, getQuote],
   );
 
   const handleClaimPrincipal = useCallback(
@@ -154,14 +146,14 @@ export function useEVMLSTStaking(
       const fee = await getQuote("asset");
 
       return handleEVMTxWithStatus(
-        contract.write.claimPrincipalFromImuachain([token, amount], {
+        contract.write.claimPrincipalFromImuachain([token.address, amount], {
           value: fee,
         }),
         publicClient,
         options,
       );
     },
-    [contract, token, handleEVMTxWithStatus, getQuote],
+    [contract, token.address, handleEVMTxWithStatus, getQuote],
   );
 
   const handleWithdrawPrincipal = useCallback(
@@ -174,27 +166,26 @@ export function useEVMLSTStaking(
         throw new Error("Invalid parameters");
 
       return handleEVMTxWithStatus(
-        contract.write.withdrawPrincipal([token, amount, recipient]),
+        contract.write.withdrawPrincipal([token.address, amount, recipient]),
         publicClient,
         options,
       );
     },
-    [contract, token, handleEVMTxWithStatus],
+    [contract, token.address, handleEVMTxWithStatus],
   );
 
   const handleStakeWithApproval = useCallback(
     async (
       amount: bigint,
-      vaultAddress: `0x${string}`,
       operatorAddress?: string,
       options?: { onStatus?: (status: TxStatus, error?: string) => void },
     ) => {
-      if (!contract || !amount || !publicClient || !walletClient)
+      if (!contract || !amount || !publicClient || !walletClient || !vaultAddress)
         throw new Error("Invalid parameters");
 
       try {
         // Create token contract instance
-        const tokenContract = token
+        const tokenContract = token.address
           ? getContract({
               address: token.address,
               abi: erc20Abi,
@@ -204,12 +195,15 @@ export function useEVMLSTStaking(
               },
             })
           : undefined;
+        
 
         // Check allowance using token contract
         const currentAllowance = await tokenContract?.read.allowance([
           userAddress as `0x${string}`,
           vaultAddress,
         ]);
+
+
         if (currentAllowance && currentAllowance < amount) {
           options?.onStatus?.("approving");
           const approvalHash = await tokenContract?.write.approve([
@@ -234,16 +228,16 @@ export function useEVMLSTStaking(
       } catch (error) {
         options?.onStatus?.(
           "error",
-          error instanceof Error ? error.message : "Transaction failed",
+          "Transaction rejected by the user Or Transaction failed",
         );
         throw error;
       }
     },
-    [contract, publicClient, token, handleDeposit, handleDepositAndDelegate],
+    [contract, publicClient, token.address, handleDeposit, handleDepositAndDelegate, vaultAddress],
   );
 
   const stakerBalance = useQuery({
-    queryKey: ["stakerBalance", chainId, userAddress, token],
+    queryKey: ["stakerBalance", chainId, userAddress, token.address],
     queryFn: async (): Promise<StakerBalance> => {
       const { success, stakerBalanceResponse } = await getStakerBalanceByToken(
         userAddress as `0x${string}`,
@@ -268,11 +262,10 @@ export function useEVMLSTStaking(
       };
     },
     refetchInterval: 30000,
-    enabled: !!userAddress && !!chainId && !!token,
+    enabled: !!userAddress && !!chainId && !!token.address,
   });
 
-  return useMemo(() => {
-    return {
+  return {
     token: token,
     stakerBalance: stakerBalance?.data,
     walletBalance: walletBalance,
@@ -292,5 +285,4 @@ export function useEVMLSTStaking(
     stake: handleStakeWithApproval,
     getQuote: getQuote,
   };
-}, [token, stakerBalance?.data, walletBalance, isReady, issues, userAddress, vaultAddressQuery.data, handleDeposit, handleDepositAndDelegate, handleDelegateTo, handleUndelegateFrom, handleClaimPrincipal, handleWithdrawPrincipal, handleStakeWithApproval, getQuote]);
 }

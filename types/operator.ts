@@ -14,4 +14,5 @@ export interface OperatorInfo {
     client_chain_earnings_addr: {
       earning_info_list: any[]; // Update this type if needed
     };
+    apr: number;
   }
