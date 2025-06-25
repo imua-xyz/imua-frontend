@@ -1,14 +1,23 @@
-// components/new-staking/tabs/UndelegateTab.tsx
+// components/new-staking/tabs/DelegateTab.tsx
 import { useState, useEffect } from "react";
+import { Info, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { TxStatus } from "@/types/staking";
 import { formatUnits } from "viem";
-import { Info, ChevronRight, AlertTriangle } from "lucide-react";
+import { CrossChainProgress } from "@/components/ui/crosschain-progress";
+import { NativeChainProgress } from "@/components/ui/native-chain-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
-import { OperationProgress } from "@/components/ui/operation-progress";
-import { transactionStep, confirmationStep, completionStep } from "@/components/ui/operation-progress";
+import { useOperatorsContext } from "@/contexts/OperatorsContext";
+import { OperatorSelectionModal } from "@/components/new-staking/modals/OperatorSelectionModal";
+import { OperatorInfo } from "@/types/operator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface UndelegateTabProps {
   sourceChain: string;
@@ -21,11 +30,21 @@ export function UndelegateTab({
   destinationChain,
   onSuccess,
 }: UndelegateTabProps) {
+  // Step management
+  const [currentStep, setCurrentStep] = useState<"amount" | "review">("amount");
+  const [showOperatorModal, setShowOperatorModal] = useState(false);
+
+  // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+  const { operators, isLoading: isLoadingOperators } = useOperatorsContext();
 
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  // Check if this is a native chain operation (not cross-chain)
+  const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
+
+  // Balance and amount state
   const maxAmount = stakingService.stakerBalance?.delegated || BigInt(0);
+  const decimals = stakingService.walletBalance?.decimals || 0;
   const {
     amount,
     parsedAmount,
@@ -36,129 +55,86 @@ export function UndelegateTab({
     maxAmount: maxAmount,
   });
 
-  // State for operator selection
-  const [operatorAddress, setOperatorAddress] = useState("");
-  const [showOperatorList, setShowOperatorList] = useState(false);
-  const [delegatedOperators, setDelegatedOperators] = useState<
-    Array<{ address: string; name: string; amount: bigint; formattedAmount: string }>
-  >([]);
+  const [selectedOperator, setSelectedOperator] = useState<OperatorInfo | null>(
+    null,
+  );
 
   // Transaction state
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Operation progress tracking
+  // Progress tracking
   const [showProgress, setShowProgress] = useState(false);
-  const [operationProgress, setOperationProgress] = useState<OperationProgress>({
-    operation: "undelegate",
-    steps: [
-      transactionStep,
-      confirmationStep,
-      completionStep,
-    ],
-    currentStepIndex: 0,
-    overallStatus: null,
-  });
 
-  // Fetch delegated operators on component mount
+  // Try to restore last used operator from localStorage
   useEffect(() => {
-    // In a real implementation, this would fetch from API based on user's actual delegations
-    setDelegatedOperators([
-      { 
-        address: "0x1234...5678", 
-        name: "Operator Alpha", 
-        amount: BigInt(5000000000000000000), 
-        formattedAmount: "5.0" 
-      },
-      { 
-        address: "0x5678...9abc", 
-        name: "Operator Beta", 
-        amount: BigInt(3200000000000000000), 
-        formattedAmount: "3.2" 
-      },
-      { 
-        address: "0x9abc...def0", 
-        name: "Operator Gamma", 
-        amount: BigInt(7500000000000000000), 
-        formattedAmount: "7.5" 
-      },
-    ]);
-  }, [token.symbol]);
+    if (operators && operators.length > 0) {
+      const lastOperatorAddress = localStorage.getItem(
+        `lastUndelegateOperator_${token.symbol}`,
+      );
+      if (lastOperatorAddress) {
+        const savedOperator = operators.find(
+          (op) => op.address === lastOperatorAddress,
+        );
+        if (savedOperator) {
+          setSelectedOperator(savedOperator);
+        }
+      }
+    }
+  }, [operators, token.symbol]);
 
-  // Handle undelegation operation
+  // Parse operator name from meta info
+  const getOperatorName = (operator: OperatorInfo): string => {
+    try {
+      return operator.operator_meta_info || "Unknown Operator";
+    } catch {
+      return "Unknown Operator";
+    }
+  };
+
+  // Handle continue button click - now just opens operator modal
+  const handleContinue = () => {
+    setShowOperatorModal(true);
+  };
+
+  // Handle operator selection
+  const handleOperatorSelect = (operator: OperatorInfo) => {
+    setSelectedOperator(operator);
+    
+    // Save selected operator to localStorage
+    localStorage.setItem(`lastUndelegateOperator_${token.symbol}`, operator.address);
+    
+    // Close the modal
+    setShowOperatorModal(false);
+    
+    // Move to review step
+    setCurrentStep("review");
+  };
+
+  // Handle delegation operation
   const handleOperation = async () => {
+    if (!selectedOperator) return;
+    
     setTxError(null);
     setTxStatus("processing");
     setShowProgress(true);
-
+    
     try {
-      // Update progress for transaction submission
-      setOperationProgress(prev => ({
-        ...prev,
-        currentStepIndex: 0,
-        steps: prev.steps.map((step, idx) => ({
-          ...step,
-          status: idx === 0 ? "processing" : "pending"
-        })),
-        overallStatus: "processing"
-      }));
-
       const result = await stakingService.undelegateFrom(
-        operatorAddress, 
-        parsedAmount, 
+        selectedOperator.address,
+        parsedAmount,
         {
           onStatus: (status, error) => {
             setTxStatus(status);
             if (error) setTxError(error);
-            
-            // Update progress based on transaction status
-            setOperationProgress(prev => {
-              const updatedProgress = { ...prev };
-              
-              switch (status) {
-                case "processing":
-                  updatedProgress.currentStepIndex = 0;
-                  updatedProgress.steps[0].status = "processing";
-                  updatedProgress.overallStatus = "processing";
-                  break;
-                  
-                case "success":
-                  updatedProgress.steps[0].status = "success";
-                  updatedProgress.currentStepIndex = 1;
-                  updatedProgress.steps[1].status = "success";
-                  
-                  // Move to completion step after a delay
-                  setTimeout(() => {
-                    setOperationProgress(prev => ({
-                      ...prev,
-                      currentStepIndex: 2,
-                      steps: prev.steps.map((step, idx) => ({
-                        ...step,
-                        status: idx <= 2 ? "success" : step.status
-                      })),
-                      overallStatus: "success"
-                    }));
-                  }, 2000);
-                  
-                  break;
-                  
-                case "error":
-                  const processingIndex = updatedProgress.steps.findIndex(
-                    (step) => step.status === "processing"
-                  );
-                  
-                  if (processingIndex >= 0) {
-                    updatedProgress.steps[processingIndex].status = "error";
-                  }
-                  updatedProgress.overallStatus = "error";
-                  break;
-              }
-              
-              return updatedProgress;
-            });
           },
         }
       );
+
+      if (result.hash) {
+        setTxHash(result.hash);
+      }
 
       if (result.success) {
         setTxStatus("success");
@@ -172,197 +148,264 @@ export function UndelegateTab({
       setTxStatus("error");
       setTxError(error instanceof Error ? error.message : "Transaction failed");
     }
+
+    setTimeout(() => {
+      setTxStatus(null);
+      setTxError(null);
+      setTxHash(undefined);
+    }, 1000);
   };
 
-  // Handle operator selection
-  const handleOperatorSelect = (address: string) => {
-    setOperatorAddress(address);
-    
-    // Optionally set amount to max delegated for this operator
-    const selectedOperator = delegatedOperators.find(op => op.address === address);
-    if (selectedOperator) {
-      setAmount(selectedOperator.formattedAmount);
-    }
+  // Format button text based on state
+  const getButtonText = () => {
+    if (txStatus === "approving") return "Approving...";
+    if (txStatus === "processing") return "Processing...";
+    if (txStatus === "success") return "Success!";
+    if (txStatus === "error") return "Failed!";
+
+    if (currentStep === "amount") return "Continue";
+    return "Undelegate";
+  };
+
+  // Calculate estimated rewards
+  const calculateEstimatedRewards = () => {
+    if (!selectedOperator || !parsedAmount) return "0";
+
+    const amountNumber = Number(formatUnits(parsedAmount, decimals));
+    const yearlyRewards = amountNumber * (selectedOperator.apr / 100);
+
+    return yearlyRewards.toFixed(2);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header with Token Info */}
-      <div className="flex items-center">
-        <img
-          src={token.iconUrl}
-          alt={token.symbol}
-          className="w-24 h-6 mr-3"
-        />
-        <div>
-          <h2 className="text-lg font-bold text-white">
-            Undelegate {token.symbol}
-          </h2>
+    <div className="space-y-5">
+      {/* Step indicator - more subtle */}
+      <div className="flex items-center justify-center mb-2">
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-full ${
+            currentStep === "amount"
+              ? "bg-[#00e5ff] text-black"
+              : "bg-[#222233] text-[#9999aa]"
+          }`}
+        >
+          1
+        </div>
+        <div className="h-[1px] w-10 bg-[#222233]"></div>
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-full ${
+            currentStep === "review"
+              ? "bg-[#00e5ff] text-black"
+              : "bg-[#222233] text-[#9999aa]"
+          }`}
+        >
+          2
         </div>
       </div>
 
-      {/* Total delegated amount display */}
-      <div className="flex justify-between">
-        <span className="text-sm text-[#9999aa]">
-          Total delegated
-        </span>
-        <span className="text-sm font-medium text-white">
-          {formatUnits(maxAmount, decimals)} {token.symbol}
-        </span>
-      </div>
+      {/* STEP 1: Amount Entry */}
+      {currentStep === "amount" && (
+        <>
+          {/* Available balance display */}
+          <div className="flex justify-between">
+            <span className="text-sm text-[#9999aa]">
+              Available for delegation
+            </span>
+            <span className="text-sm font-medium text-white">
+              {formatUnits(maxAmount, decimals)} {token.symbol}
+            </span>
+          </div>
 
-      {/* Operator selection */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-sm font-medium text-white">
-            Select Delegated Operator
-          </h3>
-        </div>
+          {/* Amount input */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium text-white">
+                Amount to undelegate
+              </label>
+              <div className="flex items-center space-x-2 text-xs text-[#9999aa]">
+                <button
+                  className="text-xs font-medium text-[#00e5ff] ml-1"
+                  onClick={() => setAmount(formatUnits(maxAmount, decimals))}
+                >
+                  MAX
+                </button>
+              </div>
+            </div>
 
-        {maxAmount > BigInt(0) ? (
-          <div className="space-y-3">
-            {delegatedOperators.map((operator) => (
-              <div
-                key={operator.address}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  operatorAddress === operator.address
-                    ? "border-[#00e5ff] bg-[#00e5ff]/10"
-                    : "border-[#333344] hover:bg-[#222233]"
-                } cursor-pointer transition-colors`}
-                onClick={() => handleOperatorSelect(operator.address)}
-              >
+            <Input
+              type="text"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
+              placeholder="0.0"
+            />
+
+            {amountError && (
+              <p className="text-sm text-red-500">{amountError}</p>
+            )}
+          </div>
+
+          {/* Continue button - now only requires valid amount */}
+          <Button
+            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            disabled={
+              !!amountError ||
+              !amount ||
+              !parsedAmount ||
+              parsedAmount === BigInt(0)
+            }
+            onClick={handleContinue}
+          >
+            Continue
+          </Button>
+        </>
+      )}
+
+      {/* STEP 2: Review */}
+      {currentStep === "review" && (
+        <>
+          <div className="space-y-4">
+            {/* Transaction summary */}
+            <div className="p-4 bg-[#1a1a24] rounded-lg space-y-3">
+              {/* Amount summary */}
+              <div className="flex justify-between items-center">
+                <span className="text-[#9999aa]">Amount</span>
                 <div className="flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-3">
-                    {operator.name.substring(0, 2)}
-                  </div>
-                  <div>
-                    <div className="font-medium text-white">
-                      {operator.name}
-                    </div>
-                    <div className="text-xs text-[#9999aa]">
-                      {operator.address.substring(0, 6)}...
-                      {operator.address.substring(operator.address.length - 4)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="font-medium text-white">
-                    {operator.formattedAmount} {token.symbol}
-                  </div>
-                  <div className="text-xs text-[#9999aa]">
-                    Delegated
-                  </div>
+                  <span className="font-medium text-white mr-2">
+                    {amount} {token.symbol}
+                  </span>
+                  <button
+                    className="text-xs text-[#00e5ff]"
+                    onClick={() => setCurrentStep("amount")}
+                  >
+                    Edit
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-4 rounded-lg border border-[#333344] bg-[#1a1a24]">
-            <div className="flex items-center justify-center gap-2 text-[#9999aa]">
-              <AlertTriangle size={16} />
-              <span>You don't have any delegated tokens</span>
+
+              {/* Selected operator */}
+              <div className="flex justify-between items-center">
+                <span className="text-[#9999aa]">Operator</span>
+                <div className="flex items-center">
+                  {selectedOperator ? (
+                    <>
+                      <span className="text-white mr-2">
+                        {getOperatorName(selectedOperator)}
+                      </span>
+                      <button
+                        className="text-xs text-[#00e5ff]"
+                        onClick={() => setShowOperatorModal(true)}
+                      >
+                        Change
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="text-[#00e5ff]"
+                      onClick={() => setShowOperatorModal(true)}
+                    >
+                      Select
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Estimated rewards section */}
+            {selectedOperator && parsedAmount && parsedAmount > BigInt(0) && (
+              <div className="p-4 bg-[#0d2d1d] rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-medium text-[#4ade80]">
+                    Estimated Rewards
+                  </h4>
+                  <span className="font-bold text-[#4ade80]">
+                    {selectedOperator.apr}% APR
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#86efac]">Yearly rewards</span>
+                  <span className="text-[#4ade80]">
+                    ~{calculateEstimatedRewards()} {token.symbol}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Fee information - more subtle */}
+            <div className="flex items-center text-xs text-[#9999aa] px-1">
+              <Info size={12} className="mr-1 flex-shrink-0" />
+              <span>No additional fees for this transaction</span>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Amount input */}
-      {operatorAddress && (
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <label className="text-sm font-medium text-[#ddddee]">
-              Amount to undelegate
-            </label>
-            <button
-              className="text-xs font-medium text-[#00e5ff]"
-              onClick={() => {
-                const selectedOperator = delegatedOperators.find(op => op.address === operatorAddress);
-                if (selectedOperator) {
-                  setAmount(selectedOperator.formattedAmount);
-                }
-              }}
+          {/* Action buttons */}
+          <div className="flex space-x-3 mt-4">
+            <Button
+              variant="outline"
+              className="flex-1 border-[#333344] text-white hover:bg-[#222233]"
+              onClick={() => setCurrentStep("amount")}
             >
-              MAX
-            </button>
+              Back
+            </Button>
+
+            <Button
+              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+              disabled={!!txStatus || !selectedOperator || !parsedAmount || parsedAmount === BigInt(0)}
+              onClick={handleOperation}
+            >
+              {getButtonText()}
+            </Button>
           </div>
 
-          <Input
-            type="text"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white"
-            placeholder={`Enter amount (max: ${
-              delegatedOperators.find(op => op.address === operatorAddress)?.formattedAmount || "0"
-            } ${token.symbol})`}
-          />
-
-          {amountError && (
-            <p className="text-sm text-red-500">{amountError}</p>
-          )}
-        </div>
+          {txError && <p className="mt-3 text-sm text-red-500">{txError}</p>}
+        </>
       )}
 
-      {/* Unbonding period notice */}
-      <div className="p-4 bg-[#1a1a24] rounded-lg border border-[#333344]">
-        <div className="flex items-start">
-          <Info size={18} className="text-[#9999aa] mr-2 mt-0.5" />
-          <div>
-            <h4 className="text-sm font-medium text-white mb-1">
-              Unbonding Period
-            </h4>
-            <p className="text-xs text-[#9999aa]">
-              Undelegated tokens will be subject to a 21-day unbonding period before they can be withdrawn.
-              During this period, tokens will not earn staking rewards.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Action button */}
-      <Button
-        className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
-        disabled={
-          (!!txStatus && txStatus !== "error") ||
-          !!amountError ||
-          !amount ||
-          !parsedAmount ||
-          parsedAmount === BigInt(0) ||
-          !operatorAddress ||
-          maxAmount === BigInt(0)
-        }
-        onClick={handleOperation}
-      >
-        {txStatus === "processing"
-          ? "Processing..."
-          : txStatus === "success"
-            ? "Success!"
-            : txStatus === "error"
-              ? "Failed!"
-              : "Undelegate"}
-      </Button>
-
-      {txError && (
-        <p className="mt-3 text-sm text-red-500">{txError}</p>
-      )}
-
-      {/* Progress overlay */}
-      <OperationProgress
-        progress={operationProgress}
-        open={showProgress}
-        onClose={() => {
-          // Only allow closing if complete or error
-          if (
-            operationProgress.overallStatus === "success" ||
-            operationProgress.overallStatus === "error"
-          ) {
-            setShowProgress(false);
-          }
-        }}
-        onViewDetails={() => {
-          // Navigate to transaction history
-        }}
+      {/* Operator Selection Modal */}
+      <OperatorSelectionModal
+        isOpen={showOperatorModal}
+        onClose={() => setShowOperatorModal(false)}
+        onSelect={handleOperatorSelect}
+        operators={operators || []}
+        selectedOperator={selectedOperator}
       />
+
+      {/* Progress overlay - conditionally render based on token connector */}
+      {isNativeChainOperation ? (
+        <NativeChainProgress
+          chain={sourceChain}
+          operation="undelegate"
+          txHash={txHash}
+          explorerUrl={token.network.explorerUrl}
+          txStatus={txStatus}
+          open={showProgress}
+          onClose={() => {
+            setShowProgress(false);
+          }}
+          onViewDetails={() => {
+            if (token.network.explorerUrl && txHash) {
+              window.open(`${token.network.explorerUrl}${txHash}`, "_blank");
+            }
+          }}
+        />
+      ) : (
+        <CrossChainProgress
+          sourceChain={sourceChain}
+          destinationChain={destinationChain}
+          operation="undelegate"
+          txHash={txHash}
+          explorerUrl={token.network.explorerUrl}
+          txStatus={txStatus}
+          open={showProgress}
+          onClose={() => {
+            setShowProgress(false);
+          }}
+          onViewDetails={() => {
+            if (token.network.explorerUrl && txHash) {
+              window.open(`${token.network.explorerUrl}${txHash}`, "_blank");
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

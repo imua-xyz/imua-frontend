@@ -10,10 +10,23 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { CrossChainProgress } from "@/components/ui/crosschain-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
-import { approvalStep, transactionStep, confirmationStep, relayingStep, completionStep } from "@/components/ui/operation-progress";
+import {
+  approvalStep,
+  transactionStep,
+  confirmationStep,
+  relayingStep,
+  completionStep,
+} from "@/components/ui/operation-progress";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/new-staking/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 
 interface StakeTabProps {
   sourceChain: string;
@@ -29,7 +42,7 @@ export function StakeTab({
   // Step management
   const [currentStep, setCurrentStep] = useState<"amount" | "review">("amount");
   const [showOperatorModal, setShowOperatorModal] = useState(false);
-  
+
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
@@ -52,10 +65,13 @@ export function StakeTab({
 
   // Staking mode state
   const [isStakeMode, setIsStakeMode] = useState(true);
-  const [selectedOperator, setSelectedOperator] = useState<OperatorInfo | null>(null);
-  
+  const [selectedOperator, setSelectedOperator] = useState<OperatorInfo | null>(
+    null,
+  );
+
   // Check if deposit-then-delegate is disabled for this token
-  const isDepositThenDelegateDisabled = !!stakingService.isDepositThenDelegateDisabled;
+  const isDepositThenDelegateDisabled =
+    !!stakingService.isDepositThenDelegateDisabled;
 
   // Transaction state
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
@@ -64,27 +80,17 @@ export function StakeTab({
 
   // Cross-chain progress tracking
   const [showProgress, setShowProgress] = useState(false);
-//   const [crossChainProgress, setCrossChainProgress] = useState<CrossChainProgress>({
-//     sourceChain,
-//     destinationChain,
-//     operation: isStakeMode && selectedOperator ? "stake" : "deposit",
-//     steps: [
-//       approvalStep,
-//       transactionStep,
-//       confirmationStep,
-//       relayingStep,
-//       completionStep,
-//     ],
-//     currentStepIndex: 0,
-//     overallStatus: null,
-//   });
 
   // Try to restore last used operator from localStorage
   useEffect(() => {
     if (operators && operators.length > 0) {
-      const lastOperatorAddress = localStorage.getItem(`lastOperator_${token.symbol}`);
+      const lastOperatorAddress = localStorage.getItem(
+        `lastOperator_${token.symbol}`,
+      );
       if (lastOperatorAddress) {
-        const savedOperator = operators.find(op => op.address === lastOperatorAddress);
+        const savedOperator = operators.find(
+          (op) => op.address === lastOperatorAddress,
+        );
         if (savedOperator) {
           setSelectedOperator(savedOperator);
         }
@@ -104,13 +110,13 @@ export function StakeTab({
   // Handle operator selection
   const handleOperatorSelect = (operator: OperatorInfo) => {
     setSelectedOperator(operator);
-    
+
     // Save selected operator to localStorage
     localStorage.setItem(`lastOperator_${token.symbol}`, operator.address);
-    
+
     // Close the modal
     setShowOperatorModal(false);
-    
+
     // Move to review step
     setCurrentStep("review");
   };
@@ -165,7 +171,7 @@ export function StakeTab({
       setTxStatus(null);
       setTxError(null);
       setTxHash(undefined);
-    }, 10000);
+    }, 1000);
   };
 
   // Format button text based on state
@@ -176,7 +182,7 @@ export function StakeTab({
     if (txStatus === "error") return "Failed!";
 
     if (currentStep === "amount") return "Continue";
-    
+
     if (isDepositThenDelegateDisabled) return "Deposit";
     return isStakeMode ? "Stake" : "Deposit";
   };
@@ -184,77 +190,76 @@ export function StakeTab({
   // Calculate estimated rewards (if applicable)
   const calculateEstimatedRewards = () => {
     if (!selectedOperator || !parsedAmount) return "0";
-    
+
     const amountNumber = Number(formatUnits(parsedAmount, decimals));
     const yearlyRewards = amountNumber * (selectedOperator.apr / 100);
-    
+
     return yearlyRewards;
   };
 
   return (
-    <div className="space-y-6">
-
-      {/* Step indicator */}
-      <div className="flex items-center justify-center">
-        <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-          currentStep === "amount" ? "bg-[#00e5ff] text-black" : "bg-[#333344] text-white"
-        }`}>
+    <div className="space-y-5">
+      {/* Step indicator - more subtle */}
+      <div className="flex items-center justify-center mb-2">
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-full ${
+            currentStep === "amount"
+              ? "bg-[#00e5ff] text-black"
+              : "bg-[#222233] text-[#9999aa]"
+          }`}
+        >
           1
         </div>
-        <div className="h-[2px] w-12 bg-[#333344]"></div>
-        <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-          currentStep === "review" ? "bg-[#00e5ff] text-black" : "bg-[#333344] text-white"
-        }`}>
+        <div className="h-[1px] w-10 bg-[#222233]"></div>
+        <div
+          className={`flex items-center justify-center w-7 h-7 rounded-full ${
+            currentStep === "review"
+              ? "bg-[#00e5ff] text-black"
+              : "bg-[#222233] text-[#9999aa]"
+          }`}
+        >
           2
         </div>
       </div>
 
-      {/* Balance display - Always visible */}
-      {/* <div className="flex justify-between text-sm">
-        <span className="text-[#9999aa]">Balance</span>
-        <span className="text-white">{formatUnits(balance, decimals)} {token.symbol}</span>
-      </div> */}
-
       {/* STEP 1: Amount Entry */}
       {currentStep === "amount" && (
         <>
-          {/* Amount input */}
+          {/* Amount input - cleaner design */}
           <div className="space-y-2">
-            <div className="flex justify-between">
-              <label className="text-sm font-medium text-[#ddddee]">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium text-white">
                 Amount to {isStakeMode ? "stake" : "deposit"}
               </label>
-              <button
-                className="text-xs font-medium text-[#00e5ff]"
-                onClick={() => setAmount(formatUnits(balance, decimals))}
-              >
-                MAX
-              </button>
+              <div className="flex items-center space-x-2 text-xs text-[#9999aa]">
+                <span>
+                  Balance: {formatUnits(balance, decimals)} {token.symbol}
+                </span>
+                <button
+                  className="text-xs font-medium text-[#00e5ff] ml-1"
+                  onClick={() => setAmount(formatUnits(balance, decimals))}
+                >
+                  MAX
+                </button>
+              </div>
             </div>
 
             <Input
               type="text"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white"
-              placeholder={`Enter amount (min: ${stakingService.minimumStakeAmount ? formatUnits(stakingService.minimumStakeAmount, decimals) : "0"}, max: ${formatUnits(balance, decimals)})`}
+              className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
+              placeholder="0.0"
             />
 
             {amountError && (
               <p className="text-sm text-red-500">{amountError}</p>
             )}
-
-            {/* Estimated value in USD if available */}
-            {/* {parsedAmount && parsedAmount > BigInt(0) && (
-              <div className="text-xs text-right text-[#9999aa]">
-                ≈ ${(Number(formatUnits(parsedAmount, decimals)) * 1200).toLocaleString()}
-              </div>
-            )} */}
           </div>
 
-          {/* Stake mode toggle (if deposit-then-delegate is allowed) */}
+          {/* Stake mode toggle - simplified */}
           {!isDepositThenDelegateDisabled && (
-            <div className="flex items-center justify-between p-3 bg-[#222233] rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-[#1a1a24] rounded-lg">
               <div className="flex items-center space-x-2">
                 <Switch
                   checked={isStakeMode}
@@ -263,22 +268,46 @@ export function StakeTab({
                 />
                 <Label
                   htmlFor="stake-mode"
-                  className="font-medium text-white"
+                  className="font-medium text-white flex items-center"
                 >
                   Stake & Earn Rewards
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle
+                          size={14}
+                          className="ml-1.5 text-[#9999aa] cursor-help"
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        className="max-w-xs bg-[#222233] text-white border-[#333344] p-3"
+                      >
+                        <p className="text-xs">
+                          <span className="font-medium text-[#00e5ff]">
+                            Stake & Earn
+                          </span>
+                          : Combines deposit and delegate in one transaction,
+                          allowing you to start earning rewards immediately.
+                        </p>
+                        <p className="text-xs mt-1">
+                          <span className="font-medium text-[#00e5ff]">
+                            Deposit only
+                          </span>
+                          : Transfers assets to the chain without delegation.
+                          You'll need to delegate separately to earn rewards.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
-              </div>
-
-              <div className="flex items-center text-xs text-[#9999aa]">
-                <Info size={14} className="mr-1" />
-                {isStakeMode ? "Select an operator after continuing" : "Deposit only"}
               </div>
             </div>
           )}
 
           {/* Continue button */}
           <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
             disabled={
               !!amountError ||
               !amount ||
@@ -287,106 +316,103 @@ export function StakeTab({
             }
             onClick={handleContinue}
           >
-            Continue <ArrowRight className="ml-2" size={16} />
+            Continue
           </Button>
         </>
       )}
 
-      {/* STEP 2: Review */}
+      {/* STEP 2: Review - cleaner layout */}
       {currentStep === "review" && (
         <>
-          <div className="p-4 bg-[#1a1a24] rounded-lg space-y-4">
-            <h3 className="font-medium text-white">Review Transaction</h3>
-            
-            {/* Amount summary */}
-            <div className="flex justify-between items-center">
-              <span className="text-[#9999aa]">Amount:</span>
-              <div className="flex items-center">
-                <span className="font-medium text-white mr-2">
-                  {amount} {token.symbol}
-                </span>
-                <button 
-                  className="text-xs text-[#00e5ff]" 
-                  onClick={() => setCurrentStep("amount")}
-                >
-                  Edit
-                </button>
-              </div>
-            </div>
-            
-            {/* Operation type */}
-            <div className="flex justify-between">
-              <span className="text-[#9999aa]">Operation:</span>
-              <span className="font-medium text-white">
-                {isStakeMode ? "Stake" : "Deposit"}
-              </span>
-            </div>
-            
-            {/* Selected operator (if staking) */}
-            {isStakeMode && !isDepositThenDelegateDisabled && (
+          <div className="space-y-4">
+            {/* Transaction summary */}
+            <div className="p-4 bg-[#1a1a24] rounded-lg space-y-3">
+              {/* Amount summary */}
               <div className="flex justify-between items-center">
-                <span className="text-[#9999aa]">Operator:</span>
+                <span className="text-[#9999aa]">Amount</span>
                 <div className="flex items-center">
-                  {selectedOperator ? (
-                    <>
-                      <span className="font-medium text-white mr-2">
-                        {getOperatorName(selectedOperator)}
-                      </span>
-                      <button 
-                        className="text-xs text-[#00e5ff]" 
-                        onClick={() => setShowOperatorModal(true)}
-                      >
-                        Change
-                      </button>
-                    </>
-                  ) : (
-                    <button 
-                      className="text-[#00e5ff]" 
-                      onClick={() => setShowOperatorModal(true)}
-                    >
-                      Select Operator
-                    </button>
-                  )}
+                  <span className="font-medium text-white mr-2">
+                    {amount} {token.symbol}
+                  </span>
+                  <button
+                    className="text-xs text-[#00e5ff]"
+                    onClick={() => setCurrentStep("amount")}
+                  >
+                    Edit
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
-          
-          {/* Estimated rewards section */}
-          {isStakeMode && selectedOperator && parsedAmount && parsedAmount > BigInt(0) && (
-            <div className="p-4 bg-[#0d2d1d] rounded-lg">
-              <h4 className="font-medium text-[#4ade80] mb-2">
-                Estimated Rewards
-              </h4>
-              <div className="flex justify-between text-sm">
-                <span className="text-[#86efac]">
-                  Annual Percentage Rate:
-                </span>
-                <span className="font-bold text-[#4ade80]">
-                  {selectedOperator.apr}%
+
+              {/* Operation type */}
+              <div className="flex justify-between">
+                <span className="text-[#9999aa]">Operation</span>
+                <span className="text-white">
+                  {isStakeMode ? "Stake" : "Deposit"}
                 </span>
               </div>
-              <div className="flex justify-between text-sm mt-1">
-                <span className="text-[#86efac]">
-                  Estimated yearly rewards:
-                </span>
-                <span className="font-bold text-[#4ade80]">
-                  {calculateEstimatedRewards()} {token.symbol}
-                </span>
-              </div>
+
+              {/* Selected operator (if staking) */}
+              {isStakeMode && !isDepositThenDelegateDisabled && (
+                <div className="flex justify-between items-center">
+                  <span className="text-[#9999aa]">Operator</span>
+                  <div className="flex items-center">
+                    {selectedOperator ? (
+                      <>
+                        <span className="text-white mr-2">
+                          {getOperatorName(selectedOperator)}
+                        </span>
+                        <button
+                          className="text-xs text-[#00e5ff]"
+                          onClick={() => setShowOperatorModal(true)}
+                        >
+                          Change
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="text-[#00e5ff]"
+                        onClick={() => setShowOperatorModal(true)}
+                      >
+                        Select
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-          
-          {/* Fee information if applicable */}
-          <div className="p-3 bg-[#1a1a24] rounded-lg">
-            <div className="flex items-center text-xs text-[#9999aa]">
-              <Info size={14} className="mr-2" />
-              No additional fees for this transaction
+
+            {/* Estimated rewards section - cleaner */}
+            {isStakeMode &&
+              selectedOperator &&
+              parsedAmount &&
+              parsedAmount > BigInt(0) && (
+                <div className="p-4 bg-[#0d2d1d] rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-medium text-[#4ade80]">
+                      Estimated Rewards
+                    </h4>
+                    <span className="font-bold text-[#4ade80]">
+                      {selectedOperator.apr}% APR
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#86efac]">Yearly rewards</span>
+                    <span className="text-[#4ade80]">
+                      ~{calculateEstimatedRewards()} {token.symbol}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+            {/* Fee information - more subtle */}
+            <div className="flex items-center text-xs text-[#9999aa] px-1">
+              <Info size={12} className="mr-1 flex-shrink-0" />
+              <span>No additional fees for this transaction</span>
             </div>
           </div>
-          
+
           {/* Action buttons */}
-          <div className="flex space-x-3">
+          <div className="flex space-x-3 mt-4">
             <Button
               variant="outline"
               className="flex-1 border-[#333344] text-white hover:bg-[#222233]"
@@ -394,22 +420,24 @@ export function StakeTab({
             >
               Back
             </Button>
-            
+
             <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
               disabled={
-                (!!txStatus) ||
-                (isStakeMode && !isDepositThenDelegateDisabled && !selectedOperator)
+                !!txStatus ||
+                (isStakeMode &&
+                  !isDepositThenDelegateDisabled &&
+                  !selectedOperator) ||
+                !parsedAmount ||
+                parsedAmount === BigInt(0)
               }
               onClick={handleOperation}
             >
               {getButtonText()}
             </Button>
           </div>
-          
-          {txError && (
-            <p className="mt-3 text-sm text-red-500">{txError}</p>
-          )}
+
+          {txError && <p className="mt-3 text-sm text-red-500">{txError}</p>}
         </>
       )}
 
@@ -432,11 +460,9 @@ export function StakeTab({
         txStatus={txStatus}
         open={showProgress}
         onClose={() => {
-            setShowProgress(false);
-          }
-        }
+          setShowProgress(false);
+        }}
         onViewDetails={() => {
-          // Navigate to transaction history
           if (token.network.explorerUrl && txHash) {
             window.open(`${token.network.explorerUrl}${txHash}`, "_blank");
           }

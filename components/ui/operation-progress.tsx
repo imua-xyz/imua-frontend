@@ -65,7 +65,7 @@ export type OperationProgress = {
   };
   steps: OperationStep[];
   currentStepIndex: number;
-  overallStatus: TxStatus | "relaying" | "confirming" | null;
+  overallStatus: TxStatus | "relaying" | "verifying" | null;
 };
 
 interface OperationProgressProps {

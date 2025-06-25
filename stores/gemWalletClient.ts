@@ -248,9 +248,6 @@ const createGemWalletClient = () => {
     )
   );
 
-  // check installation
-  store.getState().checkInstallation();
-
   // Check if already connected on initialization
   const initialState = store.getState();
   if (initialState.isWalletConnected && !initialState.manuallyDisconnected) {

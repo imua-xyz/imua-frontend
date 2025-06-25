@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { encodePacked } from "viem";
@@ -45,9 +45,13 @@ export function useXRPStaking(): StakingService {
 
   const xrplClient = useXrplStore(state => state.client);
   const setNetwork = useXrplStore(state => state.setNetwork);
-  if (walletNetwork) {
-    setNetwork(walletNetwork);
-  }
+
+  useEffect(() => {
+    if (walletNetwork) {
+      setNetwork(walletNetwork);
+    }
+  }, [walletNetwork, setNetwork]);
+
   const getAccountInfo = useXrplStore(state => state.getAccountInfo);
 
   const { contract, publicClient } = usePortalContract(xrp.network);
@@ -119,9 +123,9 @@ export function useXRPStaking(): StakingService {
   const walletBalance = useQuery({
     queryKey: ["walletBalance", xrpAddress],
     queryFn: async (): Promise<WalletBalance | undefined> => {
-      if (!xrpAddress || !xrplClient) return undefined;
+      if (!xrpAddress) throw new Error("Required dependencies not available");
       const accountInfo = await getAccountInfo(xrpAddress);
-      if (!accountInfo.success) return undefined;
+      if (!accountInfo.success) throw new Error("Failed to fetch account info");
       return {
         customClientChainID: XRP_CHAIN_ID,
         stakerAddress: xrpAddress,
@@ -131,7 +135,7 @@ export function useXRPStaking(): StakingService {
         symbol: "XRP",
       };
     },
-    enabled: !!xrpAddress && !!xrplClient,
+    enabled: !!xrpAddress && !!getAccountInfo,
   });
 
   // Stake XRP
@@ -284,8 +288,6 @@ export function useXRPStaking(): StakingService {
     },
     [contract, handleEVMTxWithStatus, publicClient],
   );
-
-  console.log("DEBUG useXRPStaking is rendered");
 
   return {
     token: xrp,
