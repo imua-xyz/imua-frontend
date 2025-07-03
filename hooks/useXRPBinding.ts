@@ -2,10 +2,11 @@
 import { useEffect } from 'react';
 import { useGemWalletStore } from '@/stores/gemWalletClient';
 import { useBindingStore, bindingClient } from '@/stores/bindingClient';
-import { useUTXOGateway } from '@/hooks/useUTXOGateway';
+import { usePortalContract } from '@/hooks/usePortalContract';
+import { xrp } from '@/types/tokens';
 
 export function useXRPBinding() {
-  const { contract } = useUTXOGateway();
+  const { contract } = usePortalContract(xrp.network);
   
   // Get XRP wallet state
   const xrpAddress = useGemWalletStore(state => state.userAddress);

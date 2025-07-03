@@ -9,7 +9,6 @@ import { NativeToken, LSTToken, NSTToken } from "./tokens";
 export interface StakingService {
   // core data
   token: NativeToken | LSTToken | NSTToken;
-  connectionStatus: WalletConnectionStatus;
   stakerBalance: StakerBalance | undefined;
   walletBalance: WalletBalance | undefined;
   vaultAddress: string | undefined;
@@ -54,17 +53,4 @@ export interface StakingService {
     amount: bigint,
     options?: TxHandlerOptions,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
-}
-
-interface WalletConnectionStatus {
-  isReady: boolean;
-  nativeWalletAddress: string;
-
-  issues?: {
-    needsConnectToNative?: boolean;
-    needsConnectToImua?: boolean;
-    needsMatchingBoundAddress?: boolean;
-    others?: string[];
-  };
-  boundAddress?: string;
 }

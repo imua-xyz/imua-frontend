@@ -7,19 +7,18 @@ export interface ConnectorBase {
   evmCompatible: boolean;
   requireExtraConnectToImua: boolean;
   customConnector?: CustomConnector;
+  installUrl?: string;
 }
 
 export interface CustomConnector {
   name: string;
   iconUrl: string;
-  checkInstallation: () => Promise<boolean>;
-  connect: () => Promise<any>;
-  disconnect: () => Promise<any>;
 }
 
 export interface EVMConnector extends ConnectorBase {
   evmCompatible: true;
   requireExtraConnectToImua: false;
+  customConnector: undefined;
 }
 
 export interface NonEVMConnector extends ConnectorBase {
@@ -31,7 +30,9 @@ export interface NonEVMConnector extends ConnectorBase {
 export const evmConnector: EVMConnector = {
   evmCompatible: true,
   requireExtraConnectToImua: false,
-};
+  customConnector: undefined,
+  installUrl: "https://metamask.io/download/",
+} as const;
 
 export const gemConnector: NonEVMConnector = {
   evmCompatible: false,
@@ -39,8 +40,6 @@ export const gemConnector: NonEVMConnector = {
   customConnector: {
     name: "GemWallet",
     iconUrl: "/gem-logo.svg",
-    checkInstallation: useGemWalletStore.getState().checkInstallation,
-    connect: useGemWalletStore.getState().connect,
-    disconnect: useGemWalletStore.getState().disconnect,
   },
+  installUrl: "https://chromewebstore.google.com/detail/gemwallet/egebedonbdapoieedfcfkofloclfghab?hl=en",
 } as const;

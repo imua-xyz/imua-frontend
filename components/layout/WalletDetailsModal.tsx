@@ -1,56 +1,45 @@
 // components/layout/WalletDetailsModal.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useWallet } from "@/stores/useWalletStore";
 import { Copy, X, ExternalLink, CheckCircle } from "lucide-react";
-import { useDisconnect } from "wagmi";
-import { Token } from "@/types/tokens";
 
 interface WalletDetailsModalProps {
-  token: Token;
   isOpen: boolean;
   onClose: () => void;
-  walletType: "evm" | "xrp";
+  walletInfo: {
+    address: string;
+    name: string;
+    iconUrl: string;
+    balance?: {
+      formatted: string;
+    };
+    explorerUrl?: string;
+    onDisconnect: () => Promise<void> | void;
+  };
 }
 
-export function WalletDetailsModal({ token, isOpen, onClose, walletType }: WalletDetailsModalProps) {
-  const {
-    evmAddress,
-    xrpAddress,
-    disconnectXrp,
-  } = useWallet(token);
-  
+export function WalletDetailsModal({ isOpen, onClose, walletInfo }: WalletDetailsModalProps) {
   const [copied, setCopied] = useState(false);
-  const { disconnect } = useDisconnect();
-  
-  const address = walletType === "evm" ? evmAddress : xrpAddress;
-  const displayName = walletType === "evm" ? "Imua Chain Wallet" : "XRP Wallet";
-  const balance = walletType === "evm" ? "6.13 ETH" : "128.45 XRP"; // This would come from actual balance hooks
   
   const copyAddress = () => {
-    if (address) {
-      navigator.clipboard.writeText(address);
+    if (walletInfo.address) {
+      navigator.clipboard.writeText(walletInfo.address);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
   
-  const handleDisconnect = () => {
-    if (walletType === "xrp") {
-      disconnectXrp();
-    } else {
-      disconnect();
-    }
+  const handleDisconnect = async () => {
+    await walletInfo.onDisconnect();
     onClose();
   };
   
   const openExplorer = () => {
-    const url = walletType === "evm" 
-      ? `https://exoscan.org/address/${evmAddress}`
-      : `https://testnet.xrpl.org/accounts/${xrpAddress}`;
-    window.open(url, '_blank');
+    if (walletInfo.explorerUrl) {
+      window.open(walletInfo.explorerUrl, '_blank');
+    }
   };
   
   return (
@@ -75,8 +64,8 @@ export function WalletDetailsModal({ token, isOpen, onClose, walletType }: Walle
               <div className="flex items-center justify-center">
                 <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
                   <img 
-                    src={walletType === "evm" ? "/eth-logo.svg" : "/xrp-logo.svg"} 
-                    alt={displayName} 
+                    src={walletInfo.iconUrl}
+                    alt={walletInfo.name} 
                     className="w-6 h-6"
                   />
                 </div>
@@ -88,23 +77,26 @@ export function WalletDetailsModal({ token, isOpen, onClose, walletType }: Walle
               {/* Address */}
               <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-                  {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : ""}
+                  {walletInfo.address ? `${walletInfo.address.substring(0, 6)}...${walletInfo.address.substring(walletInfo.address.length - 4)}` : "Not Connected"}
                 </h3>
                 <div className="text-gray-600 dark:text-gray-400 text-sm">
-                  {displayName}
+                  {walletInfo.name}
                 </div>
               </div>
               
               {/* Balance */}
-              <div className="text-center text-2xl font-bold text-gray-900 dark:text-white">
-                {balance}
-              </div>
+              {walletInfo.balance?.formatted && (
+                <div className="text-center text-2xl font-bold text-gray-900 dark:text-white">
+                  {walletInfo.balance.formatted}
+                </div>
+              )}
               
               {/* Actions */}
               <div className="grid grid-cols-2 gap-3">
                 <button 
                   onClick={copyAddress}
                   className="flex items-center justify-center space-x-2 bg-gray-100 dark:bg-[#1a1a24] hover:bg-gray-200 dark:hover:bg-[#21212f] transition-colors rounded-xl py-3 px-4"
+                  disabled={!walletInfo.address}
                 >
                   {copied ? (
                     <>
@@ -122,6 +114,7 @@ export function WalletDetailsModal({ token, isOpen, onClose, walletType }: Walle
                 <button 
                   onClick={openExplorer}
                   className="flex items-center justify-center space-x-2 bg-gray-100 dark:bg-[#1a1a24] hover:bg-gray-200 dark:hover:bg-[#21212f] transition-colors rounded-xl py-3 px-4"
+                  disabled={!walletInfo.explorerUrl}
                 >
                   <ExternalLink size={18} className="text-gray-500 dark:text-gray-400" />
                   <span className="text-sm font-medium text-gray-900 dark:text-white">View in Explorer</span>

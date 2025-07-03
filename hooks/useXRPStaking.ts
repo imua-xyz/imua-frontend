@@ -3,10 +3,7 @@
 import { useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { encodePacked } from "viem";
-import { useUTXOGateway } from "./useUTXOGateway";
 import { useAssetsPrecompile } from "./useAssetsPrecompile";
-import { useTxUtils } from "./useTxUtils";
 import {
   TxHandlerOptions,
   StakerBalance,
@@ -19,10 +16,8 @@ import {
   XRP_VAULT_ADDRESS,
   XRP_STAKING_DESTINATION_TAG,
 } from "@/config/xrp";
-import { getMetadataByEvmChainID } from "@/config/stakingPortals";
 import { MINIMUM_STAKE_AMOUNT_DROPS } from "@/config/xrp";
 import { StakingService } from "@/types/staking-service";
-import { useGemWallet } from "./useGemWallet";
 import { xrp } from "@/types/tokens";
 import { useGemWalletStore } from "@/stores/gemWalletClient";
 import { useBindingStore } from "@/stores/bindingClient";
@@ -57,19 +52,7 @@ export function useXRPStaking(): StakingService {
   const { contract, publicClient } = usePortalContract(xrp.network);
   const { getStakerBalanceByToken } = useAssetsPrecompile();
 
-  const { address: evmAddress, isConnected: isWagmiConnected, chainId: evmChainId } = useAccount();
-  const issues = useMemo(() => {
-    return {
-        needsConnectToNative: !isGemWalletConnected,
-        needsConnectToImua: !isWagmiConnected || evmChainId !== imua.evmChainID,
-        needsMatchingBoundAddress: boundImuaAddress ? boundImuaAddress !== evmAddress : !!evmAddress,
-        others: walletNetwork && walletNetwork.network !== "Testnet" ? ["Please connect to the XRP Testnet to use this service."] : undefined,
-    }
-  }, [isGemWalletConnected, isWagmiConnected, evmChainId, boundImuaAddress, evmAddress, walletNetwork]);
-
-  const isReady = useMemo(() => {
-    return !issues.needsConnectToNative && !issues.needsConnectToImua && !issues.needsMatchingBoundAddress;
-  }, [issues]);
+  const { address: evmAddress, isConnected: isWagmiConnected } = useAccount();
 
   // Fetch staking position
   const stakerBalance = useQuery({
@@ -117,7 +100,7 @@ export function useXRPStaking(): StakingService {
       }
     },
     refetchInterval: 30000,
-    enabled: isReady && !!xrpAddress && !!contract,
+    enabled: !!xrpAddress && !!contract,
   });
 
   const walletBalance = useQuery({
@@ -298,11 +281,6 @@ export function useXRPStaking(): StakingService {
     getQuote,
     stakerBalance: stakerBalance?.data,
     walletBalance: walletBalance?.data,
-    connectionStatus: {
-      isReady: isReady,
-      issues: issues,
-      nativeWalletAddress: xrpAddress as `0x${string}`,
-    },
     vaultAddress: vaultAddress,
     minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
     isDepositThenDelegateDisabled: true,

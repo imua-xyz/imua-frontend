@@ -6,7 +6,8 @@ import { ValidEVMChain } from "@/config/wagmi";
 export interface NetworkBase {
   chainName: string;
   customChainIdByImua: number;
-  explorerUrl?: string;
+  txExplorerUrl?: string;
+  accountExplorerUrl?: string;
 }
 
 export interface EVMNetwork extends NetworkBase {
@@ -27,7 +28,8 @@ export interface XRPL extends NetworkBase {
     address: `0x${string}`;
     abi: any;
   };
-  explorerUrl: "https://testnet.xrpl.org/transactions/";
+  txExplorerUrl: "https://testnet.xrpl.org/transactions/";
+  accountExplorerUrl: "https://testnet.xrpl.org/accounts/";
 }
 
 export const sepolia: EVMNetwork = {
@@ -39,7 +41,8 @@ export const sepolia: EVMNetwork = {
     address: deployedContracts.clientChain.bootstrap as `0x${string}`,
     abi: ClientChainGatewayABI,
   },
-  explorerUrl: "https://sepolia.etherscan.io/tx/",
+  txExplorerUrl: "https://sepolia.etherscan.io/tx/",
+  accountExplorerUrl: "https://sepolia.etherscan.io/address/",
 } as const;
 
 export const xrpl: XRPL = {
@@ -50,14 +53,16 @@ export const xrpl: XRPL = {
     address: deployedContracts.imuachain.utxoGateway as `0x${string}`,
     abi: UTXOGatewayABI,
   },
-  explorerUrl: "https://testnet.xrpl.org/transactions/",
+  txExplorerUrl: "https://testnet.xrpl.org/transactions/",
+  accountExplorerUrl: "https://testnet.xrpl.org/accounts/",
 } as const;
 
 export const imua = {
     chainName: "Imua",
     evmChainID: 233,
     customChainIdByImua: 40259,
-    explorerUrl: "https://exoscan.org/tx/",
+    txExplorerUrl: "https://exoscan.org/tx/",
+    accountExplorerUrl: "https://exoscan.org/address/",
   } as const;
 
 export type Network = typeof sepolia | typeof xrpl;

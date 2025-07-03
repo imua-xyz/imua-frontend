@@ -28,8 +28,6 @@ export function usePortalContract(network: EVMNetwork | XRPL) {
     })
   : undefined;
 
-  console.log("DEBUG usePortalContract: is rendered");
-
   return {
     contract,
     publicClient,

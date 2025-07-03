@@ -1,9 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useBalance } from "wagmi";
-import { useClientChainGateway } from "./useClientChainGateway";
 import { maxUint256, getContract, erc20Abi } from "viem";
-import { useTxUtils } from "./useTxUtils";
 import {
   TxHandlerOptions,
   TxStatus,
@@ -23,17 +21,12 @@ import { handleEVMTxWithStatus } from "@/lib/txUtils";
 export function useEVMLSTStaking(
   token: EVMLSTToken,
 ): StakingService {
-  const { address: userAddress, chainId, isConnected } = useAccount();
+  const { address: userAddress, chainId } = useAccount();
   const { contract, publicClient, walletClient } = usePortalContract(token.network);
   const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { data: balance } = useBalance({ address: userAddress, token: token.address });
   const [vaultAddress, setVaultAddress] = useState<`0x${string}` | null>(null);
-
   const lzEndpointIdOrCustomChainId = token.network.customChainIdByImua;
-  const isReady = isConnected && chainId === token.network.evmChainID;
-  const issues = isReady? undefined : {
-    needsConnectToNative: true,
-  };
 
   const vaultAddressQuery = useQuery({
     queryKey: ["vaultAddress",token.network.evmChainID, token.address],
@@ -269,11 +262,6 @@ export function useEVMLSTStaking(
     token: token,
     stakerBalance: stakerBalance?.data,
     walletBalance: walletBalance,
-    connectionStatus: {
-      isReady: isReady,
-      nativeWalletAddress: userAddress as `0x${string}`,
-      issues: issues,
-    },
     vaultAddress: vaultAddressQuery.data,
 
     deposit: handleDeposit,
