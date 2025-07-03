@@ -29,7 +29,8 @@ export function TokenSelector({
               <Image
                 src={selectedToken.iconUrl}
                 alt={selectedToken.symbol}
-                fill
+                width={32}
+                height={32}
                 className="object-contain"
               />
             </div>
@@ -84,11 +85,12 @@ export function TokenSelector({
                         setIsModalOpen(false);
                       }}
                     >
-                      <div className="w-8 h-8 relative mr-3">
+                      <div className="w-8 h-8 relative">
                         <Image
                           src={token.iconUrl}
                           alt={token.symbol}
                           fill
+                          sizes="(max-width: 768px) 32px, 32px"
                           className="object-contain"
                         />
                       </div>

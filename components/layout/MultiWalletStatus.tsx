@@ -70,7 +70,9 @@ export function MultiWalletStatus({ token }: { token: Token }) {
           : undefined,
         explorerUrl: token.network.accountExplorerUrl,
         onDisconnect: async () => {
-          if (disconnectNative) {
+          if (token.connector.evmCompatible) {
+            await disconnect();
+          } else if (disconnectNative) {
             await disconnectNative();
           }
         },
@@ -124,6 +126,8 @@ export function MultiWalletStatus({ token }: { token: Token }) {
               src={connectorIcon}
               alt={connectorName}
               className="w-4 h-4"
+              width={16}
+              height={16}
             />
           </div>
           <span className="text-sm">
@@ -150,7 +154,13 @@ export function MultiWalletStatus({ token }: { token: Token }) {
             <div className="h-5 w-px bg-[#21212f]" />
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-[#292936] flex items-center justify-center">
-                <Image src="/eth-logo.svg" alt="Imua" className="w-4 h-4" />
+                <Image
+                  src="/eth-logo.svg"
+                  alt="Imua"
+                  className="w-4 h-4"
+                  width={16}
+                  height={16}
+                />
               </div>
               <span className="text-sm">
                 {isImuaConnected
@@ -198,6 +208,8 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                       src={connectorIcon}
                       alt={connectorName}
                       className="w-4 h-4"
+                      width={16}
+                      height={16}
                     />
                     {connectorName}
                   </h3>
@@ -290,6 +302,8 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                         src="/eth-logo.svg"
                         alt="Imua"
                         className="w-4 h-4"
+                        width={16}
+                        height={16}
                       />
                       Imua Chain Wallet
                     </h3>

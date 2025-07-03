@@ -72,6 +72,8 @@ export function WalletDetailsModal({
                     src={walletInfo.iconUrl}
                     alt={walletInfo.name}
                     className="w-6 h-6"
+                    width={24}
+                    height={24}
                   />
                 </div>
               </div>

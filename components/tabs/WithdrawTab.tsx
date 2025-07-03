@@ -272,11 +272,16 @@ export function WithdrawTab({
     <div className="space-y-6">
       {/* Header with Token Info */}
       <div className="flex items-center">
-        <Image
-          src={token.iconUrl}
-          alt={token.symbol}
-          className="w-24 h-6 mr-3"
-        />
+        <div className="relative w-16 h-16 mr-3">
+          <Image
+            src={token.iconUrl}
+            alt={token.symbol}
+            fill
+            sizes="(max-width: 768px) 64px, 96px"
+            style={{ objectFit: "contain" }}
+            priority
+          />
+        </div>
         <div>
           <h2 className="text-lg font-bold text-white">
             Withdraw {token.symbol}

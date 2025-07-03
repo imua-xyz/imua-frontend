@@ -75,6 +75,8 @@ export function TokenSelectorModal({
                   src={token.iconUrl}
                   alt={token.symbol}
                   className="w-8 h-8 mr-3"
+                  width={32}
+                  height={32}
                 />
                 <div className="text-left">
                   <div className="font-medium text-white">{token.symbol}</div>

@@ -38,6 +38,8 @@ export function TokenSelectionPanel({
                 <Image
                   src={token.iconUrl}
                   alt={token.symbol}
+                  width={40}
+                  height={40}
                   fill
                   className="object-contain"
                 />

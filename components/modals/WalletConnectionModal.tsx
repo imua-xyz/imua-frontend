@@ -159,6 +159,8 @@ export function WalletConnectionModal({
                     src={token.iconUrl}
                     alt={token.symbol}
                     className="w-4 h-4"
+                    width={16}
+                    height={16}
                   />
                   {token.network.chainName} Wallet
                 </h3>
@@ -264,6 +266,8 @@ export function WalletConnectionModal({
                       src="/imua-logo.avif"
                       alt="Imua"
                       className="w-4 h-4"
+                      width={16}
+                      height={16}
                     />
                     Imua Chain Wallet
                   </h3>
