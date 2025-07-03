@@ -10,24 +10,26 @@ import {
 import { GemWalletNetwork, GemWalletResponse } from "@/types/staking";
 
 // Utility to handle document focus checks
-const isDocumentFocused = () => typeof document !== "undefined" && document.hasFocus();
+const isDocumentFocused = () =>
+  typeof document !== "undefined" && document.hasFocus();
 
 // Create the client with background polling
 const createGemWalletClient = () => {
   // Polling intervals
   let networkPollInterval: NodeJS.Timeout | null = null;
   let sessionCheckInterval: NodeJS.Timeout | null = null;
-  
+
   // Start polling mechanisms
   const startPolling = () => {
     // Already polling, don't start again
     if (networkPollInterval) return;
-    
+
     // Network polling
     networkPollInterval = setInterval(async () => {
       const state = store.getState();
-      if (!state.isWalletConnected || !state.installed || !isDocumentFocused()) return;
-      
+      if (!state.isWalletConnected || !state.installed || !isDocumentFocused())
+        return;
+
       try {
         const networkResponse = await getNetwork();
         const currentNetwork = networkResponse.result;
@@ -48,12 +50,17 @@ const createGemWalletClient = () => {
         console.error("Error checking network:", error);
       }
     }, 30000);
-    
+
     // Session expiration check
     sessionCheckInterval = setInterval(() => {
       const state = store.getState();
-      if (!state.isWalletConnected || !state.sessionExpiresAt || !isDocumentFocused()) return;
-      
+      if (
+        !state.isWalletConnected ||
+        !state.sessionExpiresAt ||
+        !isDocumentFocused()
+      )
+        return;
+
       if (Date.now() > state.sessionExpiresAt) {
         console.log("Session expired, disconnecting...");
         const disconnect = store.getState().disconnect;
@@ -61,7 +68,7 @@ const createGemWalletClient = () => {
       }
     }, 60000);
   };
-  
+
   // Stop all polling
   const stopPolling = () => {
     if (networkPollInterval) {
@@ -73,7 +80,7 @@ const createGemWalletClient = () => {
       sessionCheckInterval = null;
     }
   };
-  
+
   // Create the store
   const store = create<GemWalletState>()(
     persist(
@@ -137,7 +144,7 @@ const createGemWalletClient = () => {
               sessionExpiresAt: expiresAt,
               manuallyDisconnected: false,
             });
-            
+
             // Start polling when connected
             startPolling();
 
@@ -167,7 +174,7 @@ const createGemWalletClient = () => {
               walletNetwork: undefined,
               manuallyDisconnected: true,
             });
-            
+
             // Stop polling when disconnected
             stopPolling();
 
@@ -244,30 +251,33 @@ const createGemWalletClient = () => {
           manuallyDisconnected: state.manuallyDisconnected,
           sessionExpiresAt: state.sessionExpiresAt,
         }),
-      }
-    )
+      },
+    ),
   );
 
   // Check if already connected on initialization
   const initialState = store.getState();
   if (initialState.isWalletConnected && !initialState.manuallyDisconnected) {
     startPolling();
-    
+
     // Auto-reconnect on initial load if there's a session
     // But only if the user didn't manually disconnect
-    if (initialState.sessionExpiresAt && initialState.sessionExpiresAt > Date.now()) {
+    if (
+      initialState.sessionExpiresAt &&
+      initialState.sessionExpiresAt > Date.now()
+    ) {
       // Small delay to ensure app is mounted
       setTimeout(() => {
         initialState.connect();
       }, 1000);
     }
   }
-  
+
   // Cleanup function
   const cleanup = () => {
     stopPolling();
   };
-  
+
   return {
     useStore: store,
     cleanup,

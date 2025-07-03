@@ -8,7 +8,11 @@ import { formatUnits } from "viem";
 import { Info, ArrowRight, AlertCircle } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { OperationProgress } from "@/components/ui/operation-progress";
-import { approvalStep, transactionStep, confirmationStep } from "@/components/ui/operation-progress";
+import {
+  approvalStep,
+  transactionStep,
+  confirmationStep,
+} from "@/components/ui/operation-progress";
 
 interface WithdrawTabProps {
   sourceChain: string;
@@ -26,7 +30,8 @@ export function WithdrawTab({
 
   const decimals = stakingService.walletBalance?.decimals || 0;
   const maxClaimAmount = stakingService.stakerBalance?.claimable || BigInt(0);
-  const maxWithdrawAmount = stakingService.stakerBalance?.withdrawable || BigInt(0);
+  const maxWithdrawAmount =
+    stakingService.stakerBalance?.withdrawable || BigInt(0);
 
   const {
     amount: claimAmount,
@@ -50,39 +55,45 @@ export function WithdrawTab({
 
   // State for recipient address
   const [recipientAddress, setRecipientAddress] = useState("");
-  
+
   // Transaction state
   const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
-  const [activeOperation, setActiveOperation] = useState<"claim" | "withdraw" | null>(null);
+  const [activeOperation, setActiveOperation] = useState<
+    "claim" | "withdraw" | null
+  >(null);
 
   // Check if claimPrincipal is available in this stakingProvider
   const canClaimPrincipal = !!stakingService.claimPrincipal;
 
   // Operation progress tracking
   const [showProgress, setShowProgress] = useState(false);
-  const [operationProgress, setOperationProgress] = useState<OperationProgress>({
-    operation: "withdraw",
-    chainInfo: canClaimPrincipal ? {
-      sourceChain,
-      destinationChain,
-    } : undefined,
-    steps: canClaimPrincipal ? 
-      [approvalStep, transactionStep, confirmationStep] :
-      [transactionStep, confirmationStep],
-    currentStepIndex: 0,
-    overallStatus: null,
-  });
+  const [operationProgress, setOperationProgress] = useState<OperationProgress>(
+    {
+      operation: "withdraw",
+      chainInfo: canClaimPrincipal
+        ? {
+            sourceChain,
+            destinationChain,
+          }
+        : undefined,
+      steps: canClaimPrincipal
+        ? [approvalStep, transactionStep, confirmationStep]
+        : [transactionStep, confirmationStep],
+      currentStepIndex: 0,
+      overallStatus: null,
+    },
+  );
 
   // Handle claim operation
   const handleClaimOperation = async () => {
     if (!canClaimPrincipal) return;
-    
+
     setActiveOperation("claim");
     setTxError(null);
     setTxStatus("processing");
     setShowProgress(true);
-    
+
     // Update operation progress
     setOperationProgress({
       operation: "claim",
@@ -97,67 +108,64 @@ export function WithdrawTab({
 
     try {
       // Update progress for transaction submission
-      setOperationProgress(prev => ({
+      setOperationProgress((prev) => ({
         ...prev,
         currentStepIndex: 0,
         steps: prev.steps.map((step, idx) => ({
           ...step,
-          status: idx === 0 ? "processing" : "pending"
+          status: idx === 0 ? "processing" : "pending",
         })),
-        overallStatus: "processing"
+        overallStatus: "processing",
       }));
 
-      const result = await stakingService.claimPrincipal!(
-        parsedClaimAmount,
-        {
-          onStatus: (status, error) => {
-            setTxStatus(status);
-            if (error) setTxError(error);
-            
-            // Update progress based on transaction status
-            setOperationProgress(prev => {
-              const updatedProgress = { ...prev };
-              
-              switch (status) {
-                case "approving":
-                  updatedProgress.currentStepIndex = 0;
-                  updatedProgress.steps[0].status = "processing";
-                  updatedProgress.overallStatus = "approving";
-                  break;
-                  
-                case "processing":
-                  if (updatedProgress.steps[0].status === "processing") {
-                    updatedProgress.steps[0].status = "success";
-                  }
-                  updatedProgress.currentStepIndex = 1;
-                  updatedProgress.steps[1].status = "processing";
-                  updatedProgress.overallStatus = "processing";
-                  break;
-                  
-                case "success":
-                  updatedProgress.steps[1].status = "success";
-                  updatedProgress.currentStepIndex = 2;
-                  updatedProgress.steps[2].status = "success";
-                  updatedProgress.overallStatus = "success";
-                  break;
-                  
-                case "error":
-                  const processingIndex = updatedProgress.steps.findIndex(
-                    (step) => step.status === "processing"
-                  );
-                  
-                  if (processingIndex >= 0) {
-                    updatedProgress.steps[processingIndex].status = "error";
-                  }
-                  updatedProgress.overallStatus = "error";
-                  break;
-              }
-              
-              return updatedProgress;
-            });
-          },
-        }
-      );
+      const result = await stakingService.claimPrincipal!(parsedClaimAmount, {
+        onStatus: (status, error) => {
+          setTxStatus(status);
+          if (error) setTxError(error);
+
+          // Update progress based on transaction status
+          setOperationProgress((prev) => {
+            const updatedProgress = { ...prev };
+
+            switch (status) {
+              case "approving":
+                updatedProgress.currentStepIndex = 0;
+                updatedProgress.steps[0].status = "processing";
+                updatedProgress.overallStatus = "approving";
+                break;
+
+              case "processing":
+                if (updatedProgress.steps[0].status === "processing") {
+                  updatedProgress.steps[0].status = "success";
+                }
+                updatedProgress.currentStepIndex = 1;
+                updatedProgress.steps[1].status = "processing";
+                updatedProgress.overallStatus = "processing";
+                break;
+
+              case "success":
+                updatedProgress.steps[1].status = "success";
+                updatedProgress.currentStepIndex = 2;
+                updatedProgress.steps[2].status = "success";
+                updatedProgress.overallStatus = "success";
+                break;
+
+              case "error":
+                const processingIndex = updatedProgress.steps.findIndex(
+                  (step) => step.status === "processing",
+                );
+
+                if (processingIndex >= 0) {
+                  updatedProgress.steps[processingIndex].status = "error";
+                }
+                updatedProgress.overallStatus = "error";
+                break;
+            }
+
+            return updatedProgress;
+          });
+        },
+      });
 
       if (result.success) {
         setTxStatus("success");
@@ -179,7 +187,7 @@ export function WithdrawTab({
     setTxError(null);
     setTxStatus("processing");
     setShowProgress(true);
-    
+
     // Update operation progress
     setOperationProgress({
       operation: "withdraw",
@@ -190,58 +198,59 @@ export function WithdrawTab({
 
     try {
       // Update progress for transaction submission
-      setOperationProgress(prev => ({
+      setOperationProgress((prev) => ({
         ...prev,
         currentStepIndex: 0,
         steps: prev.steps.map((step, idx) => ({
           ...step,
-          status: idx === 0 ? "processing" : "pending"
+          status: idx === 0 ? "processing" : "pending",
         })),
-        overallStatus: "processing"
+        overallStatus: "processing",
       }));
 
       const result = await stakingService.withdrawPrincipal!(
         parsedWithdrawAmount,
-        recipientAddress as `0x${string}` || stakingService.walletBalance?.stakerAddress,
+        (recipientAddress as `0x${string}`) ||
+          stakingService.walletBalance?.stakerAddress,
         {
           onStatus: (status, error) => {
             setTxStatus(status);
             if (error) setTxError(error);
-            
+
             // Update progress based on transaction status
-            setOperationProgress(prev => {
+            setOperationProgress((prev) => {
               const updatedProgress = { ...prev };
-              
+
               switch (status) {
                 case "processing":
                   updatedProgress.currentStepIndex = 0;
                   updatedProgress.steps[0].status = "processing";
                   updatedProgress.overallStatus = "processing";
                   break;
-                  
+
                 case "success":
                   updatedProgress.steps[0].status = "success";
                   updatedProgress.currentStepIndex = 1;
                   updatedProgress.steps[1].status = "success";
                   updatedProgress.overallStatus = "success";
                   break;
-                  
+
                 case "error":
                   const processingIndex = updatedProgress.steps.findIndex(
-                    (step) => step.status === "processing"
+                    (step) => step.status === "processing",
                   );
-                  
+
                   if (processingIndex >= 0) {
                     updatedProgress.steps[processingIndex].status = "error";
                   }
                   updatedProgress.overallStatus = "error";
                   break;
               }
-              
+
               return updatedProgress;
             });
           },
-        }
+        },
       );
 
       if (result.success) {
@@ -262,11 +271,7 @@ export function WithdrawTab({
     <div className="space-y-6">
       {/* Header with Token Info */}
       <div className="flex items-center">
-        <img
-          src={token.iconUrl}
-          alt={token.symbol}
-          className="w-24 h-6 mr-3"
-        />
+        <img src={token.iconUrl} alt={token.symbol} className="w-24 h-6 mr-3" />
         <div>
           <h2 className="text-lg font-bold text-white">
             Withdraw {token.symbol}
@@ -278,14 +283,20 @@ export function WithdrawTab({
       <div className="grid grid-cols-2 gap-4">
         {canClaimPrincipal && (
           <div className="p-4 bg-[#1a1a24] rounded-lg border border-[#333344]">
-            <div className="text-sm text-[#9999aa] mb-1">Available to claim</div>
+            <div className="text-sm text-[#9999aa] mb-1">
+              Available to claim
+            </div>
             <div className="text-lg font-medium text-white">
               {formatUnits(maxClaimAmount, decimals)} {token.symbol}
             </div>
           </div>
         )}
-        <div className={`p-4 bg-[#1a1a24] rounded-lg border border-[#333344] ${!canClaimPrincipal ? "col-span-2" : ""}`}>
-          <div className="text-sm text-[#9999aa] mb-1">Available to withdraw</div>
+        <div
+          className={`p-4 bg-[#1a1a24] rounded-lg border border-[#333344] ${!canClaimPrincipal ? "col-span-2" : ""}`}
+        >
+          <div className="text-sm text-[#9999aa] mb-1">
+            Available to withdraw
+          </div>
           <div className="text-lg font-medium text-white">
             {formatUnits(maxWithdrawAmount, decimals)} {token.symbol}
           </div>
@@ -303,11 +314,18 @@ export function WithdrawTab({
               </h4>
               <div className="text-xs text-[#9999aa] space-y-2">
                 <div className="flex items-center">
-                  <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">1</div>
-                  <p>First, claim your tokens from {destinationChain} to {sourceChain}</p>
+                  <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">
+                    1
+                  </div>
+                  <p>
+                    First, claim your tokens from {destinationChain} to{" "}
+                    {sourceChain}
+                  </p>
                 </div>
                 <div className="flex items-center">
-                  <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">2</div>
+                  <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">
+                    2
+                  </div>
                   <p>Then, withdraw your tokens to your wallet</p>
                 </div>
               </div>
@@ -320,25 +338,27 @@ export function WithdrawTab({
       {canClaimPrincipal && maxClaimAmount > BigInt(0) && (
         <div className="p-4 border border-[#333344] rounded-lg bg-[#15151c]">
           <h3 className="text-md font-medium text-white mb-3 flex items-center">
-            <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">1</div>
+            <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">
+              1
+            </div>
             Claim Tokens
           </h3>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#9999aa]">From</span>
               <span className="text-white">{destinationChain}</span>
             </div>
-            
+
             <div className="flex items-center justify-center">
               <ArrowRight className="text-[#9999aa]" size={16} />
             </div>
-            
+
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#9999aa]">To</span>
               <span className="text-white">{sourceChain}</span>
             </div>
-            
+
             <div className="space-y-2 mt-2">
               <div className="flex justify-between">
                 <label className="text-sm font-medium text-[#ddddee]">
@@ -346,12 +366,14 @@ export function WithdrawTab({
                 </label>
                 <button
                   className="text-xs font-medium text-[#00e5ff]"
-                  onClick={() => setClaimAmount(formatUnits(maxClaimAmount, decimals))}
+                  onClick={() =>
+                    setClaimAmount(formatUnits(maxClaimAmount, decimals))
+                  }
                 >
                   MAX
                 </button>
               </div>
-              
+
               <Input
                 type="text"
                 value={claimAmount}
@@ -359,16 +381,18 @@ export function WithdrawTab({
                 className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white"
                 placeholder={`Enter amount (max: ${formatUnits(maxClaimAmount, decimals)} ${token.symbol})`}
               />
-              
+
               {claimAmountError && (
                 <p className="text-sm text-red-500">{claimAmountError}</p>
               )}
             </div>
-            
+
             <Button
               className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
               disabled={
-                (!!txStatus && txStatus !== "error" && activeOperation === "claim") ||
+                (!!txStatus &&
+                  txStatus !== "error" &&
+                  activeOperation === "claim") ||
                 !!claimAmountError ||
                 !claimAmount ||
                 !parsedClaimAmount ||
@@ -392,11 +416,13 @@ export function WithdrawTab({
       <div className="p-4 border border-[#333344] rounded-lg bg-[#15151c]">
         <h3 className="text-md font-medium text-white mb-3 flex items-center">
           {canClaimPrincipal && (
-            <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">2</div>
+            <div className="w-5 h-5 rounded-full bg-[#333344] flex items-center justify-center text-xs mr-2">
+              2
+            </div>
           )}
           Withdraw Tokens
         </h3>
-        
+
         <div className="space-y-3">
           {maxWithdrawAmount > BigInt(0) ? (
             <>
@@ -407,12 +433,16 @@ export function WithdrawTab({
                   </label>
                   <button
                     className="text-xs font-medium text-[#00e5ff]"
-                    onClick={() => setWithdrawAmount(formatUnits(maxWithdrawAmount, decimals))}
+                    onClick={() =>
+                      setWithdrawAmount(
+                        formatUnits(maxWithdrawAmount, decimals),
+                      )
+                    }
                   >
                     MAX
                   </button>
                 </div>
-                
+
                 <Input
                   type="text"
                   value={withdrawAmount}
@@ -420,12 +450,12 @@ export function WithdrawTab({
                   className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white"
                   placeholder={`Enter amount (max: ${formatUnits(maxWithdrawAmount, decimals)} ${token.symbol})`}
                 />
-                
+
                 {withdrawAmountError && (
                   <p className="text-sm text-red-500">{withdrawAmountError}</p>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[#ddddee]">
                   Recipient Address (optional)
@@ -440,11 +470,13 @@ export function WithdrawTab({
                   If left blank, tokens will be sent to your connected wallet
                 </p>
               </div>
-              
+
               <Button
                 className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
                 disabled={
-                  (!!txStatus && txStatus !== "error" && activeOperation === "withdraw") ||
+                  (!!txStatus &&
+                    txStatus !== "error" &&
+                    activeOperation === "withdraw") ||
                   !!withdrawAmountError ||
                   !withdrawAmount ||
                   !parsedWithdrawAmount ||
@@ -472,9 +504,7 @@ export function WithdrawTab({
         </div>
       </div>
 
-      {txError && (
-        <p className="mt-3 text-sm text-red-500">{txError}</p>
-      )}
+      {txError && <p className="mt-3 text-sm text-red-500">{txError}</p>}
 
       {/* Progress overlay */}
       <OperationProgress

@@ -1,5 +1,5 @@
 import { Connector } from "wagmi";
-import { Network, EVMNetwork, XRPL, sepolia, xrpl} from "./networks";
+import { Network, EVMNetwork, XRPL, sepolia, xrpl } from "./networks";
 import { ConnectorBase, evmConnector, gemConnector } from "./connectors";
 
 // Define a base TokenBase interface with common properties

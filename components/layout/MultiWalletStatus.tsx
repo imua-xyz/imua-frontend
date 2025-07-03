@@ -47,30 +47,39 @@ export function MultiWalletStatus({ token }: { token: Token }) {
   // Check if we need to show both native and Imua wallets
   const requiresExtraConnectToImua = token.connector.requireExtraConnectToImua;
   const hasCustomConnector = !!token.connector.customConnector;
-  
+
   // Get custom connector info if available
   const connectorName = token.connector.customConnector?.name || "EVM Wallet";
-  const connectorIcon = token.connector.customConnector?.iconUrl || "/eth-logo.svg";
+  const connectorIcon =
+    token.connector.customConnector?.iconUrl || "/eth-logo.svg";
 
   // Function to open the modal for a specific wallet type
   const openWalletDetails = (isNativeWallet: boolean) => {
     const isCustomConnector = !!token.connector.customConnector;
-    
+
     if (isNativeWallet) {
       // Native wallet details
       setActiveWalletInfo({
         address: nativeWalletAddress || "",
         name: token.connector.customConnector?.name || "EVM" + " Wallet",
         iconUrl: token.connector.customConnector?.iconUrl || "/eth-logo.svg",
-        balance: nativeCurrencyBalance ? {
-          formatted: formatBalance(nativeCurrencyBalance.value, nativeCurrencyBalance.decimals) + " " + nativeCurrencyBalance.symbol
-        } : undefined,
+        balance: nativeCurrencyBalance
+          ? {
+              formatted:
+                formatBalance(
+                  nativeCurrencyBalance.value,
+                  nativeCurrencyBalance.decimals,
+                ) +
+                " " +
+                nativeCurrencyBalance.symbol,
+            }
+          : undefined,
         explorerUrl: token.network.accountExplorerUrl,
         onDisconnect: async () => {
           if (disconnectNative) {
             await disconnectNative();
           }
-        }
+        },
       });
     } else {
       // Imua wallet details
@@ -81,10 +90,10 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         explorerUrl: imua.accountExplorerUrl,
         onDisconnect: () => {
           disconnect();
-        }
+        },
       });
     }
-    
+
     setModalOpen(true);
     setDetailsOpen(false); // Close the dropdown
   };
@@ -97,7 +106,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         setIsNativeWalletInstalled(installed);
       }
     };
-    
+
     checkInstallation();
   }, [checkNativeInstallation]);
 
@@ -124,11 +133,15 @@ export function MultiWalletStatus({ token }: { token: Token }) {
               ? `${nativeWalletAddress?.substring(0, 6)}...${nativeWalletAddress?.substring(nativeWalletAddress.length - 4)}`
               : "Not Connected"}
           </span>
-          
+
           {/* Show balance if connected */}
           {isNativeWalletConnected && nativeCurrencyBalance && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-[#292936]">
-              {formatBalance(nativeCurrencyBalance.value, nativeCurrencyBalance.decimals)} {nativeCurrencyBalance.symbol}
+              {formatBalance(
+                nativeCurrencyBalance.value,
+                nativeCurrencyBalance.decimals,
+              )}{" "}
+              {nativeCurrencyBalance.symbol}
             </span>
           )}
         </div>
@@ -158,7 +171,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
           <div className="ml-1">
             {isReady ? (
               <CheckCircle className="w-4 h-4 text-green-400" />
-            ) : (isNativeWalletConnected && isImuaConnected) ? (
+            ) : isNativeWalletConnected && isImuaConnected ? (
               <AlertCircle className="w-4 h-4 text-yellow-400" />
             ) : (
               <AlertCircle className="w-4 h-4 text-gray-400" />
@@ -183,7 +196,11 @@ export function MultiWalletStatus({ token }: { token: Token }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-white flex items-center gap-2">
-                    <img src={connectorIcon} alt={connectorName} className="w-4 h-4" />
+                    <img
+                      src={connectorIcon}
+                      alt={connectorName}
+                      className="w-4 h-4"
+                    />
                     {connectorName}
                   </h3>
 
@@ -206,17 +223,23 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                     >
                       <span>
                         {nativeWalletAddress?.substring(0, 12)}...
-                        {nativeWalletAddress?.substring(nativeWalletAddress.length - 8)}
+                        {nativeWalletAddress?.substring(
+                          nativeWalletAddress.length - 8,
+                        )}
                       </span>
                       <span className="text-xs">View Details</span>
                     </div>
-                    
+
                     {/* Show balance */}
                     {nativeCurrencyBalance && (
                       <div className="text-sm text-[#9999aa] bg-[#1a1a24] p-2 rounded flex items-center justify-between">
                         <span>Balance</span>
                         <span>
-                          {formatBalance(nativeCurrencyBalance.value, nativeCurrencyBalance.decimals)} {nativeCurrencyBalance.symbol}
+                          {formatBalance(
+                            nativeCurrencyBalance.value,
+                            nativeCurrencyBalance.decimals,
+                          )}{" "}
+                          {nativeCurrencyBalance.symbol}
                         </span>
                       </div>
                     )}
@@ -311,31 +334,34 @@ export function MultiWalletStatus({ token }: { token: Token }) {
               )}
 
               {/* Wallet Status Summary (for non-EVM wallets) */}
-              {requiresExtraConnectToImua && isNativeWalletConnected && isImuaConnected && (
-                <div
-                  className={`p-3 rounded text-sm ${
-                    isReady
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                      : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-                  }`}
-                >
-                  {isReady ? (
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Wallets are paired successfully</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>
-                        {issues?.needsMatchingBoundAddress 
-                          ? "Wallets need to be paired. Make a deposit to link wallets."
-                          : issues?.others?.[0] || "Connection issue detected"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
+              {requiresExtraConnectToImua &&
+                isNativeWalletConnected &&
+                isImuaConnected && (
+                  <div
+                    className={`p-3 rounded text-sm ${
+                      isReady
+                        ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                        : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                    }`}
+                  >
+                    {isReady ? (
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Wallets are paired successfully</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>
+                          {issues?.needsMatchingBoundAddress
+                            ? "Wallets need to be paired. Make a deposit to link wallets."
+                            : issues?.others?.[0] ||
+                              "Connection issue detected"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
           </motion.div>
         )}
@@ -356,10 +382,13 @@ export function MultiWalletStatus({ token }: { token: Token }) {
 // Helper function to format balance
 function formatBalance(value: bigint, decimals: number): string {
   if (!value) return "0";
-  
+
   const divisor = BigInt(10) ** BigInt(decimals);
   const integerPart = value / divisor;
-  const decimalPart = (value % divisor).toString().padStart(decimals, '0').substring(0, 2);
-  
+  const decimalPart = (value % divisor)
+    .toString()
+    .padStart(decimals, "0")
+    .substring(0, 2);
+
   return `${integerPart}.${decimalPart}`;
 }

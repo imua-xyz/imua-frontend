@@ -1,13 +1,13 @@
 // components/ui/cross-chain-progress.tsx
 import { useState, useEffect } from "react";
-import { 
-  OperationProgress, 
+import {
+  OperationProgress,
   OperationStep,
   approvalStep,
   transactionStep,
   confirmationStep,
   relayingStep,
-  completionStep
+  completionStep,
 } from "./operation-progress";
 import { TxStatus } from "@/types/staking";
 
@@ -34,7 +34,9 @@ interface CrossChainProgressProps {
   explorerUrl?: string;
   onClose: () => void;
   onViewDetails?: () => void;
-  onStatusChange?: (status: TxStatus | "relaying" | "verifying" | "success" | "error" | null) => void;
+  onStatusChange?: (
+    status: TxStatus | "relaying" | "verifying" | "success" | "error" | null,
+  ) => void;
 }
 
 export function CrossChainProgress({
@@ -53,18 +55,18 @@ export function CrossChainProgress({
   const [progress, setProgress] = useState<CrossChainProgress>(() => {
     const defaultSteps = [
       { ...approvalStep },
-      { 
-        ...transactionStep, 
-        description: `Sending ${operation} transaction` 
+      {
+        ...transactionStep,
+        description: `Sending ${operation} transaction`,
       },
       { ...confirmationStep },
-      { 
-        ...relayingStep, 
-        description: `Relaying message to ${destinationChain}` 
+      {
+        ...relayingStep,
+        description: `Relaying message to ${destinationChain}`,
       },
-      { ...completionStep }
+      { ...completionStep },
     ];
-    
+
     return {
       sourceChain,
       destinationChain,
@@ -73,7 +75,7 @@ export function CrossChainProgress({
       currentStepIndex: 0,
       overallStatus: null,
       txHash,
-      explorerUrl
+      explorerUrl,
     };
   });
 
@@ -81,10 +83,10 @@ export function CrossChainProgress({
   useEffect(() => {
     if (!txStatus) return;
 
-    setProgress(prev => {
+    setProgress((prev) => {
       const updatedProgress = { ...prev };
       const steps = [...(updatedProgress.steps || [])];
-      
+
       switch (txStatus) {
         case "approving":
           updatedProgress.currentStepIndex = 0;
@@ -111,10 +113,10 @@ export function CrossChainProgress({
           updatedProgress.currentStepIndex = 3;
           steps[3].status = "processing"; // Now relaying
           updatedProgress.overallStatus = "relaying";
-          
+
           // Simulate cross-chain completion with timeouts
           setTimeout(() => {
-            setProgress(prev => {
+            setProgress((prev) => {
               const updated = { ...prev };
               const updatedSteps = [...(updated.steps || [])];
               updatedSteps[3].status = "success"; // Relay complete
@@ -126,7 +128,7 @@ export function CrossChainProgress({
             });
 
             setTimeout(() => {
-              setProgress(prev => {
+              setProgress((prev) => {
                 const final = { ...prev };
                 const finalSteps = [...(final.steps || [])];
                 finalSteps[4].status = "success";
@@ -181,14 +183,15 @@ export function CrossChainProgress({
       progress.overallStatus === "error"
     ) {
       onClose();
-      
+
       // Reset progress for next operation
       setTimeout(() => {
-        setProgress(prev => ({
+        setProgress((prev) => ({
           ...prev,
-          steps: prev.steps?.map(step => ({ ...step, status: "pending" })) || [],
+          steps:
+            prev.steps?.map((step) => ({ ...step, status: "pending" })) || [],
           currentStepIndex: 0,
-          overallStatus: null
+          overallStatus: null,
         }));
         onStatusChange?.(null);
       }, 500);

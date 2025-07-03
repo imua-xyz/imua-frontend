@@ -58,11 +58,11 @@ export const xrpl: XRPL = {
 } as const;
 
 export const imua = {
-    chainName: "Imua",
-    evmChainID: 233,
-    customChainIdByImua: 40259,
-    txExplorerUrl: "https://exoscan.org/tx/",
-    accountExplorerUrl: "https://exoscan.org/address/",
-  } as const;
+  chainName: "Imua",
+  evmChainID: 233,
+  customChainIdByImua: 40259,
+  txExplorerUrl: "https://exoscan.org/tx/",
+  accountExplorerUrl: "https://exoscan.org/address/",
+} as const;
 
 export type Network = typeof sepolia | typeof xrpl;

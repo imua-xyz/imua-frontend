@@ -12,7 +12,7 @@ export async function handleEVMTxWithStatus(
   status: TxStatus = "processing",
 ): Promise<{ hash: string; success: boolean; error?: string }> {
   if (!publicClient) throw new Error("Public client not found");
-  
+
   try {
     options?.onStatus?.(status);
     const hash = await txPromise;
@@ -80,9 +80,7 @@ export async function handleXrplTxWithStatus(
 
       if (!status.success) {
         // Continue polling if we just can't get the status yet
-        await new Promise((resolve) =>
-          setTimeout(resolve, POLLING_INTERVAL),
-        );
+        await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
         continue;
       }
 

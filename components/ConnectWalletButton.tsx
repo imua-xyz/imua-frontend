@@ -9,9 +9,9 @@ interface ConnectWalletButtonProps {
   token: NativeToken | LSTToken | NSTToken;
 }
 
-export function ConnectWalletButton({ 
-  onClick, 
-  token 
+export function ConnectWalletButton({
+  onClick,
+  token,
 }: ConnectWalletButtonProps) {
   return (
     <motion.button
@@ -20,7 +20,10 @@ export function ConnectWalletButton({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
-      Connect {token.network.chainName} {token.connector.requireExtraConnectToImua? "And Imua Wallets" : "Wallet"}
+      Connect {token.network.chainName}{" "}
+      {token.connector.requireExtraConnectToImua
+        ? "And Imua Wallets"
+        : "Wallet"}
     </motion.button>
   );
 }

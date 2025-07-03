@@ -2,9 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useBalance } from "wagmi";
 import { maxUint256, getContract, erc20Abi } from "viem";
-import {
-  WalletConnector
-} from "@/types/wallet-connector";
+import { WalletConnector } from "@/types/wallet-connector";
 import { StakingService } from "@/types/staking-service";
 import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useVault } from "./useVault";
@@ -16,16 +14,16 @@ import { OperationType } from "@/types/staking";
 import { handleEVMTxWithStatus } from "@/lib/txUtils";
 import { EVMWalletConnector } from "@/types/wallet-connector";
 
-export function useEVMWalletConnector(
-  token: EVMLSTToken,
-): EVMWalletConnector {
+export function useEVMWalletConnector(token: EVMLSTToken): EVMWalletConnector {
   const { address: userAddress, chainId, isConnected } = useAccount();
   const { data: balance } = useBalance({ address: userAddress });
 
   const isReady = isConnected && chainId === token.network.evmChainID;
-  const issues = isReady? undefined : {
-    needsConnectToNative: true,
-  };
+  const issues = isReady
+    ? undefined
+    : {
+        needsConnectToNative: true,
+      };
 
   const nativeCurrencyBalance = {
     value: balance?.value || BigInt(0),

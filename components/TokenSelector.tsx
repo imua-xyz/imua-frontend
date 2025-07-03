@@ -10,9 +10,12 @@ interface TokenSelectorProps {
   onTokenSelect: (token: Token) => void;
 }
 
-export function TokenSelector({ selectedToken, onTokenSelect }: TokenSelectorProps) {
+export function TokenSelector({
+  selectedToken,
+  onTokenSelect,
+}: TokenSelectorProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   return (
     <div className="relative">
       {/* Token Button */}
@@ -30,7 +33,9 @@ export function TokenSelector({ selectedToken, onTokenSelect }: TokenSelectorPro
                 className="object-contain"
               />
             </div>
-            <span className="font-medium text-white">{selectedToken.symbol}</span>
+            <span className="font-medium text-white">
+              {selectedToken.symbol}
+            </span>
             <span className="text-sm text-[#9999aa]">{selectedToken.name}</span>
             <div className="ml-auto">
               <span className="text-[#00e5ff] font-bold">3% APY</span>
@@ -46,7 +51,7 @@ export function TokenSelector({ selectedToken, onTokenSelect }: TokenSelectorPro
         )}
         <ChevronDown className="ml-auto text-[#9999aa]" size={18} />
       </button>
-      
+
       {/* Token Selection Modal */}
       <AnimatePresence>
         {isModalOpen && (
@@ -59,7 +64,7 @@ export function TokenSelector({ selectedToken, onTokenSelect }: TokenSelectorPro
               className="fixed inset-0 bg-black/50 z-40"
               onClick={() => setIsModalOpen(false)}
             />
-            
+
             {/* Modal */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -88,8 +93,12 @@ export function TokenSelector({ selectedToken, onTokenSelect }: TokenSelectorPro
                         />
                       </div>
                       <div>
-                        <div className="font-bold text-white">{token.symbol}</div>
-                        <div className="text-sm text-[#9999aa]">{token.name}</div>
+                        <div className="font-bold text-white">
+                          {token.symbol}
+                        </div>
+                        <div className="text-sm text-[#9999aa]">
+                          {token.name}
+                        </div>
                       </div>
                       <div className="ml-auto">
                         <span className="text-[#00e5ff] font-bold">3% APY</span>

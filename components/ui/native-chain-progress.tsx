@@ -1,6 +1,12 @@
 // components/ui/native-chain-progress.tsx
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Loader2, Clock, AlertCircle } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -11,14 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TxStatus } from "@/types/staking";
-import { 
-    OperationProgress, 
-    OperationStep,
-    approvalStep,
-    transactionStep,
-    confirmationStep,
-    completionStep
-  } from "./operation-progress";
+import {
+  OperationProgress,
+  OperationStep,
+  approvalStep,
+  transactionStep,
+  confirmationStep,
+  completionStep,
+} from "./operation-progress";
 
 export type NativeOperationStep = OperationStep;
 
@@ -33,14 +39,14 @@ export type NativeChainProgress = {
 };
 
 interface NativeChainProgressProps {
-    chain: string;
-    operation: string;
-    txHash?: string;
-    explorerUrl?: string;
+  chain: string;
+  operation: string;
+  txHash?: string;
+  explorerUrl?: string;
 
-    open: boolean;
-    txStatus: TxStatus | null;
-    onClose: () => void;
+  open: boolean;
+  txStatus: TxStatus | null;
+  onClose: () => void;
   onViewDetails?: () => void;
   onStatusChange?: (status: TxStatus | "verifying" | null) => void;
 }
@@ -56,36 +62,36 @@ export function NativeChainProgress({
   onViewDetails,
   onStatusChange,
 }: NativeChainProgressProps) {
-    const [progress, setProgress] = useState<NativeChainProgress>(() => {
-        const defaultSteps = [
-          { ...approvalStep },
-          { 
-            ...transactionStep, 
-            description: `Sending ${operation} transaction` 
-          },
-          { ...confirmationStep },
-          { ...completionStep }
-        ];
-        
-        return {
-          chain,
-          operation,
-          steps: defaultSteps,
-          currentStepIndex: 0,
-          overallStatus: null,
-          txHash,
-          explorerUrl
-        };
-      });
+  const [progress, setProgress] = useState<NativeChainProgress>(() => {
+    const defaultSteps = [
+      { ...approvalStep },
+      {
+        ...transactionStep,
+        description: `Sending ${operation} transaction`,
+      },
+      { ...confirmationStep },
+      { ...completionStep },
+    ];
+
+    return {
+      chain,
+      operation,
+      steps: defaultSteps,
+      currentStepIndex: 0,
+      overallStatus: null,
+      txHash,
+      explorerUrl,
+    };
+  });
 
   // Update progress based on transaction status
   useEffect(() => {
     if (!txStatus) return;
 
-    setProgress(prev => {
+    setProgress((prev) => {
       const updatedProgress = { ...prev };
       const steps = [...(updatedProgress.steps || [])];
-      
+
       switch (txStatus) {
         case "approving":
           updatedProgress.currentStepIndex = 0;
@@ -110,10 +116,10 @@ export function NativeChainProgress({
           updatedProgress.currentStepIndex = 2;
           steps[2].status = "success"; // Confirmation
           updatedProgress.currentStepIndex = 3;
-          
+
           // Simulate completion with timeouts
           setTimeout(() => {
-            setProgress(prev => {
+            setProgress((prev) => {
               const updated = { ...prev };
               const updatedSteps = [...(updated.steps || [])];
               updatedSteps[3].status = "processing"; // Relay complete
@@ -123,7 +129,7 @@ export function NativeChainProgress({
             });
 
             setTimeout(() => {
-              setProgress(prev => {
+              setProgress((prev) => {
                 const final = { ...prev };
                 const finalSteps = [...(final.steps || [])];
                 finalSteps[3].status = "success";
@@ -177,14 +183,15 @@ export function NativeChainProgress({
       progress.overallStatus === "error"
     ) {
       onClose();
-      
+
       // Reset progress for next operation
       setTimeout(() => {
-        setProgress(prev => ({
+        setProgress((prev) => ({
           ...prev,
-          steps: prev.steps?.map(step => ({ ...step, status: "pending" })) || [],
+          steps:
+            prev.steps?.map((step) => ({ ...step, status: "pending" })) || [],
           currentStepIndex: 0,
-          overallStatus: null
+          overallStatus: null,
         }));
         onStatusChange?.(null);
       }, 500);

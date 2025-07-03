@@ -34,7 +34,7 @@
 
 ```css
 /* Font Family */
---font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+--font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 
 /* Font Sizes */
 --font-size-xs: 0.75rem; /* 12px */
@@ -348,28 +348,28 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: '#e631dc',
-        accent: '#00e5ff',
+        primary: "#e631dc",
+        accent: "#00e5ff",
         background: {
-          DEFAULT: '#000000',
-          card: '#15151c',
-          modal: '#1a1a24',
-          input: '#0f0f14',
-          selected: '#292936',
+          DEFAULT: "#000000",
+          card: "#15151c",
+          modal: "#1a1a24",
+          input: "#0f0f14",
+          selected: "#292936",
         },
         text: {
-          primary: '#ffffff',
-          secondary: '#9999aa',
-          accent: '#00e5ff',
-          success: '#00dc82',
-          error: '#ff3c5c',
+          primary: "#ffffff",
+          secondary: "#9999aa",
+          accent: "#00e5ff",
+          success: "#00dc82",
+          error: "#ff3c5c",
         },
       },
       borderRadius: {
-        'xl': '1rem',
+        xl: "1rem",
       },
       boxShadow: {
-        modal: '0 10px 25px rgba(0, 0, 0, 0.5)',
+        modal: "0 10px 25px rgba(0, 0, 0, 0.5)",
       },
     },
   },
@@ -390,16 +390,19 @@ The following aesthetic guidelines and examples are inspired by Uniswap's interf
 ## Animation Guidelines
 
 ### Micro-interactions
+
 - **Hover States**: Elements should respond subtly to hover with scale transformations (102-105%)
 - **Active States**: Elements should respond to clicks with slight compression (97-98% scale)
 - **Transitions**: All color/opacity changes should have 150-300ms transitions with ease-in-out timing
 
 ### Page Transitions
+
 - **Page Entry**: Fade-in (300ms) with slight upward movement (10-20px)
 - **Modal Entry**: Scale from 95% to 100% with fade-in
 - **Loading States**: Pulsing opacity (0.7 to 1) for placeholders
 
 ### Animation Libraries
+
 - Use **Framer Motion** for component animations
 - Use **react-spring** for more complex, physics-based animations
 ```
@@ -410,16 +413,19 @@ The following aesthetic guidelines and examples are inspired by Uniswap's interf
 ## Visual Effects
 
 ### Glassmorphism
+
 - **Modal Backgrounds**: Subtle transparency (5-10%) with backdrop blur (8-12px)
 - **Card Overlays**: Use rgba backgrounds with low opacity for layered effects
 - **Borders**: Subtle white borders (rgba(255,255,255,0.1)) to define boundaries
 
 ### Glow Effects
+
 - **Primary Elements**: Apply subtle box shadows in primary color (0 0 15px rgba(230,49,220,0.3))
 - **Accent Elements**: Apply subtle box shadows in accent color (0 0 15px rgba(0,229,255,0.3))
 - **Focus States**: Increase glow intensity on focus/active states
 
 ### Gradients
+
 - **Background Accents**: Subtle gradients from primary to transparent for section backgrounds
 - **Button Backgrounds**: Optional subtle gradients for primary buttons
 - **Card Backgrounds**: Consider subtle directional gradients for important cards
@@ -431,11 +437,13 @@ The following aesthetic guidelines and examples are inspired by Uniswap's interf
 ## Motion Principles
 
 ### Natural Motion
+
 - **Easing**: Use custom cubic-bezier curves (0.16, 1, 0.3, 1) for natural motion
 - **Spring Physics**: Configure spring animations with low tension (120-180) and low friction (12-18)
 - **Delay Patterns**: Use staggered delays (50-80ms) for lists and grouped elements
 
 ### Responsive Feedback
+
 - **Input Feedback**: Visual confirmation for all user inputs within 100ms
 - **Loading States**: Never show a static UI during async operations
 - **Success States**: Celebrate completions with subtle animations
@@ -445,15 +453,15 @@ The following aesthetic guidelines and examples are inspired by Uniswap's interf
 
 ```jsx
 // Button Hover/Press Effect (Framer Motion)
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 
 export const AnimatedButton = ({ children, ...props }) => (
-  <motion.div 
+  <motion.div
     whileHover={{ scale: 1.03 }}
     whileTap={{ scale: 0.97 }}
     transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
   >
-    <button 
+    <button
       className="bg-accent hover:bg-accent-hover text-black font-medium
                 rounded-full py-3 px-6 transition-colors duration-200"
       {...props}
@@ -464,13 +472,13 @@ export const AnimatedButton = ({ children, ...props }) => (
 );
 
 // Card with Glow Effect
-export const GlowCard = ({ children, glow = 'primary', ...props }) => {
+export const GlowCard = ({ children, glow = "primary", ...props }) => {
   const glowColors = {
-    primary: 'rgba(230,49,220,0.25)',
-    accent: 'rgba(0,229,255,0.25)',
-    none: 'transparent'
+    primary: "rgba(230,49,220,0.25)",
+    accent: "rgba(0,229,255,0.25)",
+    none: "transparent",
   };
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -478,14 +486,14 @@ export const GlowCard = ({ children, glow = 'primary', ...props }) => {
       transition={{ duration: 0.3 }}
       className="relative"
     >
-      <div 
+      <div
         className="absolute inset-0 rounded-xl blur-lg opacity-50"
-        style={{ 
-          background: glow !== 'none' ? glowColors[glow] : 'transparent',
-          transform: 'translateY(4px) scale(0.95)'
+        style={{
+          background: glow !== "none" ? glowColors[glow] : "transparent",
+          transform: "translateY(4px) scale(0.95)",
         }}
       />
-      <div 
+      <div
         className="bg-background-card relative z-10 rounded-xl p-6
                   border border-[rgba(255,255,255,0.05)]"
         {...props}
@@ -497,8 +505,8 @@ export const GlowCard = ({ children, glow = 'primary', ...props }) => {
 };
 
 // Modal with Glassmorphism
-import { Dialog } from '@headlessui/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Dialog } from "@headlessui/react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const GlassModal = ({ isOpen, onClose, children }) => (
   <AnimatePresence>
@@ -511,7 +519,7 @@ export const GlassModal = ({ isOpen, onClose, children }) => (
           transition={{ duration: 0.2 }}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         />
-        
+
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -520,9 +528,11 @@ export const GlassModal = ({ isOpen, onClose, children }) => (
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="w-full max-w-md"
           >
-            <Dialog.Panel className="bg-background-modal/95 backdrop-blur-md rounded-xl
+            <Dialog.Panel
+              className="bg-background-modal/95 backdrop-blur-md rounded-xl
                                     border border-[rgba(255,255,255,0.1)]
-                                    shadow-lg shadow-black/50 p-6">
+                                    shadow-lg shadow-black/50 p-6"
+            >
               {children}
             </Dialog.Panel>
           </motion.div>
@@ -533,7 +543,7 @@ export const GlassModal = ({ isOpen, onClose, children }) => (
 );
 
 // Animated List Items
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 
 export const AnimatedList = ({ items }) => (
   <div className="space-y-2">
@@ -542,14 +552,14 @@ export const AnimatedList = ({ items }) => (
         key={item.id}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ 
+        transition={{
           duration: 0.3,
           delay: i * 0.05, // Staggered effect
-          ease: [0.16, 1, 0.3, 1]
+          ease: [0.16, 1, 0.3, 1],
         }}
-        whileHover={{ 
-          backgroundColor: 'rgba(255,255,255,0.05)',
-          transition: { duration: 0.15 }
+        whileHover={{
+          backgroundColor: "rgba(255,255,255,0.05)",
+          transition: { duration: 0.15 },
         }}
         className="w-full flex items-center p-4 rounded-lg cursor-pointer"
       >
@@ -569,15 +579,14 @@ export const AnimatedList = ({ items }) => (
 // Background Gradient Effect
 export const GradientBackground = ({ children }) => (
   <div className="relative">
-    <div 
+    <div
       className="absolute top-0 left-0 right-0 h-[500px] opacity-30 pointer-events-none"
       style={{
-        background: 'radial-gradient(60% 50% at 50% 0%, rgba(230,49,220,0.12) 0%, transparent 100%)'
+        background:
+          "radial-gradient(60% 50% at 50% 0%, rgba(230,49,220,0.12) 0%, transparent 100%)",
       }}
     />
-    <div className="relative z-10">
-      {children}
-    </div>
+    <div className="relative z-10">{children}</div>
   </div>
 );
 ```
@@ -590,35 +599,38 @@ module.exports = {
   theme: {
     extend: {
       // Existing config...
-      
+
       // Animation extensions
       animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'float': 'float 6s ease-in-out infinite',
-        'glow': 'glow 2s ease-in-out infinite',
+        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        float: "float 6s ease-in-out infinite",
+        glow: "glow 2s ease-in-out infinite",
       },
       keyframes: {
         float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
         },
         glow: {
-          '0%, 100%': { boxShadow: '0 0 5px rgba(0,229,255,0.3)' },
-          '50%': { boxShadow: '0 0 20px rgba(0,229,255,0.6)' },
-        }
+          "0%, 100%": { boxShadow: "0 0 5px rgba(0,229,255,0.3)" },
+          "50%": { boxShadow: "0 0 20px rgba(0,229,255,0.6)" },
+        },
       },
       transitionTimingFunction: {
-        'bounce-in-out': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        "bounce-in-out": "cubic-bezier(0.16, 1, 0.3, 1)",
       },
       backdropBlur: {
-        xs: '2px',
-        sm: '4px',
+        xs: "2px",
+        sm: "4px",
       },
     },
   },
   plugins: [
-    require('tailwindcss-animate'), // For more animation utilities
+    require("tailwindcss-animate"), // For more animation utilities
   ],
 };
 ```
+
+```
+
 ```

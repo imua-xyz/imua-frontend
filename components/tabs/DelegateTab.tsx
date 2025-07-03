@@ -101,13 +101,16 @@ export function DelegateTab({
   // Handle operator selection
   const handleOperatorSelect = (operator: OperatorInfo) => {
     setSelectedOperator(operator);
-    
+
     // Save selected operator to localStorage
-    localStorage.setItem(`lastDelegateOperator_${token.symbol}`, operator.address);
-    
+    localStorage.setItem(
+      `lastDelegateOperator_${token.symbol}`,
+      operator.address,
+    );
+
     // Close the modal
     setShowOperatorModal(false);
-    
+
     // Move to review step
     setCurrentStep("review");
   };
@@ -115,11 +118,11 @@ export function DelegateTab({
   // Handle delegation operation
   const handleOperation = async () => {
     if (!selectedOperator) return;
-    
+
     setTxError(null);
     setTxStatus("processing");
     setShowProgress(true);
-    
+
     try {
       const result = await stakingService.delegateTo(
         selectedOperator.address,
@@ -129,7 +132,7 @@ export function DelegateTab({
             setTxStatus(status);
             if (error) setTxError(error);
           },
-        }
+        },
       );
 
       if (result.hash) {
@@ -349,7 +352,12 @@ export function DelegateTab({
 
             <Button
               className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
-              disabled={!!txStatus || !selectedOperator || !parsedAmount || parsedAmount === BigInt(0)}
+              disabled={
+                !!txStatus ||
+                !selectedOperator ||
+                !parsedAmount ||
+                parsedAmount === BigInt(0)
+              }
               onClick={handleOperation}
             >
               {getButtonText()}

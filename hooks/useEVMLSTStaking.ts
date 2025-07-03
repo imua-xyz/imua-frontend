@@ -18,18 +18,21 @@ import { useAccount } from "wagmi";
 import { OperationType } from "@/types/staking";
 import { handleEVMTxWithStatus } from "@/lib/txUtils";
 
-export function useEVMLSTStaking(
-  token: EVMLSTToken,
-): StakingService {
+export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress, chainId } = useAccount();
-  const { contract, publicClient, walletClient } = usePortalContract(token.network);
+  const { contract, publicClient, walletClient } = usePortalContract(
+    token.network,
+  );
   const { getStakerBalanceByToken } = useAssetsPrecompile();
-  const { data: balance } = useBalance({ address: userAddress, token: token.address });
+  const { data: balance } = useBalance({
+    address: userAddress,
+    token: token.address,
+  });
   const [vaultAddress, setVaultAddress] = useState<`0x${string}` | null>(null);
   const lzEndpointIdOrCustomChainId = token.network.customChainIdByImua;
 
   const vaultAddressQuery = useQuery({
-    queryKey: ["vaultAddress",token.network.evmChainID, token.address],
+    queryKey: ["vaultAddress", token.network.evmChainID, token.address],
     queryFn: async (): Promise<`0x${string}`> => {
       if (!contract) throw new Error("Invalid Contract");
       const vaultAddress = await contract.read.tokenToVault([token.address]);
@@ -40,8 +43,9 @@ export function useEVMLSTStaking(
     enabled: !!token && !!contract && !vaultAddress,
   });
 
-  const { withdrawableAmount: withdrawableAmountFromVault } =
-    useVault(vaultAddressQuery.data);
+  const { withdrawableAmount: withdrawableAmountFromVault } = useVault(
+    vaultAddressQuery.data,
+  );
 
   const walletBalance = {
     customClientChainID: lzEndpointIdOrCustomChainId || 0,
@@ -91,7 +95,9 @@ export function useEVMLSTStaking(
       const fee = await getQuote("delegation");
 
       return handleEVMTxWithStatus(
-        contract.write.delegateTo([operator, token.address, amount], { value: fee }),
+        contract.write.delegateTo([operator, token.address, amount], {
+          value: fee,
+        }),
         publicClient,
         options,
       );
@@ -123,9 +129,12 @@ export function useEVMLSTStaking(
       const fee = await getQuote("delegation");
 
       return handleEVMTxWithStatus(
-        contract.write.depositThenDelegateTo([token.address, amount, operator], {
-          value: fee,
-        }),
+        contract.write.depositThenDelegateTo(
+          [token.address, amount, operator],
+          {
+            value: fee,
+          },
+        ),
         publicClient,
         options,
       );
@@ -173,7 +182,13 @@ export function useEVMLSTStaking(
       operatorAddress?: string,
       options?: { onStatus?: (status: TxStatus, error?: string) => void },
     ) => {
-      if (!contract || !amount || !publicClient || !walletClient || !vaultAddress)
+      if (
+        !contract ||
+        !amount ||
+        !publicClient ||
+        !walletClient ||
+        !vaultAddress
+      )
         throw new Error("Invalid parameters");
 
       try {
@@ -188,14 +203,12 @@ export function useEVMLSTStaking(
               },
             })
           : undefined;
-        
 
         // Check allowance using token contract
         const currentAllowance = await tokenContract?.read.allowance([
           userAddress as `0x${string}`,
           vaultAddress,
         ]);
-
 
         if (currentAllowance && currentAllowance < amount) {
           options?.onStatus?.("approving");
@@ -226,7 +239,14 @@ export function useEVMLSTStaking(
         throw error;
       }
     },
-    [contract, publicClient, token.address, handleDeposit, handleDepositAndDelegate, vaultAddress],
+    [
+      contract,
+      publicClient,
+      token.address,
+      handleDeposit,
+      handleDepositAndDelegate,
+      vaultAddress,
+    ],
   );
 
   const stakerBalance = useQuery({

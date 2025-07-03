@@ -41,5 +41,6 @@ export const gemConnector: NonEVMConnector = {
     name: "GemWallet",
     iconUrl: "/gem-logo.svg",
   },
-  installUrl: "https://chromewebstore.google.com/detail/gemwallet/egebedonbdapoieedfcfkofloclfghab?hl=en",
+  installUrl:
+    "https://chromewebstore.google.com/detail/gemwallet/egebedonbdapoieedfcfkofloclfghab?hl=en",
 } as const;

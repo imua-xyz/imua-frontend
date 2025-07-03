@@ -9,7 +9,7 @@ import { Token } from "@/types/tokens";
 
 export function Header({ token }: { token: Token | null }) {
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -27,9 +27,13 @@ export function Header({ token }: { token: Token | null }) {
             className="mr-2"
           />
         </Link>
-        
+
         {/* Display both wallet types */}
-        {mounted && token ? <MultiWalletStatus token={token} /> : <div className="w-[280px] h-[40px]" />}
+        {mounted && token ? (
+          <MultiWalletStatus token={token} />
+        ) : (
+          <div className="w-[280px] h-[40px]" />
+        )}
       </div>
     </header>
   );

@@ -28,18 +28,24 @@ import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { XRPWalletConnector } from "@/types/wallet-connector";
 
 export function useXRPWalletConnector(): XRPWalletConnector {
-  const isGemWalletConnected = useGemWalletStore(state => state.isWalletConnected);
-  const xrpAddress = useGemWalletStore(state => state.userAddress);
-  const walletNetwork = useGemWalletStore(state => state.walletNetwork);
-  const checkInstallation = useGemWalletStore(state => state.checkInstallation);
-  const connect = useGemWalletStore(state => state.connect);
-  const disconnect = useGemWalletStore(state => state.disconnect);
+  const isGemWalletConnected = useGemWalletStore(
+    (state) => state.isWalletConnected,
+  );
+  const xrpAddress = useGemWalletStore((state) => state.userAddress);
+  const walletNetwork = useGemWalletStore((state) => state.walletNetwork);
+  const checkInstallation = useGemWalletStore(
+    (state) => state.checkInstallation,
+  );
+  const connect = useGemWalletStore((state) => state.connect);
+  const disconnect = useGemWalletStore((state) => state.disconnect);
 
-  const boundImuaAddress = useBindingStore(state => state.boundAddresses[xrpAddress ?? ""]);
+  const boundImuaAddress = useBindingStore(
+    (state) => state.boundAddresses[xrpAddress ?? ""],
+  );
 
-  const xrplClient = useXrplStore(state => state.client);
-  const setNetwork = useXrplStore(state => state.setNetwork);
-  const getAccountInfo = useXrplStore(state => state.getAccountInfo);
+  const xrplClient = useXrplStore((state) => state.client);
+  const setNetwork = useXrplStore((state) => state.setNetwork);
+  const getAccountInfo = useXrplStore((state) => state.getAccountInfo);
 
   useEffect(() => {
     if (walletNetwork) {
@@ -47,18 +53,38 @@ export function useXRPWalletConnector(): XRPWalletConnector {
     }
   }, [walletNetwork, setNetwork]);
 
-  const { address: evmAddress, isConnected: isWagmiConnected, chainId: evmChainId } = useAccount();
+  const {
+    address: evmAddress,
+    isConnected: isWagmiConnected,
+    chainId: evmChainId,
+  } = useAccount();
   const issues = useMemo(() => {
     return {
-        needsConnectToNative: !isGemWalletConnected,
-        needsConnectToImua: !isWagmiConnected || evmChainId !== imua.evmChainID,
-        needsMatchingBoundAddress: boundImuaAddress ? boundImuaAddress !== evmAddress : !!evmAddress,
-        others: walletNetwork && walletNetwork.network !== "Testnet" ? ["Please connect to the XRP Testnet to use this service."] : undefined,
-    }
-  }, [isGemWalletConnected, isWagmiConnected, evmChainId, boundImuaAddress, evmAddress, walletNetwork]);
+      needsConnectToNative: !isGemWalletConnected,
+      needsConnectToImua: !isWagmiConnected || evmChainId !== imua.evmChainID,
+      needsMatchingBoundAddress: boundImuaAddress
+        ? boundImuaAddress !== evmAddress
+        : !!evmAddress,
+      others:
+        walletNetwork && walletNetwork.network !== "Testnet"
+          ? ["Please connect to the XRP Testnet to use this service."]
+          : undefined,
+    };
+  }, [
+    isGemWalletConnected,
+    isWagmiConnected,
+    evmChainId,
+    boundImuaAddress,
+    evmAddress,
+    walletNetwork,
+  ]);
 
   const isReady = useMemo(() => {
-    return !issues.needsConnectToNative && !issues.needsConnectToImua && !issues.needsMatchingBoundAddress;
+    return (
+      !issues.needsConnectToNative &&
+      !issues.needsConnectToImua &&
+      !issues.needsMatchingBoundAddress
+    );
   }, [issues]);
 
   const balance = useQuery({
@@ -91,7 +117,7 @@ export function useXRPWalletConnector(): XRPWalletConnector {
     boundAddress: boundImuaAddress || "",
     issues: issues,
     checkNativeInstallation: checkInstallation,
-    connectNative: connect,  
+    connectNative: connect,
     disconnectNative: disconnect,
   };
 }

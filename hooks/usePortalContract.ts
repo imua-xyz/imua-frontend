@@ -18,15 +18,17 @@ export function usePortalContract(network: EVMNetwork | XRPL) {
     chainId: evmChainID as keyof typeof publicClients,
   });
 
-  const contract = publicClient && walletClient ? getContract({
-    address: network.portalContract.address as `0x${string}`,
-    abi: network.portalContract.abi,
-    client: {
-      public: publicClient,
-        wallet: walletClient,
-      },
-    })
-  : undefined;
+  const contract =
+    publicClient && walletClient
+      ? getContract({
+          address: network.portalContract.address as `0x${string}`,
+          abi: network.portalContract.abi,
+          client: {
+            public: publicClient,
+            wallet: walletClient,
+          },
+        })
+      : undefined;
 
   return {
     contract,

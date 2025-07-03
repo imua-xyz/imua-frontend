@@ -1,9 +1,5 @@
 import { TxHandlerOptions } from "./staking";
-import {
-  StakerBalance,
-  WalletBalance,
-  OperationType,
-} from "./staking";
+import { StakerBalance, WalletBalance, OperationType } from "./staking";
 import { NativeToken, LSTToken, NSTToken } from "./tokens";
 
 export interface StakingService {

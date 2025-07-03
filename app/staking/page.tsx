@@ -26,7 +26,7 @@ function StakingContent({ selectedToken }: { selectedToken: Token }) {
 
   const walletConnector = useWalletConnectorContext();
   const isWalletConnected = walletConnector.isReady;
- 
+
   // Handle wallet connection
   const handleConnectWallet = () => {
     setIsWalletModalOpen(true);
@@ -175,45 +175,45 @@ export default function StakingPage() {
       <WalletConnectorProvider token={selectedToken}>
         <Header token={selectedToken} />
 
-      {/* Main content area - cleaner with more focus */}
-      <div className="max-w-xl mx-auto px-6 py-12">
-        <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl">
-          {/* Card header with token selector - simplified */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-[#222233]">
-            <h2 className="text-xl font-bold text-white">Stake Assets</h2>
-            <button
-              onClick={() => setIsTokenSelectorOpen(true)}
-              className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
-            >
-              <img
-                src={selectedToken.iconUrl}
-                alt={selectedToken.symbol}
-                className="w-5 h-5 mr-2"
-              />
-              <span className="font-medium">{selectedToken.symbol}</span>
-              <ChevronDown size={16} className="ml-2 text-[#9999aa]" />
-            </button>
-          </div>
+        {/* Main content area - cleaner with more focus */}
+        <div className="max-w-xl mx-auto px-6 py-12">
+          <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl">
+            {/* Card header with token selector - simplified */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-[#222233]">
+              <h2 className="text-xl font-bold text-white">Stake Assets</h2>
+              <button
+                onClick={() => setIsTokenSelectorOpen(true)}
+                className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
+              >
+                <img
+                  src={selectedToken.iconUrl}
+                  alt={selectedToken.symbol}
+                  className="w-5 h-5 mr-2"
+                />
+                <span className="font-medium">{selectedToken.symbol}</span>
+                <ChevronDown size={16} className="ml-2 text-[#9999aa]" />
+              </button>
+            </div>
 
-          {/* Card body with staking content */}
-          <div className="p-6">
-            <StakingServiceProvider token={selectedToken}>
-              <OperatorsProvider>
-                <StakingContent selectedToken={selectedToken} />
-              </OperatorsProvider>
-            </StakingServiceProvider>
+            {/* Card body with staking content */}
+            <div className="p-6">
+              <StakingServiceProvider token={selectedToken}>
+                <OperatorsProvider>
+                  <StakingContent selectedToken={selectedToken} />
+                </OperatorsProvider>
+              </StakingServiceProvider>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Token Selector Modal */}
-      <TokenSelectorModal
-        isOpen={isTokenSelectorOpen}
-        onClose={() => setIsTokenSelectorOpen(false)}
-        tokens={validTokens}
-        selectedToken={selectedToken}
-        onSelectToken={(token) => {
-          setSelectedToken(token);
+        {/* Token Selector Modal */}
+        <TokenSelectorModal
+          isOpen={isTokenSelectorOpen}
+          onClose={() => setIsTokenSelectorOpen(false)}
+          tokens={validTokens}
+          selectedToken={selectedToken}
+          onSelectToken={(token) => {
+            setSelectedToken(token);
             setIsTokenSelectorOpen(false);
           }}
         />

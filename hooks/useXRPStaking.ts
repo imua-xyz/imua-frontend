@@ -28,18 +28,24 @@ import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
-  const isGemWalletConnected = useGemWalletStore(state => state.isWalletConnected);
-  const xrpAddress = useGemWalletStore(state => state.userAddress);
-  const walletNetwork = useGemWalletStore(state => state.walletNetwork);
+  const isGemWalletConnected = useGemWalletStore(
+    (state) => state.isWalletConnected,
+  );
+  const xrpAddress = useGemWalletStore((state) => state.userAddress);
+  const walletNetwork = useGemWalletStore((state) => state.walletNetwork);
 
-  const sendTransaction = useGemWalletStore(state => state.sendTransaction);
-  const getTransactionStatus = useXrplStore(state => state.getTransactionStatus);
+  const sendTransaction = useGemWalletStore((state) => state.sendTransaction);
+  const getTransactionStatus = useXrplStore(
+    (state) => state.getTransactionStatus,
+  );
 
-  const checkBoundAddress = useBindingStore(state => state.checkBinding);
-  const boundImuaAddress = useBindingStore(state => state.boundAddresses[xrpAddress ?? ""]);
+  const checkBoundAddress = useBindingStore((state) => state.checkBinding);
+  const boundImuaAddress = useBindingStore(
+    (state) => state.boundAddresses[xrpAddress ?? ""],
+  );
 
-  const xrplClient = useXrplStore(state => state.client);
-  const setNetwork = useXrplStore(state => state.setNetwork);
+  const xrplClient = useXrplStore((state) => state.client);
+  const setNetwork = useXrplStore((state) => state.setNetwork);
 
   useEffect(() => {
     if (walletNetwork) {
@@ -47,7 +53,7 @@ export function useXRPStaking(): StakingService {
     }
   }, [walletNetwork, setNetwork]);
 
-  const getAccountInfo = useXrplStore(state => state.getAccountInfo);
+  const getAccountInfo = useXrplStore((state) => state.getAccountInfo);
 
   const { contract, publicClient } = usePortalContract(xrp.network);
   const { getStakerBalanceByToken } = useAssetsPrecompile();
@@ -185,11 +191,7 @@ export function useXRPStaking(): StakingService {
       // 1. We don't have a bound address yet
       // 2. We used the EVM address in the memo
       // 3. We have the checkBoundAddress method available
-      if (
-        success &&
-        !boundImuaAddress &&
-        effectiveAddress
-      ) {
+      if (success && !boundImuaAddress && effectiveAddress) {
         // Schedule binding checks after successful deposit
         setTimeout(async () => {
           await checkBoundAddress(xrpAddress);
