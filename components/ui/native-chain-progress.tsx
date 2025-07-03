@@ -1,47 +1,42 @@
-// components/ui/cross-chain-progress.tsx
+// components/ui/native-chain-progress.tsx
 import { useState, useEffect } from "react";
+import { TxStatus } from "@/types/staking";
 import {
   OperationProgress,
   OperationStep,
   approvalStep,
   transactionStep,
   confirmationStep,
-  relayingStep,
   completionStep,
 } from "./operation-progress";
-import { TxStatus } from "@/types/staking";
 
-export type CrossChainStep = OperationStep;
+export type NativeOperationStep = OperationStep;
 
-export type CrossChainProgress = {
-  sourceChain: string;
-  destinationChain: string;
-  operation: "deposit" | "stake" | "withdraw" | "claim" | string;
-  steps: CrossChainStep[]; // Optional now, we'll provide defaults
-  currentStepIndex: number; // Optional now, we'll manage internally
-  overallStatus: TxStatus | "relaying" | "verifying" | null; // Optional now
+export type NativeChainProgress = {
+  chain: string;
+  operation: string;
+  steps: NativeOperationStep[];
+  currentStepIndex: number;
+  overallStatus: TxStatus | "verifying" | null;
   txHash?: string;
   explorerUrl?: string;
 };
 
-interface CrossChainProgressProps {
-  sourceChain: string;
-  destinationChain: string;
-  operation: "deposit" | "stake" | "withdraw" | "claim" | string;
-  open: boolean;
-  txStatus: TxStatus | null;
+interface NativeChainProgressProps {
+  chain: string;
+  operation: string;
   txHash?: string;
   explorerUrl?: string;
+
+  open: boolean;
+  txStatus: TxStatus | null;
   onClose: () => void;
   onViewDetails?: () => void;
-  onStatusChange?: (
-    status: TxStatus | "relaying" | "verifying" | "success" | "error" | null,
-  ) => void;
+  onStatusChange?: (status: TxStatus | "verifying" | null) => void;
 }
 
-export function CrossChainProgress({
-  sourceChain,
-  destinationChain,
+export function NativeChainProgress({
+  chain,
   operation,
   txHash,
   explorerUrl,
@@ -50,9 +45,8 @@ export function CrossChainProgress({
   onClose,
   onViewDetails,
   onStatusChange,
-}: CrossChainProgressProps) {
-  // Initialize with default steps if not provided
-  const [progress, setProgress] = useState<CrossChainProgress>(() => {
+}: NativeChainProgressProps) {
+  const [progress, setProgress] = useState<NativeChainProgress>(() => {
     const defaultSteps = [
       { ...approvalStep },
       {
@@ -60,16 +54,11 @@ export function CrossChainProgress({
         description: `Sending ${operation} transaction`,
       },
       { ...confirmationStep },
-      {
-        ...relayingStep,
-        description: `Relaying message to ${destinationChain}`,
-      },
       { ...completionStep },
     ];
 
     return {
-      sourceChain,
-      destinationChain,
+      chain,
       operation,
       steps: defaultSteps,
       currentStepIndex: 0,
@@ -111,17 +100,13 @@ export function CrossChainProgress({
           updatedProgress.currentStepIndex = 2;
           steps[2].status = "success"; // Confirmation
           updatedProgress.currentStepIndex = 3;
-          steps[3].status = "processing"; // Now relaying
-          updatedProgress.overallStatus = "relaying";
 
-          // Simulate cross-chain completion with timeouts
+          // Simulate completion with timeouts
           setTimeout(() => {
             setProgress((prev) => {
               const updated = { ...prev };
               const updatedSteps = [...(updated.steps || [])];
-              updatedSteps[3].status = "success"; // Relay complete
-              updated.currentStepIndex = 4;
-              updatedSteps[4].status = "processing"; // Verifying completion
+              updatedSteps[3].status = "processing"; // Relay complete
               updated.overallStatus = "verifying";
               onStatusChange?.("verifying");
               return { ...updated, steps: updatedSteps };
@@ -131,7 +116,7 @@ export function CrossChainProgress({
               setProgress((prev) => {
                 const final = { ...prev };
                 const finalSteps = [...(final.steps || [])];
-                finalSteps[4].status = "success";
+                finalSteps[3].status = "success";
                 final.overallStatus = "success";
                 onStatusChange?.("success");
                 return { ...final, steps: finalSteps };
@@ -167,8 +152,7 @@ export function CrossChainProgress({
   const operationProgress = {
     operation: progress.operation,
     chainInfo: {
-      sourceChain: progress.sourceChain,
-      destinationChain: progress.destinationChain,
+      destinationChain: progress.chain,
     },
     steps: progress.steps || [],
     currentStepIndex: progress.currentStepIndex || 0,

@@ -1,3 +1,4 @@
+// app/layout.tsx
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -13,7 +14,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-background">{children}</div>
+          <div className="min-h-screen bg-black text-white flex flex-col">
+            <main className="flex-grow">{children}</main>
+          </div>
         </Providers>
       </body>
     </html>
