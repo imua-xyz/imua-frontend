@@ -1,21 +1,5 @@
 // components/ui/native-chain-progress.tsx
 import { useState, useEffect } from "react";
-import {
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Clock,
-  AlertCircle,
-} from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { TxStatus } from "@/types/staking";
 import {
   OperationProgress,

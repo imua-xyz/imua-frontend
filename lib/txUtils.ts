@@ -86,6 +86,7 @@ export async function handleXrplTxWithStatus(
 
       // If transaction is finalized (included in a validated ledger)
       if (status.data?.finalized) {
+        isValidated = true;
         if (status.data?.success) {
           options?.onStatus?.("success");
           return { hash: txHash, success: true };

@@ -1,5 +1,5 @@
 // components/new-staking/tabs/WithdrawTab.tsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
@@ -13,6 +13,7 @@ import {
   transactionStep,
   confirmationStep,
 } from "@/components/ui/operation-progress";
+import Image from "next/image";
 
 interface WithdrawTabProps {
   sourceChain: string;
@@ -271,7 +272,11 @@ export function WithdrawTab({
     <div className="space-y-6">
       {/* Header with Token Info */}
       <div className="flex items-center">
-        <img src={token.iconUrl} alt={token.symbol} className="w-24 h-6 mr-3" />
+        <Image
+          src={token.iconUrl}
+          alt={token.symbol}
+          className="w-24 h-6 mr-3"
+        />
         <div>
           <h2 className="text-lg font-bold text-white">
             Withdraw {token.symbol}
@@ -497,7 +502,7 @@ export function WithdrawTab({
             <div className="p-4 rounded-lg border border-[#333344] bg-[#1a1a24]">
               <div className="flex items-center justify-center gap-2 text-[#9999aa]">
                 <AlertCircle size={16} />
-                <span>You don't have any tokens available to withdraw</span>
+                <span>You do not have any tokens available to withdraw</span>
               </div>
             </div>
           )}

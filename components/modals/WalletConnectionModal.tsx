@@ -5,13 +5,13 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useSwitchChain, useConnect } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 import { imua } from "@/config/wagmi";
 import { Button } from "@/components/ui/button";
 import { Token } from "@/types/tokens";
-import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { EVMNetwork } from "@/types/networks";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
+import Image from "next/image";
 
 interface WalletConnectionModalProps {
   token: Token;
@@ -28,7 +28,7 @@ export function WalletConnectionModal({
 }: WalletConnectionModalProps) {
   const [connecting, setConnecting] = useState(false);
   const walletConnector = useWalletConnectorContext();
-  const { address, chain, isConnected: isEVMWalletConnected } = useAccount();
+  const { chain, isConnected: isEVMWalletConnected } = useAccount();
   const { switchChain, status: switchChainStatus } = useSwitchChain();
 
   // Extract connection status from wallet connector
@@ -58,17 +58,6 @@ export function WalletConnectionModal({
       console.error("Connection error:", error);
     } finally {
       setConnecting(false);
-    }
-  };
-
-  // Handle native wallet disconnection
-  const handleNativeDisconnect = async () => {
-    try {
-      if (!evmCompatible && walletConnector.disconnectNative) {
-        await walletConnector.disconnectNative();
-      }
-    } catch (error) {
-      console.error("Disconnection error:", error);
     }
   };
 
@@ -166,7 +155,7 @@ export function WalletConnectionModal({
             >
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-medium text-white flex items-center gap-2">
-                  <img
+                  <Image
                     src={token.iconUrl}
                     alt={token.symbol}
                     className="w-4 h-4"
@@ -271,7 +260,11 @@ export function WalletConnectionModal({
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-medium text-white flex items-center gap-2">
-                    <img src="/imua-logo.avif" alt="Imua" className="w-4 h-4" />
+                    <Image
+                      src="/imua-logo.avif"
+                      alt="Imua"
+                      className="w-4 h-4"
+                    />
                     Imua Chain Wallet
                   </h3>
 

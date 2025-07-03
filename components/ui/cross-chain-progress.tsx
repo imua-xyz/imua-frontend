@@ -1,174 +1,209 @@
 // components/ui/cross-chain-progress.tsx
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Loader2, ArrowRight, Clock } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+  OperationProgress,
+  OperationStep,
+  approvalStep,
+  transactionStep,
+  confirmationStep,
+  relayingStep,
+  completionStep,
+} from "./operation-progress";
 import { TxStatus } from "@/types/staking";
 
-export type CrossChainStep = {
-  id: string;
-  title: string;
-  description: string;
-  status: "pending" | "processing" | "success" | "error" | "waiting";
-  txHash?: string;
-  explorerUrl?: string;
-};
+export type CrossChainStep = OperationStep;
 
 export type CrossChainProgress = {
   sourceChain: string;
   destinationChain: string;
-  operation: "deposit" | "stake" | "withdraw" | "claim";
-  steps: CrossChainStep[];
-  currentStepIndex: number;
-  overallStatus: TxStatus | "relaying" | "confirming" | null;
+  operation: "deposit" | "stake" | "withdraw" | "claim" | string;
+  steps: CrossChainStep[]; // Optional now, we'll provide defaults
+  currentStepIndex: number; // Optional now, we'll manage internally
+  overallStatus: TxStatus | "relaying" | "verifying" | null; // Optional now
+  txHash?: string;
+  explorerUrl?: string;
 };
 
 interface CrossChainProgressProps {
-  progress: CrossChainProgress;
+  sourceChain: string;
+  destinationChain: string;
+  operation: "deposit" | "stake" | "withdraw" | "claim" | string;
   open: boolean;
+  txStatus: TxStatus | null;
+  txHash?: string;
+  explorerUrl?: string;
   onClose: () => void;
   onViewDetails?: () => void;
+  onStatusChange?: (
+    status: TxStatus | "relaying" | "verifying" | "success" | "error" | null,
+  ) => void;
 }
 
 export function CrossChainProgress({
-  progress,
+  sourceChain,
+  destinationChain,
+  operation,
+  txHash,
+  explorerUrl,
   open,
+  txStatus,
   onClose,
   onViewDetails,
+  onStatusChange,
 }: CrossChainProgressProps) {
-  const [progressValue, setProgressValue] = useState(0);
+  // Initialize with default steps if not provided
+  const [progress, setProgress] = useState<CrossChainProgress>(() => {
+    const defaultSteps = [
+      { ...approvalStep },
+      {
+        ...transactionStep,
+        description: `Sending ${operation} transaction`,
+      },
+      { ...confirmationStep },
+      {
+        ...relayingStep,
+        description: `Relaying message to ${destinationChain}`,
+      },
+      { ...completionStep },
+    ];
 
-  // Calculate progress percentage based on steps
+    return {
+      sourceChain,
+      destinationChain,
+      operation,
+      steps: defaultSteps,
+      currentStepIndex: 0,
+      overallStatus: null,
+      txHash,
+      explorerUrl,
+    };
+  });
+
+  // Update progress based on transaction status
   useEffect(() => {
-    const totalSteps = progress.steps.length;
-    const completedSteps = progress.steps.filter(
-      (step) => step.status === "success",
-    ).length;
+    if (!txStatus) return;
 
-    // If there's an error, stop at current step
-    const hasError = progress.steps.some((step) => step.status === "error");
+    setProgress((prev) => {
+      const updatedProgress = { ...prev };
+      const steps = [...(updatedProgress.steps || [])];
 
-    if (hasError) {
-      // Calculate progress up to the error step
-      const errorIndex = progress.steps.findIndex(
-        (step) => step.status === "error",
-      );
-      setProgressValue((errorIndex / (totalSteps - 1)) * 100);
-    } else if (progress.overallStatus === "success") {
-      setProgressValue(100);
-    } else {
-      // Calculate progress based on completed + half credit for processing
-      const processingCredit = progress.steps.some(
-        (step) => step.status === "processing",
-      )
-        ? 0.5
-        : 0;
+      switch (txStatus) {
+        case "approving":
+          updatedProgress.currentStepIndex = 0;
+          steps[0].status = "processing";
+          updatedProgress.overallStatus = "approving";
+          break;
 
-      setProgressValue(
-        ((completedSteps + processingCredit) / totalSteps) * 100,
-      );
+        case "processing":
+          // If we're moving from approval to processing
+          if (steps[0].status === "processing") {
+            steps[0].status = "success";
+          }
+          updatedProgress.currentStepIndex = 1;
+          steps[1].status = "processing";
+          updatedProgress.overallStatus = "processing";
+          break;
+
+        case "success":
+          // Transaction confirmed on source chain
+          steps[0].status = "success"; // Approval
+          steps[1].status = "success"; // Transaction
+          updatedProgress.currentStepIndex = 2;
+          steps[2].status = "success"; // Confirmation
+          updatedProgress.currentStepIndex = 3;
+          steps[3].status = "processing"; // Now relaying
+          updatedProgress.overallStatus = "relaying";
+
+          // Simulate cross-chain completion with timeouts
+          setTimeout(() => {
+            setProgress((prev) => {
+              const updated = { ...prev };
+              const updatedSteps = [...(updated.steps || [])];
+              updatedSteps[3].status = "success"; // Relay complete
+              updated.currentStepIndex = 4;
+              updatedSteps[4].status = "processing"; // Verifying completion
+              updated.overallStatus = "verifying";
+              onStatusChange?.("verifying");
+              return { ...updated, steps: updatedSteps };
+            });
+
+            setTimeout(() => {
+              setProgress((prev) => {
+                const final = { ...prev };
+                const finalSteps = [...(final.steps || [])];
+                finalSteps[4].status = "success";
+                final.overallStatus = "success";
+                onStatusChange?.("success");
+                return { ...final, steps: finalSteps };
+              });
+            }, 3000);
+          }, 5000);
+          break;
+
+        case "error":
+          // Find the current processing step and mark it as error
+          const processingIndex = steps.findIndex(
+            (step) => step.status === "processing",
+          );
+
+          if (processingIndex >= 0) {
+            steps[processingIndex].status = "error";
+          }
+          updatedProgress.overallStatus = "error";
+          break;
+      }
+
+      // Update transaction hash if available
+      if (txHash && steps[1]) {
+        steps[1].txHash = txHash;
+        steps[1].explorerUrl = explorerUrl;
+      }
+
+      return { ...updatedProgress, steps };
+    });
+  }, [txStatus, txHash, explorerUrl, onStatusChange]);
+
+  // Convert to OperationProgress format
+  const operationProgress = {
+    operation: progress.operation,
+    chainInfo: {
+      sourceChain: progress.sourceChain,
+      destinationChain: progress.destinationChain,
+    },
+    steps: progress.steps || [],
+    currentStepIndex: progress.currentStepIndex || 0,
+    overallStatus: progress.overallStatus || null,
+  };
+
+  // Reset progress when dialog is closed
+  const handleClose = () => {
+    // Only allow closing if complete or error
+    if (
+      progress.overallStatus === "success" ||
+      progress.overallStatus === "error"
+    ) {
+      onClose();
+
+      // Reset progress for next operation
+      setTimeout(() => {
+        setProgress((prev) => ({
+          ...prev,
+          steps:
+            prev.steps?.map((step) => ({ ...step, status: "pending" })) || [],
+          currentStepIndex: 0,
+          overallStatus: null,
+        }));
+        onStatusChange?.(null);
+      }, 500);
     }
-  }, [progress]);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-center">
-            {progress.operation.charAt(0).toUpperCase() +
-              progress.operation.slice(1)}{" "}
-            Progress
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Chain indication */}
-        <div className="flex items-center justify-center text-sm text-muted-foreground mb-4">
-          <span>{progress.sourceChain}</span>
-          <ArrowRight className="mx-2" size={16} />
-          <span>{progress.destinationChain}</span>
-        </div>
-
-        {/* Overall progress bar */}
-        <Progress value={progressValue} className="h-2 mb-6" />
-
-        {/* Steps list */}
-        <div className="space-y-4">
-          {progress.steps.map((step, index) => (
-            <div
-              key={step.id}
-              className={`flex items-start p-3 rounded-lg border ${
-                index === progress.currentStepIndex
-                  ? "bg-muted border-primary/20"
-                  : ""
-              }`}
-            >
-              {/* Status icon */}
-              <div className="mr-3 mt-0.5">
-                {step.status === "success" && (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                )}
-                {step.status === "error" && (
-                  <XCircle className="h-5 w-5 text-red-500" />
-                )}
-                {step.status === "processing" && (
-                  <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
-                )}
-                {step.status === "pending" && (
-                  <Clock className="h-5 w-5 text-muted-foreground" />
-                )}
-                {step.status === "waiting" && (
-                  <Clock className="h-5 w-5 text-yellow-500" />
-                )}
-              </div>
-
-              {/* Step content */}
-              <div className="flex-1">
-                <h4 className="font-medium text-sm">{step.title}</h4>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {step.description}
-                </p>
-
-                {/* Transaction hash if available */}
-                {step.txHash && step.explorerUrl && (
-                  <a
-                    href={step.explorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline mt-1 inline-block"
-                  >
-                    View transaction
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <DialogFooter className="flex justify-between sm:justify-between mt-4">
-          {progress.overallStatus === "success" ||
-          progress.overallStatus === "error" ? (
-            <>
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
-              {onViewDetails && (
-                <Button onClick={onViewDetails}>View Details</Button>
-              )}
-            </>
-          ) : (
-            <div className="w-full text-center text-sm text-muted-foreground">
-              Please keep this window open until the process completes
-            </div>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <OperationProgress
+      progress={operationProgress}
+      open={open}
+      onClose={handleClose}
+      onViewDetails={onViewDetails}
+    />
   );
 }

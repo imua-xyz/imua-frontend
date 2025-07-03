@@ -4,17 +4,13 @@
 import { useState, useEffect } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  ExternalLink,
-  CheckCircle,
-  AlertCircle,
-  ChevronDown,
-} from "lucide-react";
+import { CheckCircle, AlertCircle, ChevronDown } from "lucide-react";
 import { WalletDetailsModal } from "./WalletDetailsModal";
 import { Token } from "@/types/tokens";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { imua } from "@/types/networks";
 import { useDisconnect } from "wagmi";
+import Image from "next/image";
 
 export function MultiWalletStatus({ token }: { token: Token }) {
   const {
@@ -55,8 +51,6 @@ export function MultiWalletStatus({ token }: { token: Token }) {
 
   // Function to open the modal for a specific wallet type
   const openWalletDetails = (isNativeWallet: boolean) => {
-    const isCustomConnector = !!token.connector.customConnector;
-
     if (isNativeWallet) {
       // Native wallet details
       setActiveWalletInfo({
@@ -126,7 +120,11 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         {/* Native Wallet Status */}
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-full bg-[#292936] flex items-center justify-center">
-            <img src={connectorIcon} alt={connectorName} className="w-4 h-4" />
+            <Image
+              src={connectorIcon}
+              alt={connectorName}
+              className="w-4 h-4"
+            />
           </div>
           <span className="text-sm">
             {isNativeWalletConnected
@@ -152,7 +150,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
             <div className="h-5 w-px bg-[#21212f]" />
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-[#292936] flex items-center justify-center">
-                <img src="/eth-logo.svg" alt="Imua" className="w-4 h-4" />
+                <Image src="/eth-logo.svg" alt="Imua" className="w-4 h-4" />
               </div>
               <span className="text-sm">
                 {isImuaConnected
@@ -196,7 +194,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-white flex items-center gap-2">
-                    <img
+                    <Image
                       src={connectorIcon}
                       alt={connectorName}
                       className="w-4 h-4"
@@ -288,7 +286,11 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                 <div className="space-y-2 pt-3 border-t border-[#21212f]">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium text-white flex items-center gap-2">
-                      <img src="/eth-logo.svg" alt="Imua" className="w-4 h-4" />
+                      <Image
+                        src="/eth-logo.svg"
+                        alt="Imua"
+                        className="w-4 h-4"
+                      />
                       Imua Chain Wallet
                     </h3>
 

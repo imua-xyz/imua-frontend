@@ -8,7 +8,6 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -284,7 +283,7 @@ export function OperationProgress({
         {hasError && (
           <div className="mt-4 p-3 bg-[#1a1a24] rounded-lg">
             <p className="text-sm text-[#9999aa]">
-              <span className="text-white font-medium">What's next? </span>
+              <span className="text-white font-medium">What is next? </span>
               You can try the operation again or view transaction details for
               more information.
             </p>

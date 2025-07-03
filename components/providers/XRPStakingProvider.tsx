@@ -2,7 +2,6 @@
 import { ReactNode } from "react";
 import { useXRPStaking } from "@/hooks/useXRPStaking";
 import { StakingServiceContext } from "@/contexts/StakingServiceContext";
-import { NativeToken } from "@/types/tokens";
 import { useXRPBinding } from "@/hooks/useXRPBinding";
 
 interface XRPStakingProviderProps {

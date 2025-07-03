@@ -1,5 +1,5 @@
 // components/new-staking/providers/EVMLSTStakingProvider.tsx
-import { ReactNode, useMemo } from "react";
+import { ReactNode } from "react";
 import { useEVMLSTStaking } from "@/hooks/useEVMLSTStaking";
 import { StakingServiceContext } from "@/contexts/StakingServiceContext";
 import { EVMLSTToken } from "@/types/tokens";

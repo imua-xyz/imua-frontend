@@ -2,7 +2,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StakeTab } from "./tabs/StakeTab";
 import { useState } from "react";
-import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 
 interface OperationTabsProps {
   sourceChain: string;

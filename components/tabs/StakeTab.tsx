@@ -1,6 +1,6 @@
 // components/new-staking/tabs/StakeTab.tsx
 import { useState, useEffect } from "react";
-import { Info, ChevronRight, ArrowRight } from "lucide-react";
+import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
@@ -8,15 +8,8 @@ import { TxStatus } from "@/types/staking";
 import { formatUnits } from "viem";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CrossChainProgress } from "@/components/ui/crosschain-progress";
+import { CrossChainProgress } from "@/components/ui/cross-chain-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
-import {
-  approvalStep,
-  transactionStep,
-  confirmationStep,
-  relayingStep,
-  completionStep,
-} from "@/components/ui/operation-progress";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
@@ -46,7 +39,7 @@ export function StakeTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
-  const { operators, isLoading: isLoadingOperators } = useOperatorsContext();
+  const { operators } = useOperatorsContext();
 
   // Balance and amount state
   const balance = stakingService.walletBalance?.value || BigInt(0);
@@ -295,7 +288,7 @@ export function StakeTab({
                             Deposit only
                           </span>
                           : Transfers assets to the chain without delegation.
-                          You'll need to delegate separately to earn rewards.
+                          You will need to delegate separately to earn rewards.
                         </p>
                       </TooltipContent>
                     </Tooltip>

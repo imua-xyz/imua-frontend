@@ -8,6 +8,7 @@ import {
 import { Search, X, Check } from "lucide-react";
 import { useState } from "react";
 import { Token } from "@/types/tokens";
+import Image from "next/image";
 
 interface TokenSelectorModalProps {
   isOpen: boolean;
@@ -70,7 +71,7 @@ export function TokenSelectorModal({
               onClick={() => onSelectToken(token)}
             >
               <div className="flex items-center">
-                <img
+                <Image
                   src={token.iconUrl}
                   alt={token.symbol}
                   className="w-8 h-8 mr-3"
@@ -89,7 +90,7 @@ export function TokenSelectorModal({
 
           {filteredTokens.length === 0 && (
             <div className="text-center py-6 text-[#9999aa]">
-              No tokens found matching "{searchTerm}"
+              No tokens found matching `{searchTerm}`
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, X, ExternalLink, CheckCircle } from "lucide-react";
+import Image from "next/image";
 
 interface WalletDetailsModalProps {
   isOpen: boolean;
@@ -67,7 +68,7 @@ export function WalletDetailsModal({
               </button>
               <div className="flex items-center justify-center">
                 <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
-                  <img
+                  <Image
                     src={walletInfo.iconUrl}
                     alt={walletInfo.name}
                     className="w-6 h-6"

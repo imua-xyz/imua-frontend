@@ -1,7 +1,5 @@
 import { useXRPWalletConnector } from "@/hooks/useXRPWalletConnector";
-
 import { ReactNode } from "react";
-
 import { WalletConnectorContext } from "@/contexts/WalletConnectorContext";
 
 interface XRPWalletProviderProps {

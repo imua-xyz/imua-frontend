@@ -7,7 +7,6 @@ import { ChevronDown } from "lucide-react";
 import { validTokens, Token } from "@/types/tokens";
 import { StakingServiceProvider } from "@/components/providers/StakingServiceProvider";
 import { OperatorsProvider } from "@/components/providers/OperatorsProvider";
-import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal";
 import { TokenSelectorModal } from "@/components/modals/TokenSelectorModal";
 import { StakeTab } from "@/components/tabs/StakeTab";
@@ -17,6 +16,8 @@ import { WithdrawTab } from "@/components/tabs/WithdrawTab";
 import { Header } from "@/components/layout/header";
 import { WalletConnectorProvider } from "@/components/providers/WalletConnectorProvider";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
+import Image from "next/image";
+
 type TabType = "stake" | "delegate" | "undelegate" | "withdraw";
 
 // Main content component that uses the staking service
@@ -185,7 +186,7 @@ export default function StakingPage() {
                 onClick={() => setIsTokenSelectorOpen(true)}
                 className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
               >
-                <img
+                <Image
                   src={selectedToken.iconUrl}
                   alt={selectedToken.symbol}
                   className="w-5 h-5 mr-2"

@@ -1,23 +1,17 @@
 // components/new-staking/tabs/DelegateTab.tsx
 import { useState, useEffect } from "react";
-import { Info, HelpCircle } from "lucide-react";
+import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { TxStatus } from "@/types/staking";
 import { formatUnits } from "viem";
-import { CrossChainProgress } from "@/components/ui/crosschain-progress";
+import { CrossChainProgress } from "@/components/ui/cross-chain-progress";
 import { NativeChainProgress } from "@/components/ui/native-chain-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface UndelegateTabProps {
   sourceChain: string;
@@ -37,7 +31,7 @@ export function UndelegateTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
-  const { operators, isLoading: isLoadingOperators } = useOperatorsContext();
+  const { operators } = useOperatorsContext();
 
   // Check if this is a native chain operation (not cross-chain)
   const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
