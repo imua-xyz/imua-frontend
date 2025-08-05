@@ -8,7 +8,7 @@ import { CheckCircle, AlertCircle, ChevronDown } from "lucide-react";
 import { WalletDetailsModal } from "./WalletDetailsModal";
 import { Token } from "@/types/tokens";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
-import { imua } from "@/types/networks";
+import { imuaChain } from "@/types/networks";
 import { useDisconnect } from "wagmi";
 import Image from "next/image";
 
@@ -83,7 +83,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         address: boundAddress || "",
         name: "Imua Chain Wallet",
         iconUrl: "/eth-logo.svg",
-        explorerUrl: imua.accountExplorerUrl,
+        explorerUrl: imuaChain.accountExplorerUrl,
         onDisconnect: () => {
           disconnect();
         },

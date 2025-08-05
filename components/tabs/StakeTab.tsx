@@ -8,7 +8,7 @@ import { TxStatus } from "@/types/staking";
 import { formatUnits } from "viem";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CrossChainProgress } from "@/components/ui/cross-chain-progress";
+import { CustomOperationProgress } from "@/components/ui/custom-opration-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
@@ -159,12 +159,6 @@ export function StakeTab({
       setTxStatus("error");
       setTxError("Transaction rejected by the user Or Transaction failed");
     }
-
-    setTimeout(() => {
-      setTxStatus(null);
-      setTxError(null);
-      setTxHash(undefined);
-    }, 1000);
   };
 
   // Format button text based on state
@@ -444,7 +438,7 @@ export function StakeTab({
       />
 
       {/* Progress overlay */}
-      <CrossChainProgress
+      <CustomOperationProgress
         sourceChain={sourceChain}
         destinationChain={destinationChain}
         operation={isStakeMode && selectedOperator ? "stake" : "deposit"}
@@ -454,6 +448,9 @@ export function StakeTab({
         open={showProgress}
         onClose={() => {
           setShowProgress(false);
+          setTxStatus(null);
+          setTxError(null);
+          setTxHash(undefined);
         }}
         onViewDetails={() => {
           if (token.network.txExplorerUrl && txHash) {

@@ -20,6 +20,17 @@ export interface StakerBalance {
   totalDeposited: bigint;
 }
 
+export interface StakerBalanceResponseFromPrecompile {
+  clientChainID: number;
+  stakerAddress: `0x${string}`;
+  tokenID: `0x${string}`;
+  balance: bigint;
+  withdrawable: bigint; // the balance that could be claimed from imuachain
+  delegated: bigint;
+  pendingUndelegated: bigint;
+  totalDeposited: bigint;
+}
+
 export interface WalletBalance {
   customClientChainID: number;
   stakerAddress: string;

@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { COSMOS_CONFIG } from "@/config/cosmos";
-import { OperatorInfo } from "@/types/operator";
+import { OperatorInfo, OptInAVSPerOperator } from "@/types/operator";
 
 async function fetchOperators(): Promise<OperatorInfo[]> {
   // First get all operator addresses
@@ -42,4 +42,51 @@ export function useOperators(options?: { enabled?: boolean }) {
     refetchInterval: 30000,
     enabled: options?.enabled,
   });
+}
+
+async function fetchOptInAVSForOperator(
+  operatorAddress: string,
+): Promise<OptInAVSPerOperator> {
+  let optInAVS: string[] = [];
+  try {
+    const avsResponse = await fetch(
+      `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.OPT_IN_AVS(operatorAddress)}`,
+    );
+    if (avsResponse.ok) {
+      const avsData = await avsResponse.json();
+      optInAVS = avsData.avs_list || [];
+    }
+  } catch (error) {
+    console.warn(
+      `Failed to fetch opt-in AVS for operator ${operatorAddress}:`,
+      error,
+    );
+  }
+
+  return {
+    operatorAddress,
+    optInAVS,
+  };
+}
+
+export function useOperatorsWithOptInAVS(operatorAddresses: string[]) {
+  const queries = operatorAddresses.map((operatorAddress) => ({
+    queryKey: ["operator-opt-in-avs", operatorAddress],
+    queryFn: async (): Promise<OptInAVSPerOperator> => {
+      return fetchOptInAVSForOperator(operatorAddress);
+    },
+    refetchInterval: 30000,
+  }));
+
+  const results = useQueries({ queries });
+  const isLoading = results.some((r) => r.isLoading);
+  const error = results.find((r) => r && r.error)?.error || null;
+
+  return {
+    data: results
+      .map((result) => result.data)
+      .filter(Boolean) as OptInAVSPerOperator[],
+    isLoading,
+    error,
+  };
 }

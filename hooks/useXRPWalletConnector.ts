@@ -22,7 +22,7 @@ import { xrp } from "@/types/tokens";
 import { useGemWalletStore } from "@/stores/gemWalletClient";
 import { useBindingStore } from "@/stores/bindingClient";
 import { usePortalContract } from "./usePortalContract";
-import { imua } from "@/types/networks";
+import { imuaChain } from "@/types/networks";
 import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { XRPWalletConnector } from "@/types/wallet-connector";
@@ -61,7 +61,8 @@ export function useXRPWalletConnector(): XRPWalletConnector {
   const issues = useMemo(() => {
     return {
       needsConnectToNative: !isGemWalletConnected,
-      needsConnectToImua: !isWagmiConnected || evmChainId !== imua.evmChainID,
+      needsConnectToImua:
+        !isWagmiConnected || evmChainId !== imuaChain.evmChainID,
       needsMatchingBoundAddress: boundImuaAddress
         ? boundImuaAddress !== evmAddress
         : !!evmAddress,
@@ -111,7 +112,7 @@ export function useXRPWalletConnector(): XRPWalletConnector {
   return {
     isReady: isReady,
     isNativeWalletConnected: isGemWalletConnected,
-    isImuaConnected: isWagmiConnected && evmChainId === imua.evmChainID,
+    isImuaConnected: isWagmiConnected && evmChainId === imuaChain.evmChainID,
     nativeWalletAddress: xrpAddress as `0x${string}`,
     nativeCurrencyBalance: nativeCurrencyBalance,
     boundAddress: boundImuaAddress || "",

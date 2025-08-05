@@ -16,3 +16,17 @@ export interface OperatorInfo {
   };
   apr: number;
 }
+
+export interface OptInAVSPerOperator {
+  operatorAddress: string;
+  optInAVS: string[];
+}
+
+export function findOperatorByAddress(
+  operators: OperatorInfo[],
+  address: string,
+): OperatorInfo | undefined {
+  return operators?.find(
+    (operator) => operator.address.toLowerCase() === address.toLowerCase(),
+  );
+}

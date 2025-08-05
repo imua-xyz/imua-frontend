@@ -1,125 +1,174 @@
-import { useQuery } from "@tanstack/react-query";
-import { COSMOS_CONFIG } from "@/config/cosmos";
+import { useQueries } from "@tanstack/react-query";
+import { useAllWalletsStore } from "@/stores/allWalletsStore";
+import { validTokens, Token } from "@/types/tokens";
 import { useAssetsPrecompile } from "./useAssetsPrecompile";
-import { StakingPosition } from "@/types/staking";
-import { useCallback } from "react";
+import { StakingPosition } from "@/types/position";
+import { StakerBalanceResponseFromPrecompile } from "@/types/staking";
 
-interface AssetInfo {
-  asset_id: string; // Format: "tokenAddress_lzEndpointId"
-  info: {
-    total_deposit_amount: string;
-    withdrawable_amount: string;
-    pending_undelegation_amount: string;
-  };
-}
-
-interface AssetMetadata {
-  asset_basic_info: {
-    name: string;
-    symbol: string;
-    address: string;
-    decimals: number;
-    layer_zero_chain_id: string;
-    imua_chain_index: string;
-    meta_info: string;
-  };
-  staking_total_amount: string;
-}
-
-export interface StakerBalance {
-  clientChainID: number;
-  stakerAddress: `0x${string}`;
-  tokenID: `0x${string}`;
-  balance: bigint;
-  withdrawable: bigint;
-  delegated: bigint;
-  pendingUndelegated: bigint;
-  totalDeposited: bigint;
-}
-
-export function useStakingPositions(
-  userAddress: `0x${string}`,
-  lzEndpointIdOrCustomChainId: number,
-): { positions: StakingPosition[]; isLoading: boolean; error: Error | null } {
-  // Get the assets precompile contract and its methods
+export function useStakingPositions(): {
+  positions: Array<{
+    position: StakingPosition | undefined;
+    isLoading: boolean;
+    error: Error | null;
+  }>;
+  isLoading: boolean;
+  error: Error | null;
+} {
+  const wallets = useAllWalletsStore((s) => s.wallets);
   const { getStakerBalanceByToken } = useAssetsPrecompile();
 
-  // Convert decimal endpoint ID to hex for staker_id
-  const stakerId =
-    userAddress && lzEndpointIdOrCustomChainId
-      ? `${userAddress.toLowerCase()}_0x${lzEndpointIdOrCustomChainId.toString(16)}`
-      : undefined;
+  // Create queries for all tokens
+  const queries = validTokens.map((token) => {
+    const wallet = wallets[token.network.customChainIdByImua];
+    let stakerAddress: string | undefined = undefined;
+    let shouldFetch = false;
 
-  const allPositions = useQuery({
-    queryKey: ["allStakingPositions", stakerId],
-    queryFn: async (): Promise<StakingPosition[]> => {
-      if (!stakerId) {
-        throw new Error("Invalid staker ID: Missing address or endpoint ID");
+    if (wallet) {
+      if (token.connector.requireExtraConnectToImua) {
+        if (wallet.boundImuaAddress) {
+          stakerAddress = wallet.boundImuaAddress;
+          shouldFetch = true;
+        } else if (wallet.address) {
+          stakerAddress = wallet.address;
+          shouldFetch = false;
+        }
+      } else {
+        stakerAddress = wallet.address;
+        shouldFetch = true;
       }
+    }
 
-      // Fetch asset infos
-      const assetResponse = await fetch(
-        `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.STAKER_ASSETS(stakerId)}`,
-      );
-      const assetData = await assetResponse.json();
-      const assetInfos: AssetInfo[] = assetData.asset_infos;
-
-      // Fetch positions with metadata
-      const positions = await Promise.all(
-        assetInfos.map(async (asset) => {
-          // Parse token address and lz endpoint id from asset_id
-          const [tokenAddress, hexLzEndpointId] = asset.asset_id.split("_") as [
-            `0x${string}`,
-            string,
-          ];
-          // Convert hex endpoint ID back to decimal
-          const tokenLzEndpointId = parseInt(hexLzEndpointId, 16);
-
-          // Fetch staker balance using the hook method
-          const { success, stakerBalanceResponse } =
-            await getStakerBalanceByToken(
-              userAddress,
-              tokenLzEndpointId,
-              tokenAddress,
-            );
-
-          // Fetch asset metadata
-          const metadataResponse = await fetch(
-            `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.STAKING_ASSET_INFO(asset.asset_id)}`,
-          );
-          const metadataData: AssetMetadata = await metadataResponse.json();
-
+    return {
+      queryKey: [
+        "stakerBalanceByToken",
+        stakerAddress,
+        token.network.customChainIdByImua,
+        token.address,
+      ],
+      queryFn: async (): Promise<StakerBalanceResponseFromPrecompile> => {
+        if (!shouldFetch || !stakerAddress) {
+          // Return default values for non-fetchable cases
           return {
-            assetId: asset.asset_id,
-            tokenAddress,
-            lzEndpointIdOrCustomChainId: tokenLzEndpointId,
-            totalBalance: BigInt(asset.info.total_deposit_amount),
-            claimableBalance: BigInt(asset.info.withdrawable_amount),
-            delegatedBalance: stakerBalanceResponse?.delegated || BigInt(0),
-            pendingUndelegatedBalance: BigInt(
-              asset.info.pending_undelegation_amount,
-            ),
-            metadata: {
-              name: metadataData.asset_basic_info.name,
-              symbol: metadataData.asset_basic_info.symbol,
-              decimals: metadataData.asset_basic_info.decimals,
-              imuaChainIndex: metadataData.asset_basic_info.imua_chain_index,
-              metaInfo: metadataData.asset_basic_info.meta_info,
-              totalStaked: BigInt(metadataData.staking_total_amount),
-            },
+            clientChainID: token.network.customChainIdByImua,
+            stakerAddress:
+              (stakerAddress as `0x${string}`) ||
+              "0x0000000000000000000000000000000000000000",
+            tokenID: token.address,
+            balance: BigInt(0),
+            withdrawable: BigInt(0),
+            delegated: BigInt(0),
+            pendingUndelegated: BigInt(0),
+            totalDeposited: BigInt(0),
           };
-        }),
-      );
+        }
 
-      return positions;
-    },
-    refetchInterval: 30000,
-    enabled: !!userAddress && !!lzEndpointIdOrCustomChainId,
+        const { success, stakerBalanceResponse } =
+          await getStakerBalanceByToken(
+            stakerAddress as `0x${string}`,
+            token.network.customChainIdByImua,
+            token.address,
+          );
+
+        if (!success || !stakerBalanceResponse) {
+          return {
+            clientChainID: token.network.customChainIdByImua,
+            stakerAddress: stakerAddress as `0x${string}`,
+            tokenID: token.address,
+            balance: BigInt(0),
+            withdrawable: BigInt(0),
+            delegated: BigInt(0),
+            pendingUndelegated: BigInt(0),
+            totalDeposited: BigInt(0),
+          };
+        }
+
+        return stakerBalanceResponse as StakerBalanceResponseFromPrecompile;
+      },
+      enabled: !!stakerAddress,
+      refetchInterval: 30000,
+    };
   });
 
+  const results = useQueries({ queries });
+
+  // Transform results to match the expected format
+  const positions = results.map((result, index) => {
+    const token = validTokens[index];
+    const wallet = wallets[token.network.customChainIdByImua];
+
+    let stakerAddress: string | undefined = undefined;
+    let shouldFetch = false;
+
+    if (wallet) {
+      if (token.connector.requireExtraConnectToImua) {
+        if (wallet.boundImuaAddress) {
+          stakerAddress = wallet.boundImuaAddress;
+          shouldFetch = true;
+        } else if (wallet.address) {
+          stakerAddress = wallet.address;
+          shouldFetch = false;
+        }
+      } else {
+        stakerAddress = wallet.address;
+        shouldFetch = true;
+      }
+    }
+
+    // Handle the logic conditionally
+    if (!shouldFetch || !stakerAddress) {
+      if (
+        wallet &&
+        token.connector.requireExtraConnectToImua &&
+        wallet.address &&
+        !wallet.boundImuaAddress
+      ) {
+        // User has not bound an imua address yet, show zero balance
+        return {
+          position: {
+            token,
+            stakerAddress: wallet.address,
+            data: {
+              totalDeposited: BigInt(0),
+              delegated: BigInt(0),
+              undelegated: BigInt(0),
+            },
+          },
+          isLoading: false,
+          error: null,
+        };
+      } else {
+        // No wallet connected for this token
+        return {
+          position: undefined,
+          isLoading: false,
+          error: null,
+        };
+      }
+    }
+
+    return {
+      position: result.data
+        ? {
+            token,
+            stakerAddress,
+            data: {
+              totalDeposited: result.data?.totalDeposited || BigInt(0),
+              delegated: result.data?.delegated || BigInt(0),
+              undelegated: result.data?.withdrawable || BigInt(0),
+            },
+          }
+        : undefined,
+      isLoading: result.isLoading,
+      error: result.error,
+    };
+  });
+
+  const isLoading = positions.some((p) => p.isLoading);
+  const error = positions.find((p) => p && p.error)?.error || null;
+
   return {
-    positions: allPositions.data || [],
-    isLoading: allPositions.isLoading,
-    error: allPositions.error,
+    positions,
+    isLoading,
+    error,
   };
 }

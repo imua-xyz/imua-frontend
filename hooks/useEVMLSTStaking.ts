@@ -2,21 +2,17 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useBalance } from "wagmi";
 import { maxUint256, getContract, erc20Abi } from "viem";
-import {
-  TxHandlerOptions,
-  TxStatus,
-  StakerBalance,
-  WalletBalance,
-} from "@/types/staking";
+import { TxHandlerOptions, TxStatus, StakerBalance } from "@/types/staking";
 import { StakingService } from "@/types/staking-service";
 import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useVault } from "./useVault";
-import { getMetadataByEvmChainID } from "@/config/stakingPortals";
 import { EVMLSTToken } from "@/types/tokens";
 import { usePortalContract } from "./usePortalContract";
 import { useAccount } from "wagmi";
 import { OperationType } from "@/types/staking";
 import { handleEVMTxWithStatus } from "@/lib/txUtils";
+import { useBootstrapStatus } from "./useBootstrapStatus";
+import { useStakerBalanceByToken } from "./useStakerBalanceByToken";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress, chainId } = useAccount();
@@ -30,8 +26,9 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   });
   const [vaultAddress, setVaultAddress] = useState<`0x${string}` | null>(null);
   const lzEndpointIdOrCustomChainId = token.network.customChainIdByImua;
+  const { bootstrapStatus } = useBootstrapStatus();
 
-  const vaultAddressQuery = useQuery({
+  const { data: valultAddress } = useQuery({
     queryKey: ["vaultAddress", token.network.evmChainID, token.address],
     queryFn: async (): Promise<`0x${string}`> => {
       if (!contract) throw new Error("Invalid Contract");
@@ -44,7 +41,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   });
 
   const { withdrawableAmount: withdrawableAmountFromVault } = useVault(
-    vaultAddressQuery.data,
+    vaultAddress || undefined,
   );
 
   const walletBalance = {
@@ -250,39 +247,67 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   );
 
   const stakerBalance = useQuery({
-    queryKey: ["stakerBalance", chainId, userAddress, token.address],
+    queryKey: [
+      "stakerBalance",
+      lzEndpointIdOrCustomChainId,
+      userAddress,
+      token.address,
+    ],
     queryFn: async (): Promise<StakerBalance> => {
-      const { success, stakerBalanceResponse } = await getStakerBalanceByToken(
-        userAddress as `0x${string}`,
-        lzEndpointIdOrCustomChainId,
-        token.address,
-      );
+      const isBootstrapped = bootstrapStatus?.isBootstrapped;
 
-      if (!success || !stakerBalanceResponse) {
-        throw new Error("Failed to fetch staker balance");
+      if (isBootstrapped) {
+        const { data: stakerBalanceResponse } = useStakerBalanceByToken(
+          userAddress as `0x${string}`,
+          lzEndpointIdOrCustomChainId,
+          token.address,
+        );
+
+        if (!stakerBalanceResponse)
+          throw new Error("Failed to fetch staker balance");
+
+        return {
+          clientChainID: stakerBalanceResponse.clientChainID,
+          stakerAddress: stakerBalanceResponse.stakerAddress,
+          tokenID: stakerBalanceResponse.tokenID,
+          totalBalance: stakerBalanceResponse.balance,
+          claimable: stakerBalanceResponse.withdrawable,
+          withdrawable: withdrawableAmountFromVault || BigInt(0),
+          delegated: stakerBalanceResponse.delegated,
+          pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
+          totalDeposited: stakerBalanceResponse.totalDeposited,
+        };
+      } else {
+        const claimable = await contract?.read.withdrawableAmounts([
+          userAddress as `0x${string}`,
+          token.address,
+        ]);
+        const totalDeposited = await contract?.read.totalDepositAmounts([
+          userAddress as `0x${string}`,
+          token.address,
+        ]);
+        return {
+          clientChainID: lzEndpointIdOrCustomChainId,
+          stakerAddress: userAddress as `0x${string}`,
+          tokenID: token.address,
+          totalBalance: totalDeposited as bigint,
+          claimable: claimable as bigint,
+          withdrawable: withdrawableAmountFromVault || BigInt(0),
+          delegated: (totalDeposited as bigint) - (claimable as bigint),
+          pendingUndelegated: BigInt(0),
+          totalDeposited: totalDeposited as bigint,
+        };
       }
-
-      return {
-        clientChainID: stakerBalanceResponse.clientChainID,
-        stakerAddress: stakerBalanceResponse.stakerAddress,
-        tokenID: stakerBalanceResponse.tokenID,
-        totalBalance: stakerBalanceResponse.balance,
-        claimable: stakerBalanceResponse.withdrawable,
-        withdrawable: withdrawableAmountFromVault || BigInt(0),
-        delegated: stakerBalanceResponse.delegated,
-        pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
-        totalDeposited: stakerBalanceResponse.totalDeposited,
-      };
     },
     refetchInterval: 30000,
-    enabled: !!userAddress && !!chainId && !!token.address,
+    enabled: !!userAddress && !!lzEndpointIdOrCustomChainId && !!token.address,
   });
 
   return {
     token: token,
     stakerBalance: stakerBalance?.data,
     walletBalance: walletBalance,
-    vaultAddress: vaultAddressQuery.data,
+    vaultAddress: vaultAddress || undefined,
 
     deposit: handleDeposit,
     depositAndDelegate: handleDepositAndDelegate,

@@ -57,12 +57,17 @@ export const xrpl: XRPL = {
   accountExplorerUrl: "https://testnet.xrpl.org/accounts/",
 } as const;
 
-export const imua = {
+export const imuaChain: EVMNetwork = {
   chainName: "Imua",
   evmChainID: 233,
   customChainIdByImua: 40259,
+  portalContract: {
+    name: "",
+    address: "0x0",
+    abi: "",
+  },
   txExplorerUrl: "https://exoscan.org/tx/",
   accountExplorerUrl: "https://exoscan.org/address/",
 } as const;
 
-export type Network = typeof sepolia | typeof xrpl;
+export type Network = typeof sepolia | typeof xrpl | typeof imuaChain;

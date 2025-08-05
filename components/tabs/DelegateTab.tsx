@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { TxStatus } from "@/types/staking";
 import { formatUnits } from "viem";
-import { CrossChainProgress } from "@/components/ui/cross-chain-progress";
-import { NativeChainProgress } from "@/components/ui/native-chain-progress";
+import { CustomOperationProgress } from "@/components/ui/custom-opration-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
@@ -145,12 +144,6 @@ export function DelegateTab({
       setTxStatus("error");
       setTxError(error instanceof Error ? error.message : "Transaction failed");
     }
-
-    setTimeout(() => {
-      setTxStatus(null);
-      setTxError(null);
-      setTxHash(undefined);
-    }, 1000);
   };
 
   // Format button text based on state
@@ -373,8 +366,9 @@ export function DelegateTab({
 
       {/* Progress overlay - conditionally render based on token connector */}
       {isNativeChainOperation ? (
-        <NativeChainProgress
-          chain={sourceChain}
+        <CustomOperationProgress
+          sourceChain={destinationChain}
+          destinationChain={destinationChain}
           operation="delegate"
           txHash={txHash}
           explorerUrl={token.network.txExplorerUrl}
@@ -390,7 +384,7 @@ export function DelegateTab({
           }}
         />
       ) : (
-        <CrossChainProgress
+        <CustomOperationProgress
           sourceChain={sourceChain}
           destinationChain={destinationChain}
           operation="delegate"
@@ -400,6 +394,9 @@ export function DelegateTab({
           open={showProgress}
           onClose={() => {
             setShowProgress(false);
+            setTxStatus(null);
+            setTxError(null);
+            setTxHash(undefined);
           }}
           onViewDetails={() => {
             if (token.network.txExplorerUrl && txHash) {

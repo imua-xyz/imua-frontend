@@ -260,7 +260,7 @@ export function OperationProgress({
                   {/* Transaction hash if available */}
                   {step.txHash && step.explorerUrl && (
                     <a
-                      href={step.explorerUrl}
+                      href={`${step.explorerUrl}${step.txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-[#00e5ff] hover:underline mt-2 inline-block"

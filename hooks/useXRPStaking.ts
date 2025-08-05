@@ -22,9 +22,9 @@ import { xrp } from "@/types/tokens";
 import { useGemWalletStore } from "@/stores/gemWalletClient";
 import { useBindingStore } from "@/stores/bindingClient";
 import { usePortalContract } from "./usePortalContract";
-import { imua } from "@/types/networks";
 import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
+import { useStakerBalanceByToken } from "./useStakerBalanceByToken";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -56,46 +56,46 @@ export function useXRPStaking(): StakingService {
   const getAccountInfo = useXrplStore((state) => state.getAccountInfo);
 
   const { contract, publicClient } = usePortalContract(xrp.network);
-  const { getStakerBalanceByToken } = useAssetsPrecompile();
-
   const { address: evmAddress, isConnected: isWagmiConnected } = useAccount();
 
   // Fetch staking position
   const stakerBalance = useQuery({
-    queryKey: ["stakerBalance", xrpAddress],
+    queryKey: ["stakerBalanceForXRP", xrpAddress],
     queryFn: async (): Promise<StakerBalance> => {
-      if (!xrpAddress || !contract) {
+      if (!xrpAddress) {
         throw new Error("Required dependencies not available");
       }
 
       try {
-        // First get bound evm address for the xrp address
-        const boundEvmAddress = await contract?.read.getImuachainAddress([
-          XRP_CHAIN_ID,
-          "0x" + Buffer.from(xrpAddress, "utf8").toString("hex"),
-        ]);
-        if (!boundEvmAddress) {
-          throw new Error("No bound EVM address found");
+        if (!boundImuaAddress) {
+          return {
+            clientChainID: XRP_CHAIN_ID,
+            stakerAddress: "0x0" as `0x${string}`,
+            tokenID: XRP_TOKEN_ADDRESS,
+            totalBalance: BigInt(0),
+            withdrawable: BigInt(0),
+            delegated: BigInt(0),
+            pendingUndelegated: BigInt(0),
+            totalDeposited: BigInt(0),
+          };
         }
 
         // Get staker balance from Assets Precompile
-        const { success, stakerBalanceResponse } =
-          await getStakerBalanceByToken(
-            boundEvmAddress as `0x${string}`,
-            XRP_CHAIN_ID,
-            XRP_TOKEN_ADDRESS,
-          );
+        const { data: stakerBalanceResponse } = useStakerBalanceByToken(
+          boundImuaAddress as `0x${string}`,
+          XRP_CHAIN_ID,
+          XRP_TOKEN_ADDRESS,
+        );
 
-        if (!success || !stakerBalanceResponse) {
+        if (!stakerBalanceResponse)
           throw new Error("Failed to fetch staker balance");
-        }
 
         return {
           clientChainID: stakerBalanceResponse.clientChainID,
           stakerAddress: stakerBalanceResponse.stakerAddress,
           tokenID: stakerBalanceResponse.tokenID,
           totalBalance: stakerBalanceResponse.balance,
-          withdrawable: stakerBalanceResponse.withdrawable,
+          withdrawable: stakerBalanceResponse.withdrawable || BigInt(0),
           delegated: stakerBalanceResponse.delegated,
           pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
           totalDeposited: stakerBalanceResponse.totalDeposited,
@@ -106,7 +106,7 @@ export function useXRPStaking(): StakingService {
       }
     },
     refetchInterval: 30000,
-    enabled: !!xrpAddress && !!contract,
+    enabled: !!xrpAddress,
   });
 
   const walletBalance = useQuery({
