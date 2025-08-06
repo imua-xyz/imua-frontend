@@ -1,7 +1,7 @@
 // app/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,55 @@ import { RewardsWithValues, RewardsByAVS } from "@/types/rewards";
 import { StakingPosition } from "@/types/position";
 import { DelegationPerOperator } from "@/types/delegations";
 import { AVS } from "@/types/avs";
+
+// Add skeleton loading components at the top of the file
+function SkeletonCard() {
+  return (
+    <Card className="bg-[#13131a] border-[#222233] text-white animate-pulse">
+      <CardHeader>
+        <div className="h-4 bg-[#222233] rounded w-1/3"></div>
+      </CardHeader>
+      <CardContent>
+        <div className="h-8 bg-[#222233] rounded w-1/2 mb-4"></div>
+        <div className="h-32 bg-[#222233] rounded mb-4"></div>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex justify-between">
+              <div className="h-3 bg-[#222233] rounded w-1/3"></div>
+              <div className="h-3 bg-[#222233] rounded w-1/4"></div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SkeletonPositionCard() {
+  return (
+    <Card className="bg-[#13131a] border-[#222233] text-white animate-pulse">
+      <div className="p-6">
+        <div className="flex items-center">
+          <div className="w-9 h-9 bg-[#222233] rounded-full mr-4"></div>
+          <div className="flex-1">
+            <div className="h-5 bg-[#222233] rounded w-20 mb-2"></div>
+            <div className="h-3 bg-[#222233] rounded w-32"></div>
+          </div>
+          <div className="hidden md:flex gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="text-center">
+                <div className="h-3 bg-[#222233] rounded w-16 mb-1"></div>
+                <div className="h-4 bg-[#222233] rounded w-20 mb-1"></div>
+                <div className="h-3 bg-[#222233] rounded w-12"></div>
+              </div>
+            ))}
+          </div>
+          <div className="w-5 h-5 bg-[#222233] rounded ml-4"></div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 const mockNetworkStats = {
   totalTvl: 1250000000,
@@ -76,62 +125,46 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  const toggleExpand = (id: string) => {
-    setExpandedPosition(expandedPosition === id ? null : id);
-  };
+  // Calculate totals from real data with memoization - MUST be called before any conditional returns
+  const totalValueDeposited = useMemo(() => {
+    return positions.reduce((sum, pos) => {
+      if (pos.position) {
+        const price =
+          prices.find((p) => p.data?.token.symbol === pos.position?.token.symbol)
+            ?.data?.data || 0;
+        const priceDecimals =
+          prices.find((p) => p.data?.token.symbol === pos.position?.token.symbol)
+            ?.data?.decimals || 0;
+        const priceValue = Number(price) / Math.pow(10, priceDecimals);
+        const value =
+          (Number(pos.position.data.totalDeposited) /
+            Math.pow(10, pos.position.token.decimals)) *
+          priceValue;
+        return sum + value;
+      }
+      return sum;
+    }, 0);
+  }, [positions, prices]);
 
-  const toggleRewardExpand = (tokenSymbol: string) => {
-    setExpandedReward(expandedReward === tokenSymbol ? null : tokenSymbol);
-  };
-
-  // Don't render anything until mounted
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0f]">
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5ff] mx-auto"></div>
-          <p className="text-white mt-4">Initializing...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Calculate totals from real data
-  const totalValueDeposited = positions.reduce((sum, pos) => {
-    if (pos.position) {
+  const totalRewardsValue = useMemo(() => {
+    return rewardsByToken.reduce((sum, reward) => {
       const price =
-        prices.find((p) => p.data?.token.symbol === pos.position?.token.symbol)
-          ?.data?.data || 0;
+        prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
+          ?.data || 0;
       const priceDecimals =
-        prices.find((p) => p.data?.token.symbol === pos.position?.token.symbol)
-          ?.data?.decimals || 0;
+        prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
+          ?.decimals || 0;
       const priceValue = Number(price) / Math.pow(10, priceDecimals);
       const value =
-        (Number(pos.position.data.totalDeposited) /
-          Math.pow(10, pos.position.token.decimals)) *
+        (Number(reward.totalAmount) / Math.pow(10, reward.token.decimals)) *
         priceValue;
       return sum + value;
-    }
-    return sum;
-  }, 0);
+    }, 0);
+  }, [rewardsByToken, prices]);
 
-  const totalRewardsValue = rewardsByToken.reduce((sum, reward) => {
-    const price =
-      prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
-        ?.data || 0;
-    const priceDecimals =
-      prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
-        ?.decimals || 0;
-    const priceValue = Number(price) / Math.pow(10, priceDecimals);
-    const value =
-      (Number(reward.totalAmount) / Math.pow(10, reward.token.decimals)) *
-      priceValue;
-    return sum + value;
-  }, 0);
-
-  // Calculate totalValue for each reward token
-  const rewardsWithValues: RewardsWithValues[] = rewardsByToken.map(
-    (reward) => {
+  // Calculate totalValue for each reward token with memoization
+  const rewardsWithValues: RewardsWithValues[] = useMemo(() => {
+    return rewardsByToken.map((reward) => {
       const price =
         prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
           ?.data || 0;
@@ -156,8 +189,28 @@ export default function DashboardPage() {
         totalValue,
         sources: sourcesWithValues,
       };
-    },
-  );
+    });
+  }, [rewardsByToken, prices]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedPosition(expandedPosition === id ? null : id);
+  };
+
+  const toggleRewardExpand = (tokenSymbol: string) => {
+    setExpandedReward(expandedReward === tokenSymbol ? null : tokenSymbol);
+  };
+
+  // Don't render anything until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5ff] mx-auto"></div>
+          <p className="text-white mt-4">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   const isLoading =
     positionsLoading || rewardsLoading || pricesLoading || operatorsLoading;
@@ -171,9 +224,28 @@ export default function DashboardPage() {
 
         <main className="max-w-6xl mx-auto px-6 py-12">
           {isLoading && (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5ff] mx-auto"></div>
-              <p className="text-white mt-4">Loading dashboard data...</p>
+            <div className="space-y-6">
+              {/* Summary Section Skeleton */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+              
+              {/* Positions Section Skeleton */}
+              <h2 className="text-xl font-bold text-white mb-6">Your Positions</h2>
+              <div className="space-y-6 mb-10">
+                {[1, 2, 3].map((i) => (
+                  <SkeletonPositionCard key={i} />
+                ))}
+              </div>
+              
+              {/* Rewards Section Skeleton */}
+              <h2 className="text-xl font-bold text-white mb-6">Your Rewards</h2>
+              <div className="space-y-4 mb-10">
+                {[1, 2].map((i) => (
+                  <SkeletonPositionCard key={i} />
+                ))}
+              </div>
             </div>
           )}
 
@@ -181,14 +253,44 @@ export default function DashboardPage() {
             <div className="text-center py-12">
               <AlertCircle size={48} className="text-red-400 mx-auto mb-4" />
               <p className="text-white">Error loading dashboard data</p>
-              <p className="text-[#9999aa] text-sm mt-2">
+              <p className="text-[#9999aa] text-sm mt-2 mb-4">
                 Please try refreshing the page
               </p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+              >
+                Refresh Dashboard
+              </Button>
             </div>
           )}
 
           {!isLoading && !hasError && (
             <>
+              {/* Quick Actions */}
+              <div className="mb-6">
+                <div className="flex flex-wrap gap-3">
+                  <Button 
+                    className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+                    onClick={() => window.location.href = '/staking'}
+                  >
+                    Start Staking
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="border-[#00e5ff] text-[#00e5ff] hover:bg-[#00e5ff] hover:text-black"
+                  >
+                    View All Operators
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="border-[#00e5ff] text-[#00e5ff] hover:bg-[#00e5ff] hover:text-black"
+                  >
+                    Claim All Rewards
+                  </Button>
+                </div>
+              </div>
+
               {/* Summary Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                 <Card className="bg-[#13131a] border-[#222233] text-white">
@@ -492,9 +594,25 @@ export default function DashboardPage() {
                 Your Positions
               </h2>
               <div className="space-y-6 mb-10">
-                {positions
-                  .filter((pos) => pos.position)
-                  .map((pos, index) => {
+                {positions.filter((pos) => pos.position).length === 0 ? (
+                  <Card className="bg-[#13131a] border-[#222233] text-white">
+                    <div className="p-8 text-center">
+                      <div className="w-20 h-20 bg-[#1a1a24] rounded-full flex items-center justify-center mx-auto mb-4">
+                        <TokenIcon src="/eth-logo.svg" alt="ETH" size={32} />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">No Staking Positions</h3>
+                      <p className="text-sm text-[#9999aa] mb-4">
+                        Start staking your assets to earn rewards from AVS services
+                      </p>
+                      <Button className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black">
+                        Start Staking
+                      </Button>
+                    </div>
+                  </Card>
+                ) : (
+                  positions
+                    .filter((pos) => pos.position)
+                    .map((pos, index) => {
                     const position = pos.position!;
                     const price =
                       prices.find(
@@ -627,7 +745,8 @@ export default function DashboardPage() {
                         )}
                       </Card>
                     </div>
-                  ))}
+                  ))
+                )}
               </div>
 
               {/* Rewards Section */}
