@@ -10,6 +10,7 @@ import {
   ChevronDown,
   TrendingUp,
   AlertCircle,
+  Wallet,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { WalletConnectorProvider } from "@/components/providers/WalletConnectorProvider";
@@ -29,6 +30,8 @@ import { RewardsWithValues, RewardsByAVS } from "@/types/rewards";
 import { StakingPosition } from "@/types/position";
 import { DelegationPerOperator } from "@/types/delegations";
 import { AVS } from "@/types/avs";
+import { useAllWalletsStore } from "@/stores/allWalletsStore";
+import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal";
 
 // Add skeleton loading components at the top of the file
 function SkeletonCard() {
@@ -94,9 +97,32 @@ export default function DashboardPage() {
   const [expandedPosition, setExpandedPosition] = useState<string | null>(null);
   const [expandedReward, setExpandedReward] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [walletModalToken, setWalletModalToken] = useState<Token | null>(null);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [providerToken, setProviderToken] = useState<Token>(validTokens[0]);
+  console.log("walletModalToken", walletModalToken);
+  console.log("isWalletModalOpen", isWalletModalOpen);
+  console.log("providerToken", providerToken.symbol);
 
   // Sync wallet state
   useSyncAllWalletsToStore();
+  
+  // Get wallet connection status
+  const { wallets } = useAllWalletsStore();
+  
+  // Helper function to check if wallet is connected for a token
+  const isWalletConnectedForToken = (token: Token) => {
+    const chainId = token.network.customChainIdByImua;
+    const walletState = wallets[chainId];
+    return walletState?.isConnected && !!walletState?.address || false;
+  };
+  
+  // Helper function to open wallet connection modal for a specific token
+  const openWalletConnectionModal = (token: Token) => {
+    setProviderToken(token); // Switch provider to the correct token
+    setWalletModalToken(token);
+    setIsWalletModalOpen(true);
+  };
 
   // Always call hooks, but handle logic conditionally
   const {
@@ -219,8 +245,8 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
-      <WalletConnectorProvider token={validTokens[0]}>
-        <Header token={validTokens[0]} />
+      <WalletConnectorProvider token={providerToken}>
+        <Header token={providerToken} />
 
         <main className="max-w-6xl mx-auto px-6 py-12">
           {isLoading && (
@@ -594,117 +620,176 @@ export default function DashboardPage() {
                 Your Positions
               </h2>
               <div className="space-y-6 mb-10">
-                {positions.filter((pos) => pos.position).length === 0 ? (
-                  <Card className="bg-[#13131a] border-[#222233] text-white">
-                    <div className="p-8 text-center">
-                      <div className="w-20 h-20 bg-[#1a1a24] rounded-full flex items-center justify-center mx-auto mb-4">
-                        <TokenIcon src="/eth-logo.svg" alt="ETH" size={32} />
-                      </div>
-                      <h3 className="text-lg font-medium mb-2">No Staking Positions</h3>
-                      <p className="text-sm text-[#9999aa] mb-4">
-                        Start staking your assets to earn rewards from AVS services
-                      </p>
-                      <Button className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black">
-                        Start Staking
-                      </Button>
-                    </div>
-                  </Card>
-                ) : (
-                  positions
-                    .filter((pos) => pos.position)
-                    .map((pos, index) => {
-                    const position = pos.position!;
-                    const price =
-                      prices.find(
-                        (p) => p.data?.token.symbol === position.token.symbol,
-                      )?.data?.data || 0;
-                    const priceDecimals =
-                      prices.find(
-                        (p) => p.data?.token.symbol === position.token.symbol,
-                      )?.data?.decimals || 0;
-                    const priceValue =
-                      Number(price) / Math.pow(10, priceDecimals);
-                    const totalValue =
-                      (Number(position.data.totalDeposited) /
-                        Math.pow(10, position.token.decimals)) *
-                      priceValue;
-                    const delegatedValue =
-                      (Number(position.data.delegated) /
-                        Math.pow(10, position.token.decimals)) *
-                      priceValue;
-                    const delegatedAmount =
-                      Number(position.data.delegated) /
-                      Math.pow(10, position.token.decimals);
-                    const totalAmount =
-                      Number(position.data.totalDeposited) /
-                      Math.pow(10, position.token.decimals);
+                {validTokens.map((token) => {
+                  // Check if wallet is connected for this token
+                  const isWalletConnected = isWalletConnectedForToken(token);
+                  
+                  // Find position data for this token
+                  const positionData = positions.find(
+                    (pos) => pos.position?.token.symbol === token.symbol
+                  );
+                  
+                  // If wallet is not connected, show connect wallet card
+                  if (!isWalletConnected) {
+                    return (
+                      <Card key={token.symbol} className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
+                        <div className="flex items-center justify-between p-6">
+                          <div className="flex items-center flex-1">
+                            <TokenIcon
+                              src={token.iconUrl}
+                              alt={token.symbol}
+                              size={36}
+                            />
+                            <div className="ml-4">
+                              <h3 className="text-lg font-medium">
+                                {token.symbol}
+                              </h3>
+                              <p className="text-sm text-[#9999aa]">
+                                {token.name}
+                              </p>
+                            </div>
+                          </div>
 
-                    return {
-                      position,
-                      totalValue,
-                      delegatedValue,
-                      delegatedAmount,
-                      totalAmount,
-                      priceValue,
-                      index,
-                    };
-                  })
-                  .sort((a, b) => b.totalValue - a.totalValue) // Sort by total value descending
-                  .map((item) => (
-                    <div key={`${item.position.token.symbol}-${item.index}`}>
+                          <div className="flex items-center gap-4">
+                            <div className="text-center">
+                              <p className="text-sm text-[#9999aa]">
+                                Connect your {token.network.chainName} wallet to view positions
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() => openWalletConnectionModal(token)}
+                              className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black flex items-center gap-2"
+                            >
+                              <Wallet size={16} />
+                              Connect
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  }
+                  
+                  // If wallet is connected but no position data, show empty state
+                  if (!positionData?.position) {
+                    return (
+                      <Card key={token.symbol} className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
+                        <div className="flex items-center justify-between p-6">
+                          <div className="flex items-center flex-1">
+                            <TokenIcon
+                              src={token.iconUrl}
+                              alt={token.symbol}
+                              size={36}
+                            />
+                            <div className="ml-4">
+                              <h3 className="text-lg font-medium">
+                                {token.symbol}
+                              </h3>
+                              <p className="text-sm text-[#9999aa]">
+                                {token.name}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            <div className="text-center">
+                              <p className="text-sm text-[#9999aa]">
+                                No staking positions found
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() => window.location.href = '/staking'}
+                              className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+                            >
+                              Start Staking
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  }
+                  
+                  // If wallet is connected and has position data, show normal position card
+                  const position = positionData.position!;
+                  const price =
+                    prices.find(
+                      (p) => p.data?.token.symbol === position.token.symbol,
+                    )?.data?.data || 0;
+                  const priceDecimals =
+                    prices.find(
+                      (p) => p.data?.token.symbol === position.token.symbol,
+                    )?.data?.decimals || 0;
+                  const priceValue =
+                    Number(price) / Math.pow(10, priceDecimals);
+                  const totalValue =
+                    (Number(position.data.totalDeposited) /
+                      Math.pow(10, position.token.decimals)) *
+                    priceValue;
+                  const delegatedValue =
+                    (Number(position.data.delegated) /
+                      Math.pow(10, position.token.decimals)) *
+                    priceValue;
+                  const delegatedAmount =
+                    Number(position.data.delegated) /
+                    Math.pow(10, position.token.decimals);
+                  const totalAmount =
+                    Number(position.data.totalDeposited) /
+                    Math.pow(10, position.token.decimals);
+
+                  return (
+                    <div key={`${position.token.symbol}-${token.symbol}`}>
                       <Card className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
                         <div
                           className="flex items-center justify-between p-6 cursor-pointer"
                           onClick={() =>
                             toggleExpand(
-                              `${item.position.token.symbol}-${item.index}`,
+                              `${position.token.symbol}-${token.symbol}`,
                             )
                           }
                         >
                           <div className="flex items-center flex-1">
                             <TokenIcon
-                              src={item.position.token.iconUrl}
-                              alt={item.position.token.symbol}
+                              src={position.token.iconUrl}
+                              alt={position.token.symbol}
                               size={36}
                             />
                             <div className="ml-4">
                               <h3 className="text-lg font-medium">
-                                {item.position.token.symbol}
+                                {position.token.symbol}
                               </h3>
                               <p className="text-sm text-[#9999aa]">
-                                {item.position.token.name}
+                                {position.token.name}
                               </p>
                             </div>
                           </div>
 
-                          <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
-                            <div className="text-center min-w-[120px]">
+                          <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
+                            <div className="text-center min-w-[100px]">
                               <p className="text-sm text-[#9999aa]">
                                 Total Deposited
                               </p>
                               <p className="text-base font-medium">
-                                {formatCurrency(item.totalValue)}
+                                {formatCurrency(totalValue)}
                               </p>
                               <p className="text-xs text-[#9999aa]">
-                                {item.totalAmount.toFixed(4)}{" "}
-                                {item.position.token.symbol}
+                                {totalAmount.toFixed(4)}{" "}
+                                {position.token.symbol}
                               </p>
                             </div>
 
-                            <div className="text-center min-w-[120px]">
+                            <div className="text-center min-w-[100px]">
                               <p className="text-sm text-[#9999aa]">
                                 Delegated
                               </p>
                               <p className="text-base font-medium">
-                                {formatCurrency(item.delegatedValue)}
+                                {formatCurrency(delegatedValue)}
                               </p>
                               <p className="text-xs text-[#9999aa]">
-                                {item.delegatedAmount.toFixed(4)}{" "}
-                                {item.position.token.symbol}
+                                {delegatedAmount.toFixed(4)}{" "}
+                                {position.token.symbol}
                               </p>
                             </div>
 
-                            <div className="text-center min-w-[120px]">
+                            <div className="text-center min-w-[100px]">
                               <p className="text-sm text-[#9999aa]">
                                 Active AVS
                               </p>
@@ -716,17 +801,17 @@ export default function DashboardPage() {
 
                           <div className="md:hidden flex flex-col items-end flex-1">
                             <p className="font-medium">
-                              {formatCurrency(item.totalValue)}
+                              {formatCurrency(totalValue)}
                             </p>
                             <p className="text-xs text-[#9999aa]">
-                              {item.delegatedAmount.toFixed(4)}{" "}
-                              {item.position.token.symbol} delegated
+                              {delegatedAmount.toFixed(4)}{" "}
+                              {position.token.symbol} delegated
                             </p>
                           </div>
 
                           <button className="ml-4 text-[#9999aa] flex-shrink-0">
                             {expandedPosition ===
-                            `${item.position.token.symbol}-${item.index}` ? (
+                            `${position.token.symbol}-${token.symbol}` ? (
                               <ChevronDown size={20} />
                             ) : (
                               <ChevronRight size={20} />
@@ -736,17 +821,17 @@ export default function DashboardPage() {
 
                         {/* Expanded View */}
                         {expandedPosition ===
-                          `${item.position.token.symbol}-${item.index}` && (
+                          `${position.token.symbol}-${token.symbol}` && (
                           <ExpandedPositionView
-                            position={item.position}
-                            priceValue={item.priceValue}
+                            position={position}
+                            priceValue={priceValue}
                             rewardsByAvs={rewardsByAvs}
                           />
                         )}
                       </Card>
                     </div>
-                  ))
-                )}
+                  );
+                })}
               </div>
 
               {/* Rewards Section */}
@@ -979,6 +1064,24 @@ export default function DashboardPage() {
             </>
           )}
         </main>
+        
+        {/* Wallet Connection Modal - Inside provider context */}
+        {walletModalToken && (
+          <WalletConnectionModal
+            token={walletModalToken}
+            isOpen={isWalletModalOpen}
+            onClose={() => {
+              setIsWalletModalOpen(false);
+              setWalletModalToken(null);
+              setProviderToken(validTokens[0]); // Reset to default token
+            }}
+            onSuccess={() => {
+              setIsWalletModalOpen(false);
+              setWalletModalToken(null);
+              setProviderToken(validTokens[0]); // Reset to default token
+            }}
+          />
+        )}
       </WalletConnectorProvider>
     </div>
   );
