@@ -2,20 +2,34 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  TrendingUp, 
+  DollarSign, 
+  Users, 
+  RefreshCw, 
+  ArrowRight, 
+  Plus, 
+  Eye, 
+  Zap,
   ChevronRight,
-  ChevronDown,
-  TrendingUp,
   AlertCircle,
-  Wallet,
+  Wallet
 } from "lucide-react";
-import { Header } from "@/components/layout/header";
+import { useRouter } from "next/navigation";
+import { validTokens, Token } from "@/types/tokens";
+import { useAllWalletsStore } from "@/stores/allWalletsStore";
+import { useSyncAllWalletsToStore } from "@/hooks/useSyncAllWalletsToStore";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { WalletConnectorProvider } from "@/components/providers/WalletConnectorProvider";
-import { validTokens } from "@/types/tokens";
+import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal";
+import { Header } from "@/components/layout/header";
 import { TokenIcon } from "@/components/ui/token-icon";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { PieChart } from "@/components/ui/pie-chart";
 import { formatCurrency, formatPercentage } from "@/lib/format";
@@ -24,14 +38,11 @@ import { useAllRewards } from "@/hooks/useRewards";
 import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { useDelegations } from "@/hooks/useDelegations";
 import { useOperators, useOperatorsWithOptInAVS } from "@/hooks/useOperators";
-import { useSyncAllWalletsToStore } from "@/hooks/useSyncAllWalletsToStore";
-import { validRewardTokens, Token } from "@/types/tokens";
+import { validRewardTokens } from "@/types/tokens";
 import { RewardsWithValues, RewardsByAVS } from "@/types/rewards";
 import { StakingPosition } from "@/types/position";
 import { DelegationPerOperator } from "@/types/delegations";
 import { AVS } from "@/types/avs";
-import { useAllWalletsStore } from "@/stores/allWalletsStore";
-import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal";
 
 // Add skeleton loading components at the top of the file
 function SkeletonCard() {
@@ -94,6 +105,7 @@ const mockNetworkStats = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [expandedPosition, setExpandedPosition] = useState<string | null>(null);
   const [expandedReward, setExpandedReward] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -122,6 +134,14 @@ export default function DashboardPage() {
     setProviderToken(token); // Switch provider to the correct token
     setWalletModalToken(token);
     setIsWalletModalOpen(true);
+  };
+
+  // Navigation functions to staking page with correct token and tab
+  const navigateToStaking = (token: Token, tab: 'stake' | 'delegate' | 'undelegate' | 'withdraw' = 'stake') => {
+    // Store the selected token and tab in localStorage for the staking page to read
+    localStorage.setItem('selectedStakingToken', JSON.stringify(token));
+    localStorage.setItem('selectedStakingTab', tab);
+    router.push('/staking');
   };
 
   // Always call hooks, but handle logic conditionally
@@ -826,6 +846,7 @@ export default function DashboardPage() {
                             position={position}
                             priceValue={priceValue}
                             rewardsByAvs={rewardsByAvs}
+                            onNavigateToStaking={navigateToStaking}
                           />
                         )}
                       </Card>
@@ -1092,10 +1113,12 @@ function ExpandedPositionView({
   position,
   priceValue,
   rewardsByAvs,
+  onNavigateToStaking,
 }: {
   position: StakingPosition;
   priceValue: number;
   rewardsByAvs: RewardsByAVS[];
+  onNavigateToStaking: (token: Token, tab: 'stake' | 'delegate' | 'undelegate' | 'withdraw') => void;
 }) {
   const { data: delegationsData, isLoading: delegationsLoading } =
     useDelegations(position.token);
@@ -1322,12 +1345,31 @@ function ExpandedPositionView({
               </div>
 
               <div className="pt-2">
-                <Button variant="outline" className="w-full mb-2">
+                <Button 
+                  variant="outline" 
+                  className="w-full mb-2 hover:bg-[#00e5ff] hover:text-black transition-colors"
+                  onClick={() => onNavigateToStaking(position.token, 'delegate')}
+                >
+                  <ArrowRight className="w-4 h-4 mr-2" />
                   Delegate More
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline">Undelegate</Button>
-                  <Button variant="outline">Withdraw</Button>
+                  <Button 
+                    variant="outline"
+                    className="hover:bg-[#00e5ff] hover:text-black transition-colors"
+                    onClick={() => onNavigateToStaking(position.token, 'undelegate')}
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Undelegate
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="hover:bg-[#00e5ff] hover:text-black transition-colors"
+                    onClick={() => onNavigateToStaking(position.token, 'withdraw')}
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Withdraw
+                  </Button>
                 </div>
               </div>
             </CardContent>
