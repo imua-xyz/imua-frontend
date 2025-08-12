@@ -24,7 +24,7 @@ import { useBindingStore } from "@/stores/bindingClient";
 import { usePortalContract } from "./usePortalContract";
 import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
-import { useStakerBalanceByToken } from "./useStakerBalanceByToken";
+import { useStakerBalances } from "./useStakerBalances";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -58,6 +58,12 @@ export function useXRPStaking(): StakingService {
   const { contract, publicClient } = usePortalContract(xrp.network);
   const { address: evmAddress, isConnected: isWagmiConnected } = useAccount();
 
+  const [stakerBalanceResponse] = useStakerBalances([{
+    userAddress: boundImuaAddress,
+    endpointId: XRP_CHAIN_ID,
+    tokenAddress: XRP_TOKEN_ADDRESS,
+  }]);
+
   // Fetch staking position
   const stakerBalance = useQuery({
     queryKey: ["stakerBalanceForXRP", xrpAddress],
@@ -80,32 +86,25 @@ export function useXRPStaking(): StakingService {
           };
         }
 
-        // Get staker balance from Assets Precompile
-        const { data: stakerBalanceResponse } = useStakerBalanceByToken(
-          boundImuaAddress as `0x${string}`,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
-
-        if (!stakerBalanceResponse)
+        if (!stakerBalanceResponse.data)
           throw new Error("Failed to fetch staker balance");
 
         return {
-          clientChainID: stakerBalanceResponse.clientChainID,
-          stakerAddress: stakerBalanceResponse.stakerAddress,
-          tokenID: stakerBalanceResponse.tokenID,
-          totalBalance: stakerBalanceResponse.balance,
-          withdrawable: stakerBalanceResponse.withdrawable || BigInt(0),
-          delegated: stakerBalanceResponse.delegated,
-          pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
-          totalDeposited: stakerBalanceResponse.totalDeposited,
+          clientChainID: stakerBalanceResponse.data.clientChainID,
+          stakerAddress: stakerBalanceResponse.data.stakerAddress,
+          tokenID: stakerBalanceResponse.data.tokenID,
+          totalBalance: stakerBalanceResponse.data.balance,
+          withdrawable: stakerBalanceResponse.data.withdrawable || BigInt(0),
+          delegated: stakerBalanceResponse.data.delegated,
+          pendingUndelegated: stakerBalanceResponse.data.pendingUndelegated,
+          totalDeposited: stakerBalanceResponse.data.totalDeposited,
         };
       } catch (error) {
         console.error("Error fetching staking position:", error);
         throw error; // Let React Query handle the error
       }
     },
-    refetchInterval: 30000,
+    refetchInterval: 3000,
     enabled: !!xrpAddress,
   });
 
@@ -241,12 +240,12 @@ export function useXRPStaking(): StakingService {
 
   // Undelegate XRP from an operator
   const undelegateXrp = useCallback(
-    async (operator: string, amount: bigint, options?: TxHandlerOptions) => {
+    async (operator: string, amount: bigint, instantUnbond: boolean, options?: TxHandlerOptions) => {
       if (!contract) throw new Error("Contract not available");
       if (!operator || !amount) throw new Error("Invalid parameters");
 
       return handleEVMTxWithStatus(
-        contract.write.undelegateFrom([XRP_TOKEN_ENUM, operator, amount]),
+        contract.write.undelegateFrom([XRP_TOKEN_ENUM, operator, amount, instantUnbond]),
         publicClient,
         options,
       );

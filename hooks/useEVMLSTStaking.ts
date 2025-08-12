@@ -12,14 +12,13 @@ import { useAccount } from "wagmi";
 import { OperationType } from "@/types/staking";
 import { handleEVMTxWithStatus } from "@/lib/txUtils";
 import { useBootstrapStatus } from "./useBootstrapStatus";
-import { useStakerBalanceByToken } from "./useStakerBalanceByToken";
+import { useStakerBalances, StakerBalanceQuery } from "./useStakerBalances";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress, chainId } = useAccount();
   const { contract, publicClient, walletClient } = usePortalContract(
     token.network,
   );
-  const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { data: balance } = useBalance({
     address: userAddress,
     token: token.address,
@@ -43,6 +42,12 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { withdrawableAmount: withdrawableAmountFromVault } = useVault(
     vaultAddress || undefined,
   );
+
+  const [stakerBalanceAfterBootstrap] = useStakerBalances([{
+    userAddress: userAddress,
+    endpointId: lzEndpointIdOrCustomChainId,
+    tokenAddress: token.address,
+  }]);
 
   const walletBalance = {
     customClientChainID: lzEndpointIdOrCustomChainId || 0,
@@ -103,7 +108,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   );
 
   const handleUndelegateFrom = useCallback(
-    async (operator: string, amount: bigint, options?: TxHandlerOptions) => {
+    async (operator: string, amount: bigint, instantUnbond: boolean, options?: TxHandlerOptions) => {
       if (!contract || !amount || !operator)
         throw new Error("Invalid parameters");
       const fee = await getQuote("delegation");
@@ -257,25 +262,16 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const isBootstrapped = bootstrapStatus?.isBootstrapped;
 
       if (isBootstrapped) {
-        const { data: stakerBalanceResponse } = useStakerBalanceByToken(
-          userAddress as `0x${string}`,
-          lzEndpointIdOrCustomChainId,
-          token.address,
-        );
-
-        if (!stakerBalanceResponse)
-          throw new Error("Failed to fetch staker balance");
-
         return {
-          clientChainID: stakerBalanceResponse.clientChainID,
-          stakerAddress: stakerBalanceResponse.stakerAddress,
-          tokenID: stakerBalanceResponse.tokenID,
-          totalBalance: stakerBalanceResponse.balance,
-          claimable: stakerBalanceResponse.withdrawable,
+          clientChainID: stakerBalanceAfterBootstrap.data?.clientChainID || lzEndpointIdOrCustomChainId,
+          stakerAddress: stakerBalanceAfterBootstrap.data?.stakerAddress || userAddress as `0x${string}`,
+          tokenID: stakerBalanceAfterBootstrap.data?.tokenID || token.address,
+          totalBalance: stakerBalanceAfterBootstrap.data?.balance || BigInt(0),
+          claimable: stakerBalanceAfterBootstrap.data?.withdrawable,
           withdrawable: withdrawableAmountFromVault || BigInt(0),
-          delegated: stakerBalanceResponse.delegated,
-          pendingUndelegated: stakerBalanceResponse.pendingUndelegated,
-          totalDeposited: stakerBalanceResponse.totalDeposited,
+          delegated: stakerBalanceAfterBootstrap.data?.delegated || BigInt(0),
+          pendingUndelegated: stakerBalanceAfterBootstrap.data?.pendingUndelegated || BigInt(0),
+          totalDeposited: stakerBalanceAfterBootstrap.data?.totalDeposited || BigInt(0),
         };
       } else {
         const claimable = await contract?.read.withdrawableAmounts([
@@ -299,7 +295,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         };
       }
     },
-    refetchInterval: 30000,
+    refetchInterval: 3000,
     enabled: !!userAddress && !!lzEndpointIdOrCustomChainId && !!token.address,
   });
 

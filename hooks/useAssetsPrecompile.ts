@@ -20,8 +20,6 @@ interface StakerBalanceResponse {
 }
 
 export function useAssetsPrecompile() {
-  const chainId = useChainId();
-
   // Get the public client for the current chain (or fallback to imua chain)
   // The Assets precompile is on the Imua chain, so we want to use that client
   const imuaPublicClient = publicClients[imua.id as keyof typeof publicClients];
@@ -41,31 +39,38 @@ export function useAssetsPrecompile() {
       userAddress: `0x${string}`,
       endpointId?: number,
       tokenAddress?: `0x${string}`,
-    ): Promise<{
-      success: boolean;
-      stakerBalanceResponse?: StakerBalanceResponse;
-    }> => {
+    ): Promise<StakerBalanceResponse> => {
       if (!contract || !tokenAddress || !userAddress || !endpointId)
-        return { success: false };
+        throw new Error("Invalid parameters");
 
       try {
         // Use the contract instance to call the method
-        const result = (await contract.read.getStakerBalanceByToken([
+        const [success, stakerBalanceResponse] = (await contract.read.getStakerBalanceByToken([
           endpointId,
           encodePacked(["address"], [userAddress]),
           encodePacked(["address"], [tokenAddress]),
         ])) as [boolean, StakerBalanceResponse];
 
-        return {
-          success: result[0],
-          stakerBalanceResponse: result[1],
-        };
+        if (!success || !stakerBalanceResponse) {
+          return {
+            clientChainID: endpointId,
+            stakerAddress: userAddress,
+            tokenID: tokenAddress,
+            balance: BigInt(0),
+            withdrawable: BigInt(0),
+            delegated: BigInt(0),
+            pendingUndelegated: BigInt(0),
+            totalDeposited: BigInt(0),
+          };
+        }
+
+        return stakerBalanceResponse;
       } catch (error) {
         console.error(
           `Failed to read staker balance for ${tokenAddress} at endpoint ${endpointId}:`,
           error,
         );
-        return { success: false };
+        throw new Error("Failed to read staker balance");
       }
     },
     [contract],
