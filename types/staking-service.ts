@@ -30,6 +30,7 @@ export interface StakingService {
   undelegateFrom: (
     operator: string,
     amount: bigint,
+    instantUnbond: boolean,
     options?: TxHandlerOptions,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   // Fee estimation

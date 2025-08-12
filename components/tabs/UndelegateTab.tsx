@@ -11,6 +11,8 @@ import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
+import { Switch } from "@/components/ui/switch";
+import { INSTANT_UNBOND_SLASH_RATE, UNBOND_PERIOD } from "@/config/cosmos";
 
 interface UndelegateTabProps {
   sourceChain: string;
@@ -35,6 +37,15 @@ export function UndelegateTab({
   // Check if this is a native chain operation (not cross-chain)
   const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
 
+  // New state for instant unbonding
+  const [isInstantUnbond, setIsInstantUnbond] = useState(false);
+  
+  // Get slash rate from config, default to 5% if not set
+  const slashRate = INSTANT_UNBOND_SLASH_RATE ? parseFloat(INSTANT_UNBOND_SLASH_RATE) / 100 : 0.25;
+  
+  // Get unbond period from config, default to "7-21 days" if not set
+  const unbondPeriod = UNBOND_PERIOD ? `${UNBOND_PERIOD} days` : "7-21 days";
+
   // Balance and amount state
   const maxAmount = stakingService.stakerBalance?.delegated || BigInt(0);
   const decimals = stakingService.walletBalance?.decimals || 0;
@@ -47,6 +58,16 @@ export function UndelegateTab({
     decimals: decimals,
     maxAmount: maxAmount,
   });
+
+  // Calculate amounts based on unbonding type
+  let finalAmount = parsedAmount;
+  if (isInstantUnbond && parsedAmount && parsedAmount > BigInt(0)) {
+    const slashPercentage = BigInt(Math.floor(slashRate * 100));
+    const slashAmount = (parsedAmount * slashPercentage) / BigInt(100);
+    finalAmount = parsedAmount - slashAmount;
+  }
+    
+  const slashAmount = isInstantUnbond && parsedAmount && parsedAmount > BigInt(0) ? parsedAmount - finalAmount : BigInt(0);
 
   const [selectedOperator, setSelectedOperator] = useState<OperatorInfo | null>(
     null,
@@ -120,6 +141,7 @@ export function UndelegateTab({
       const result = await stakingService.undelegateFrom(
         selectedOperator.address,
         parsedAmount,
+        isInstantUnbond, // Pass the instant unbond flag
         {
           onStatus: (status, error) => {
             setTxStatus(status);
@@ -205,6 +227,89 @@ export function UndelegateTab({
             </span>
           </div>
 
+          {/* NEW: Instant Unbonding Toggle */}
+          <div className="p-4 bg-[#1a1a24] rounded-lg border border-[#333344]">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="font-medium text-white">Unbonding Type</h4>
+                <p className="text-sm text-[#9999aa]">
+                  Choose how quickly you want to unbond
+                </p>
+              </div>
+              <Switch
+                checked={isInstantUnbond}
+                onCheckedChange={setIsInstantUnbond}
+                className="data-[state=checked]:bg-[#00e5ff]"
+              />
+            </div>
+
+            {isInstantUnbond ? (
+              <div className="space-y-2 p-3 bg-[#0d2d1d] rounded border border-[#4ade80]/20">
+                <div className="flex items-center text-[#4ade80]">
+                  <span className="text-sm font-medium">⚡ Instant Unbonding</span>
+                  <span className="ml-auto text-xs bg-[#4ade80] text-black px-2 py-1 rounded">
+                    {INSTANT_UNBOND_SLASH_RATE || 25}% Slash
+                  </span>
+                </div>
+                <p className="text-xs text-[#86efac]">
+                  Unbond immediately by sacrificing {INSTANT_UNBOND_SLASH_RATE || 25}% of your tokens
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 p-3 bg-[#1e3a2e] rounded border border-[#4ade80]/20">
+                <div className="flex items-center text-[#4ade80]">
+                  <span className="text-sm font-medium">⏳ Delayed Unbonding</span>
+                  <span className="ml-auto text-xs bg-[#4ade80] text-black px-2 py-1 rounded">
+                    No Slash
+                  </span>
+                </div>
+                <p className="text-xs text-[#86efac]">
+                  Wait for the unbonding period ({unbondPeriod})
+                </p>
+              </div>
+            )}
+
+            {/* Amount breakdown */}
+            {isInstantUnbond && (
+              <div className="mt-3 pt-3 border-t border-[#333344] space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-[#9999aa]">Original Amount:</span>
+                  <span className="text-white">
+                    {parsedAmount && parsedAmount > BigInt(0) 
+                      ? `${formatUnits(parsedAmount, decimals)} ${token.symbol}`
+                      : "—"
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between text-red-400">
+                  <span>Slash ({INSTANT_UNBOND_SLASH_RATE || 25}%):</span>
+                  <span>
+                    {parsedAmount && parsedAmount > BigInt(0) 
+                      ? `-${formatUnits(slashAmount, decimals)} ${token.symbol}`
+                      : "—"
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between text-[#4ade80] font-medium">
+                  <span>Final Amount:</span>
+                  <span>
+                    {parsedAmount && parsedAmount > BigInt(0) 
+                      ? `${formatUnits(finalAmount, decimals)} ${token.symbol}`
+                      : "—"
+                    }
+                  </span>
+                </div>
+                
+                {/* Helper text when no amount */}
+                {(!parsedAmount || parsedAmount === BigInt(0)) && (
+                  <div className="text-center text-xs text-[#666677] mt-2">
+                    Enter an amount above to see the breakdown
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Amount input */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
@@ -271,6 +376,33 @@ export function UndelegateTab({
                   </button>
                 </div>
               </div>
+
+              {/* NEW: Unbonding Type Summary */}
+              <div className="flex justify-between items-center">
+                <span className="text-[#9999aa]">Unbonding Type</span>
+                <div className="flex items-center">
+                  <span className={`font-medium mr-2 ${
+                    isInstantUnbond ? 'text-[#4ade80]' : 'text-[#00e5ff]'
+                  }`}>
+                    {isInstantUnbond ? '⚡ Instant' : '⏳ Delayed'}
+                  </span>
+                  <button
+                    className="text-xs text-[#00e5ff]"
+                    onClick={() => setCurrentStep("amount")}
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+
+              {isInstantUnbond && (
+                <div className="flex justify-between items-center">
+                  <span className="text-[#9999aa]">Final Amount (after slash)</span>
+                  <span className="font-medium text-[#4ade80]">
+                    {formatUnits(finalAmount, decimals)} {token.symbol}
+                  </span>
+                </div>
+              )}
 
               {/* Selected operator */}
               <div className="flex justify-between items-center">

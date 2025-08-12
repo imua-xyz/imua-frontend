@@ -58,6 +58,32 @@
   },
   {
     "type": "function",
+    "name": "AFTER_PECTRA_MAX_EFFECTIVE_BALANCE_ETH_PER_VALIDATOR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "AFTER_PECTRA_MIN_ACTIVATION_BALANCE_ETH_PER_VALIDATOR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "BEACON_ORACLE_ADDRESS",
     "inputs": [],
     "outputs": [
@@ -233,6 +259,19 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "claimNSTFromImuachain",
+    "inputs": [
+      {
+        "name": "claimAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
   },
   {
     "type": "function",
@@ -852,128 +891,6 @@
   },
   {
     "type": "function",
-    "name": "processBeaconChainWithdrawal",
-    "inputs": [
-      {
-        "name": "validatorContainer",
-        "type": "bytes32[]",
-        "internalType": "bytes32[]"
-      },
-      {
-        "name": "validatorProof",
-        "type": "tuple",
-        "internalType": "struct BeaconChainProofs.ValidatorContainerProof",
-        "components": [
-          {
-            "name": "beaconBlockTimestamp",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "validatorIndex",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "stateRoot",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "stateRootProof",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
-          },
-          {
-            "name": "validatorContainerRootProof",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
-          }
-        ]
-      },
-      {
-        "name": "withdrawalContainer",
-        "type": "bytes32[]",
-        "internalType": "bytes32[]"
-      },
-      {
-        "name": "withdrawalProof",
-        "type": "tuple",
-        "internalType": "struct BeaconChainProofs.WithdrawalProof",
-        "components": [
-          {
-            "name": "withdrawalContainerRootProof",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
-          },
-          {
-            "name": "slotProof",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
-          },
-          {
-            "name": "executionPayloadRootProof",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
-          },
-          {
-            "name": "timestampProof",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
-          },
-          {
-            "name": "historicalSummaryBlockRootProof",
-            "type": "bytes32[]",
-            "internalType": "bytes32[]"
-          },
-          {
-            "name": "blockRootIndex",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "historicalSummaryIndex",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "withdrawalIndex",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "blockRoot",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "slotRoot",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "timestampRoot",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "executionPayloadRoot",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          },
-          {
-            "name": "stateRoot",
-            "type": "bytes32",
-            "internalType": "bytes32"
-          }
-        ]
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "payable"
-  },
-  {
-    "type": "function",
     "name": "quote",
     "inputs": [
       {
@@ -1247,6 +1164,11 @@
         "name": "amount",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "instantUnbond",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "outputs": [],
@@ -1405,24 +1327,6 @@
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "withdrawNonBeaconChainETHFromCapsule",
-    "inputs": [
-      {
-        "name": "recipient",
-        "type": "address",
-        "internalType": "address payable"
-      },
-      {
-        "name": "amountToWithdraw",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",

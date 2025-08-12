@@ -18,3 +18,7 @@ export const COSMOS_CONFIG = {
       `/imuachain/operator/v1/opt/avs_list/${operatorAddress}`,
   },
 } as const;
+
+export const INSTANT_UNBOND_SLASH_RATE = process.env.NEXT_PUBLIC_INSTANT_UNBOND_SLASH_RATE;
+
+export const UNBOND_PERIOD = process.env.NEXT_PUBLIC_UNBOND_PERIOD;
