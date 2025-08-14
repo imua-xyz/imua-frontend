@@ -1,9 +1,9 @@
 import { useQueries } from "@tanstack/react-query";
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { COSMOS_CONFIG } from "@/config/cosmos";
-import { validTokens, Token } from "@/types/tokens";
-import { DelegationsPerToken, DelegationsResponse } from "@/types/delegations";
-import { useAllWalletsStore } from "@/stores/allWalletsStore";
+import { validTokens, Token, getTokenKey } from "@/types/tokens";
+import { DelegationsPerToken, DelegationsResponse, DelegationPerOperator } from "@/types/delegations";
+import { useAllWalletsStore, getQueryStakerAddress } from "@/stores/allWalletsStore";
 import { useOperators } from "./useOperators";
 
 // If no staker address, returns { data: undefined, isLoading: false, error: null, ... }
@@ -13,47 +13,31 @@ export function useDelegations(token: Token): {
   error: Error | null;
 } {
   const { data: operators } = useOperators();
-  const wallets = useAllWalletsStore((s) => s.wallets);
-  const wallet = wallets[token.network.customChainIdByImua];
-  let stakerAddress: string | undefined = undefined;
-  if (wallet) {
-    if (token.connector.requireExtraConnectToImua) {
-      if (wallet.boundImuaAddress) {
-        stakerAddress = wallet.boundImuaAddress;
-      } else if (wallet.address) {
-        // User has not bound an imua address yet, treat as no delegations
-        stakerAddress = undefined;
-      } else {
-        stakerAddress = undefined;
-      }
-    } else {
-      stakerAddress = wallet.address;
-    }
-  }
-  if (!stakerAddress) {
-    // No wallet connected for this token, return empty delegations
-    return {
-      data: undefined,
-      isLoading: false,
-      error: null,
-    };
-  }
+  const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
+  
   const customChainId = token.network.customChainIdByImua;
-  return useQuery({
-    queryKey: ["delegations", stakerAddress, token.address, customChainId],
+  
+  // Always call useQuery, but control execution with enabled option
+  const query = useQuery({
+    queryKey: ["delegations", queryAddress, token.address, customChainId],
     queryFn: async (): Promise<DelegationsPerToken> => {
+      if (!queryAddress) {
+        throw new Error("No staker address available");
+      }
+      
       // Cosmos RPC: /imuachain/delegation/v1/delegations/{stakerId}/{assetId}
-      const stakerId = `${stakerAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
+      const stakerId = `${queryAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
       const assetId = `${token.address.toLowerCase()}_0x${customChainId.toString(16)}`;
       const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, assetId)}`;
       const data = (await fetch(url).then((r) =>
         r.json(),
       )) as DelegationsResponse;
       const infos = data.delegation_infos || [];
-      return {
-        token,
-        userAddress: stakerAddress!,
-        delegations: infos.map((item) => ({
+      
+      // Convert to Map for O(1) lookups by operator address
+      const delegationsByOperator = new Map<string, DelegationPerOperator>();
+      infos.forEach((item) => {
+        delegationsByOperator.set(item.operator.toLowerCase(), {
           operatorAddress: item.operator,
           operatorName: operators?.find(
             (op) => op.address.toLowerCase() === item.operator.toLowerCase(),
@@ -62,68 +46,67 @@ export function useDelegations(token: Token): {
           unbonding: BigInt(
             item.delegation_info.delegation_amounts.wait_undelegation_amount,
           ),
-        })),
+        });
+      });
+      
+      return {
+        token,
+        userAddress: stakerAddress!,
+        delegationsByOperator,
       };
     },
-    enabled: !!stakerAddress && !!token.address && !!customChainId,
-    refetchInterval: 30000,
+    enabled: !!queryAddress && !!token.address && !!customChainId,
+    refetchInterval: 3000,
   });
+  
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+  };
 }
 
-export function useAllDelegations() {
-  const wallets = useAllWalletsStore((s) => s.wallets);
+export function useAllDelegations(): {
+  data: Map<string, {
+    data: DelegationsPerToken | undefined;
+    isLoading: boolean;
+    error: Error | null;
+  }>;
+  isLoading: boolean;
+  error: Error | null;
+} {
   const { data: operators } = useOperators();
 
   // Create queries for all tokens
   const queries = validTokens.map((token) => {
-    const wallet = wallets[token.network.customChainIdByImua];
-    let stakerAddress: string | undefined = undefined;
-
-    if (wallet) {
-      if (token.connector.requireExtraConnectToImua) {
-        if (wallet.boundImuaAddress) {
-          stakerAddress = wallet.boundImuaAddress;
-        } else if (wallet.address) {
-          // User has not bound an imua address yet, treat as no delegations
-          stakerAddress = undefined;
-        } else {
-          stakerAddress = undefined;
-        }
-      } else {
-        stakerAddress = wallet.address;
-      }
-    }
+    const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
 
     return {
       queryKey: [
         "delegations",
-        stakerAddress,
+        queryAddress,
         token.address,
         token.network.customChainIdByImua,
       ],
       queryFn: async (): Promise<DelegationsPerToken> => {
-        if (!stakerAddress) {
-          // Return empty delegations for non-fetchable cases
-          return {
-            token,
-            userAddress: "",
-            delegations: [],
-          };
+        if (!queryAddress) {
+          throw new Error("No staker address available");
         }
 
         const customChainId = token.network.customChainIdByImua;
         // Cosmos RPC: /imuachain/delegation/v1/delegations/{stakerId}/{assetId}
-        const stakerId = `${stakerAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
+        const stakerId = `${queryAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
         const assetId = `${token.address.toLowerCase()}_0x${customChainId.toString(16)}`;
         const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, assetId)}`;
         const data = (await fetch(url).then((r) =>
           r.json(),
         )) as DelegationsResponse;
         const infos = data.delegation_infos || [];
-        return {
-          token,
-          userAddress: stakerAddress,
-          delegations: infos.map((item) => ({
+        
+        // Convert to Map for O(1) lookups by operator address
+        const delegationsByOperator = new Map<string, DelegationPerOperator>();
+        infos.forEach((item) => {
+          delegationsByOperator.set(item.operator.toLowerCase(), {
             operatorAddress: item.operator,
             operatorName: operators?.find(
               (op) => op.address.toLowerCase() === item.operator.toLowerCase(),
@@ -132,20 +115,51 @@ export function useAllDelegations() {
             unbonding: BigInt(
               item.delegation_info.delegation_amounts.wait_undelegation_amount,
             ),
-          })),
+          });
+        });
+        
+        return {
+          token,
+          userAddress: stakerAddress!,
+          delegationsByOperator,
         };
       },
       enabled:
-        !!stakerAddress &&
+        !!queryAddress &&
         !!token.address &&
         !!token.network.customChainIdByImua,
-      refetchInterval: 30000,
+      refetchInterval: 3000,
     };
   });
 
   const results = useQueries({ queries });
+  
+  // Convert results to Map for O(1) lookups by token
+  const delegationsByToken = new Map<string, {
+    data: DelegationsPerToken | undefined;
+    isLoading: boolean;
+    error: Error | null;
+  }>();
+  
+  // Results are ordered by validTokens, so direct iteration is cleanest
+  results.forEach((result, index) => {
+    const token = validTokens[index];        // Get corresponding token
+    const tokenKey = getTokenKey(token);
+    
+    delegationsByToken.set(tokenKey, {
+      data: result.data,
+      isLoading: result.isLoading,
+      error: result.error,
+    });
+  });
+  
   const isLoading = results.some((r) => r.isLoading);
-  const error = results.find((r) => r && r.error)?.error || undefined;
-
-  return { results, isLoading, error };
+  const error = results.find((r) => r && r.error)?.error || null;
+  
+  // Return the simplified structure
+  return { 
+    data: delegationsByToken,
+    isLoading, 
+    error 
+  };
 }

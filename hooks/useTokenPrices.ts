@@ -1,13 +1,21 @@
 import { useQueries } from "@tanstack/react-query";
 import { COSMOS_CONFIG } from "@/config/cosmos";
-import { Token } from "@/types/tokens";
-import { Price, PriceResponse } from "@/types/price";
+import { getTokenKey, Token } from "@/types/tokens";
+import { PricePerToken, PriceResponse } from "@/types/price";
 
-export function useTokenPrices(tokens: Token[]) {
+export function useTokenPrices(tokens: Token[]):{
+  data: Map<string, {
+    data: PricePerToken | undefined;
+    isLoading: boolean;
+    error: Error | null;
+  }>;
+  isLoading: boolean;
+  error: Error | null;
+} {
   const results = useQueries({
     queries: tokens.map((token) => ({
       queryKey: ["tokenPrice", token],
-      queryFn: async (): Promise<Price> => {
+      queryFn: async (): Promise<PricePerToken> => {
         const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.TOKEN_PRICE(token.priceIndex)}`;
         const resp = await fetch(url);
         if (!resp.ok)
@@ -25,11 +33,26 @@ export function useTokenPrices(tokens: Token[]) {
     })),
   });
 
-  const isLoading = results.some((p) => p.isLoading);
-  const error = results.find((p) => p && p.error)?.error || null;
+  const prices = new Map<string, {
+    data: PricePerToken | undefined;
+    isLoading: boolean;
+    error: Error | null;
+  }>();
+  results.forEach((result, index) => {
+    const token = tokens[index];
+    const tokenKey = getTokenKey(token);
+    prices.set(tokenKey, {
+      data: result.data,
+      isLoading: result.isLoading,
+      error: result.error,
+    });
+  });
+
+  const isLoading = Array.from(prices.values()).some((p) => p.isLoading);
+  const error = Array.from(prices.values()).find((p) => p && p.error)?.error || null;
 
   return {
-    prices: results,
+    data: prices,
     isLoading,
     error,
   };

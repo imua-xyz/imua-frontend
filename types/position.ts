@@ -1,12 +1,9 @@
 import { Token } from "./tokens";
-import { StakerBalanceResponseFromPrecompile } from "./staking";
 
-export interface StakingPosition {
+export interface StakingPositionPerToken {
   token: Token;
   stakerAddress: string;
-  data: {
-    totalDeposited: bigint;
-    delegated: bigint;
-    undelegated: bigint;
-  };
+  totalDeposited: bigint;
+  delegated: bigint;
+  undelegated: bigint;
 }

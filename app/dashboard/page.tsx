@@ -19,7 +19,7 @@ import {
   Wallet
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { validTokens, Token } from "@/types/tokens";
+import { validTokens, Token, getTokenKey } from "@/types/tokens";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
 import { useSyncAllWalletsToStore } from "@/hooks/useSyncAllWalletsToStore";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
@@ -39,8 +39,8 @@ import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { useDelegations } from "@/hooks/useDelegations";
 import { useOperators, useOperatorsWithOptInAVS } from "@/hooks/useOperators";
 import { validRewardTokens } from "@/types/tokens";
-import { RewardsWithValues, RewardsByAVS } from "@/types/rewards";
-import { StakingPosition } from "@/types/position";
+import { RewardsPerToken, RewardsPerAVS, RewardsPerTokenWithValues } from "@/types/rewards";
+import { StakingPositionPerToken } from "@/types/position";
 import { DelegationPerOperator } from "@/types/delegations";
 import { AVS } from "@/types/avs";
 
@@ -112,9 +112,6 @@ export default function DashboardPage() {
   const [walletModalToken, setWalletModalToken] = useState<Token | null>(null);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [providerToken, setProviderToken] = useState<Token>(validTokens[0]);
-  console.log("walletModalToken", walletModalToken);
-  console.log("isWalletModalOpen", isWalletModalOpen);
-  console.log("providerToken", providerToken.symbol);
 
   // Sync wallet state
   useSyncAllWalletsToStore();
@@ -146,18 +143,17 @@ export default function DashboardPage() {
 
   // Always call hooks, but handle logic conditionally
   const {
-    positions,
+    data: positionsData,
     isLoading: positionsLoading,
     error: positionsError,
   } = useStakingPositions();
   const {
-    rewardsByAvs,
-    rewardsByToken,
+    data: rewardsData,
     isLoading: rewardsLoading,
     error: rewardsError,
   } = useAllRewards();
   const {
-    prices,
+    data: pricesData,
     isLoading: pricesLoading,
     error: pricesError,
   } = useTokenPrices([...validTokens, ...validRewardTokens]);
@@ -167,24 +163,26 @@ export default function DashboardPage() {
     error: operatorsError,
   } = useOperators();
 
+  // Extract data from Maps for easier access
+  const positions = positionsData;
+  const rewardsByAvs = rewardsData?.rewardsByAvs;
+  const rewardsByToken = rewardsData?.rewardsByToken;
+  const prices = pricesData;
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   // Calculate totals from real data with memoization - MUST be called before any conditional returns
   const totalValueDeposited = useMemo(() => {
-    return positions.reduce((sum, pos) => {
-      if (pos.position) {
-        const price =
-          prices.find((p) => p.data?.token.symbol === pos.position?.token.symbol)
-            ?.data?.data || 0;
-        const priceDecimals =
-          prices.find((p) => p.data?.token.symbol === pos.position?.token.symbol)
-            ?.data?.decimals || 0;
+    return Array.from(positions?.values() || []).reduce((sum, pos) => {
+      if (pos.data) {
+        const price = prices?.get(getTokenKey(pos.data.token))?.data?.data || 0;
+        const priceDecimals = prices?.get(getTokenKey(pos.data.token))?.data?.decimals || 0;
         const priceValue = Number(price) / Math.pow(10, priceDecimals);
         const value =
-          (Number(pos.position.data.totalDeposited) /
-            Math.pow(10, pos.position.token.decimals)) *
+          (Number(pos.data.totalDeposited) /
+            Math.pow(10, pos.data.token.decimals)) *
           priceValue;
         return sum + value;
       }
@@ -193,13 +191,10 @@ export default function DashboardPage() {
   }, [positions, prices]);
 
   const totalRewardsValue = useMemo(() => {
-    return rewardsByToken.reduce((sum, reward) => {
-      const price =
-        prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
-          ?.data || 0;
-      const priceDecimals =
-        prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
-          ?.decimals || 0;
+    return Array.from(rewardsByToken?.values() || []).reduce((sum, reward) => {
+      if (!reward) return sum;
+      const price = prices?.get(getTokenKey(reward.token))?.data?.data || 0;
+      const priceDecimals = prices?.get(getTokenKey(reward.token))?.data?.decimals || 0;
       const priceValue = Number(price) / Math.pow(10, priceDecimals);
       const value =
         (Number(reward.totalAmount) / Math.pow(10, reward.token.decimals)) *
@@ -209,33 +204,35 @@ export default function DashboardPage() {
   }, [rewardsByToken, prices]);
 
   // Calculate totalValue for each reward token with memoization
-  const rewardsWithValues: RewardsWithValues[] = useMemo(() => {
-    return rewardsByToken.map((reward) => {
-      const price =
-        prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
-          ?.data || 0;
-      const priceDecimals =
-        prices.find((p) => p.data?.token.symbol === reward.token.symbol)?.data
-          ?.decimals || 0;
-      const priceValue = Number(price) / Math.pow(10, priceDecimals);
-      const totalValue =
-        (Number(reward.totalAmount) / Math.pow(10, reward.token.decimals)) *
-        priceValue;
-      const sourcesWithValues = reward.sources.map((source) => {
-        const sourceValue =
-          (Number(source.amount) / Math.pow(10, reward.token.decimals)) *
+  const rewardsWithValues: RewardsPerTokenWithValues[] = useMemo(() => {
+    return Array.from(rewardsByToken?.values() || [])
+      .filter((reward): reward is RewardsPerToken => reward !== undefined)
+      .map((reward) => {
+        const price = prices?.get(getTokenKey(reward.token))?.data?.data || 0;
+        const priceDecimals = prices?.get(getTokenKey(reward.token))?.data?.decimals || 0;
+        const priceValue = Number(price) / Math.pow(10, priceDecimals);
+        const totalValue =
+          (Number(reward.totalAmount) / Math.pow(10, reward.token.decimals)) *
           priceValue;
+        
+        // Convert sources Map to array with values
+        const sourcesArray = Array.from(reward.sources.values());
+        const sourcesWithValues = sourcesArray.map((source) => {
+          const sourceValue =
+            (Number(source.amount) / Math.pow(10, reward.token.decimals)) *
+            priceValue;
+          return {
+            ...source,
+            value: sourceValue,
+          };
+        });
+        
         return {
-          ...source,
-          value: sourceValue,
+          ...reward,
+          totalValue,
+          sources: sourcesWithValues,
         };
       });
-      return {
-        ...reward,
-        totalValue,
-        sources: sourcesWithValues,
-      };
-    });
   }, [rewardsByToken, prices]);
 
   const toggleExpand = (id: string) => {
@@ -358,26 +355,15 @@ export default function DashboardPage() {
                       {totalValueDeposited > 0 ? (
                         <div className="h-40 flex justify-center">
                           <PieChart
-                            data={positions
-                              .filter((pos) => pos.position)
+                            data={Array.from(positions?.values() || [])
+                              .filter((pos) => pos.data)
                               .map((pos, idx) => {
-                                const position = pos.position!;
-                                const price =
-                                  prices.find(
-                                    (p) =>
-                                      p.data?.token.symbol ===
-                                      position.token.symbol,
-                                  )?.data?.data || 0;
-                                const priceDecimals =
-                                  prices.find(
-                                    (p) =>
-                                      p.data?.token.symbol ===
-                                      position.token.symbol,
-                                  )?.data?.decimals || 0;
-                                const priceValue =
-                                  Number(price) / Math.pow(10, priceDecimals);
+                                const position = pos.data!;
+                                const price = prices?.get(getTokenKey(position.token))?.data?.data || 0;
+                                const priceDecimals = prices?.get(getTokenKey(position.token))?.data?.decimals || 0;
+                                const priceValue = Number(price) / Math.pow(10, priceDecimals);
                                 const value =
-                                  (Number(position.data.totalDeposited) /
+                                  (Number(position.totalDeposited) /
                                     Math.pow(10, position.token.decimals)) *
                                   priceValue;
                                 return {
@@ -421,26 +407,15 @@ export default function DashboardPage() {
                         </div>
                       )}
                       <div className="mt-4 space-y-2">
-                        {positions
-                          .filter((pos) => pos.position)
+                        {Array.from(positions?.values() || [])
+                          .filter((pos) => pos.data)
                           .map((pos, idx) => {
-                            const position = pos.position!;
-                            const price =
-                              prices.find(
-                                (p) =>
-                                  p.data?.token.symbol ===
-                                  position.token.symbol,
-                              )?.data?.data || 0;
-                            const priceDecimals =
-                              prices.find(
-                                (p) =>
-                                  p.data?.token.symbol ===
-                                  position.token.symbol,
-                              )?.data?.decimals || 0;
-                            const priceValue =
-                              Number(price) / Math.pow(10, priceDecimals);
+                            const position = pos.data!;
+                            const price = prices?.get(getTokenKey(position.token))?.data?.data || 0;
+                            const priceDecimals = prices?.get(getTokenKey(position.token))?.data?.decimals || 0;
+                            const priceValue = Number(price) / Math.pow(10, priceDecimals);
                             const value =
-                              (Number(position.data.totalDeposited) /
+                              (Number(position.totalDeposited) /
                                 Math.pow(10, position.token.decimals)) *
                               priceValue;
                             const percentage =
@@ -644,10 +619,8 @@ export default function DashboardPage() {
                   // Check if wallet is connected for this token
                   const isWalletConnected = isWalletConnectedForToken(token);
                   
-                  // Find position data for this token
-                  const positionData = positions.find(
-                    (pos) => pos.position?.token.symbol === token.symbol
-                  );
+                  // Find position data for this token using Map lookup
+                  const positionData = positions?.get(getTokenKey(token));
                   
                   // If wallet is not connected, show connect wallet card
                   if (!isWalletConnected) {
@@ -690,7 +663,7 @@ export default function DashboardPage() {
                   }
                   
                   // If wallet is connected but no position data, show empty state
-                  if (!positionData?.position) {
+                  if (!positionData?.data) {
                     return (
                       <Card key={token.symbol} className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
                         <div className="flex items-center justify-between p-6">
@@ -729,55 +702,55 @@ export default function DashboardPage() {
                   }
                   
                   // If wallet is connected and has position data, show normal position card
-                  const position = positionData.position!;
-                  const price =
-                    prices.find(
-                      (p) => p.data?.token.symbol === position.token.symbol,
-                    )?.data?.data || 0;
-                  const priceDecimals =
-                    prices.find(
-                      (p) => p.data?.token.symbol === position.token.symbol,
-                    )?.data?.decimals || 0;
-                  const priceValue =
-                    Number(price) / Math.pow(10, priceDecimals);
+                  const position = positionData.data;
+                  if (!position) {
+                    return null; // Skip rendering if no position data
+                  }
+                  
+                  // At this point, position is guaranteed to be defined
+                  const safePosition = position as StakingPositionPerToken;
+                  
+                  const price = prices?.get(getTokenKey(safePosition.token))?.data?.data || 0;
+                  const priceDecimals = prices?.get(getTokenKey(safePosition.token))?.data?.decimals || 0;
+                  const priceValue = Number(price) / Math.pow(10, priceDecimals);
                   const totalValue =
-                    (Number(position.data.totalDeposited) /
-                      Math.pow(10, position.token.decimals)) *
+                    (Number(safePosition.totalDeposited) /
+                      Math.pow(10, safePosition.token.decimals)) *
                     priceValue;
                   const delegatedValue =
-                    (Number(position.data.delegated) /
-                      Math.pow(10, position.token.decimals)) *
+                    (Number(safePosition.delegated) /
+                      Math.pow(10, safePosition.token.decimals)) *
                     priceValue;
                   const delegatedAmount =
-                    Number(position.data.delegated) /
-                    Math.pow(10, position.token.decimals);
+                    Number(safePosition.delegated) /
+                    Math.pow(10, safePosition.token.decimals);
                   const totalAmount =
-                    Number(position.data.totalDeposited) /
-                    Math.pow(10, position.token.decimals);
+                    Number(safePosition.totalDeposited) /
+                    Math.pow(10, safePosition.token.decimals);
 
                   return (
-                    <div key={`${position.token.symbol}-${token.symbol}`}>
+                    <div key={`${safePosition.token.symbol}-${token.symbol}`}>
                       <Card className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
                         <div
                           className="flex items-center justify-between p-6 cursor-pointer"
                           onClick={() =>
                             toggleExpand(
-                              `${position.token.symbol}-${token.symbol}`,
+                              `${safePosition.token.symbol}-${token.symbol}`,
                             )
                           }
                         >
                           <div className="flex items-center flex-1">
                             <TokenIcon
-                              src={position.token.iconUrl}
-                              alt={position.token.symbol}
+                              src={safePosition.token.iconUrl}
+                              alt={safePosition.token.symbol}
                               size={36}
                             />
                             <div className="ml-4">
                               <h3 className="text-lg font-medium">
-                                {position.token.symbol}
+                                {safePosition.token.symbol}
                               </h3>
                               <p className="text-sm text-[#9999aa]">
-                                {position.token.name}
+                                {safePosition.token.name}
                               </p>
                             </div>
                           </div>
@@ -792,7 +765,7 @@ export default function DashboardPage() {
                               </p>
                               <p className="text-xs text-[#9999aa]">
                                 {totalAmount.toFixed(4)}{" "}
-                                {position.token.symbol}
+                                {safePosition.token.symbol}
                               </p>
                             </div>
 
@@ -805,7 +778,7 @@ export default function DashboardPage() {
                               </p>
                               <p className="text-xs text-[#9999aa]">
                                 {delegatedAmount.toFixed(4)}{" "}
-                                {position.token.symbol}
+                                {safePosition.token.symbol}
                               </p>
                             </div>
 
@@ -814,7 +787,7 @@ export default function DashboardPage() {
                                 Active AVS
                               </p>
                               <p className="text-base font-medium text-[#00e5ff]">
-                                {rewardsByAvs.length}
+                                {Array.from(rewardsByAvs?.values() || []).filter(avs => avs !== undefined).length}
                               </p>
                             </div>
                           </div>
@@ -825,13 +798,13 @@ export default function DashboardPage() {
                             </p>
                             <p className="text-xs text-[#9999aa]">
                               {delegatedAmount.toFixed(4)}{" "}
-                              {position.token.symbol} delegated
+                              {safePosition.token.symbol} delegated
                             </p>
                           </div>
 
                           <button className="ml-4 text-[#9999aa] flex-shrink-0">
                             {expandedPosition ===
-                            `${position.token.symbol}-${token.symbol}` ? (
+                            `${safePosition.token.symbol}-${token.symbol}` ? (
                               <ChevronDown size={20} />
                             ) : (
                               <ChevronRight size={20} />
@@ -841,11 +814,11 @@ export default function DashboardPage() {
 
                         {/* Expanded View */}
                         {expandedPosition ===
-                          `${position.token.symbol}-${token.symbol}` && (
+                          `${safePosition.token.symbol}-${token.symbol}` && (
                           <ExpandedPositionView
-                            position={position}
+                            position={safePosition}
                             priceValue={priceValue}
-                            rewardsByAvs={rewardsByAvs}
+                            rewardsByAvs={Array.from(rewardsByAvs?.values() || []).filter(avs => avs !== undefined)}
                             onNavigateToStaking={navigateToStaking}
                           />
                         )}
@@ -1115,9 +1088,9 @@ function ExpandedPositionView({
   rewardsByAvs,
   onNavigateToStaking,
 }: {
-  position: StakingPosition;
+  position: StakingPositionPerToken;
   priceValue: number;
-  rewardsByAvs: RewardsByAVS[];
+  rewardsByAvs: RewardsPerAVS[];
   onNavigateToStaking: (token: Token, tab: 'stake' | 'delegate' | 'undelegate' | 'withdraw') => void;
 }) {
   const { data: delegationsData, isLoading: delegationsLoading } =
@@ -1125,7 +1098,7 @@ function ExpandedPositionView({
 
   // Extract operator addresses from delegations for AVS lookup
   const operatorAddresses =
-    delegationsData?.delegations?.map(
+    Array.from(delegationsData?.delegationsByOperator?.values() || []).map(
       (delegation: DelegationPerOperator) => delegation.operatorAddress,
     ) || [];
 
@@ -1136,8 +1109,8 @@ function ExpandedPositionView({
   // Get related AVS based on actual operator opt-ins
   const actualRelatedAVS = (() => {
     if (
-      !delegationsData?.delegations ||
-      delegationsData.delegations.length === 0 ||
+      !delegationsData?.delegationsByOperator ||
+      delegationsData.delegationsByOperator.size === 0 ||
       !operatorsWithAVS
     ) {
       return [];
@@ -1152,15 +1125,15 @@ function ExpandedPositionView({
     });
 
     // Filter rewardsByAvs to only include AVS that the position's operators have opted into
-    return rewardsByAvs.filter((avsReward: RewardsByAVS) =>
+    return rewardsByAvs.filter((avsReward: RewardsPerAVS) =>
       allAVSAddresses.has(avsReward.avs.address.toLowerCase()),
     );
   })();
 
   const delegatedAmount =
-    Number(position.data.delegated) / Math.pow(10, position.token.decimals);
+    Number(position.delegated) / Math.pow(10, position.token.decimals);
   const totalAmount =
-    Number(position.data.totalDeposited) /
+    Number(position.totalDeposited) /
     Math.pow(10, position.token.decimals);
   const delegationPercentage =
     totalAmount > 0 ? (delegatedAmount / totalAmount) * 100 : 0;
@@ -1186,12 +1159,12 @@ function ExpandedPositionView({
                 <div className="h-40 flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00e5ff]"></div>
                 </div>
-              ) : delegationsData?.delegations &&
-                delegationsData.delegations.length > 0 ? (
+              ) : delegationsData?.delegationsByOperator &&
+                delegationsData.delegationsByOperator.size > 0 ? (
                 <>
                   <div className="h-40 flex justify-center">
                     <PieChart
-                      data={delegationsData.delegations
+                      data={Array.from(delegationsData.delegationsByOperator.values())
                         .map((delegation, idx) => {
                           const value =
                             (Number(delegation.delegated) /
@@ -1214,7 +1187,7 @@ function ExpandedPositionView({
                     />
                   </div>
                   <div className="mt-4 space-y-3">
-                    {delegationsData.delegations
+                    {Array.from(delegationsData.delegationsByOperator.values())
                       .map((delegation, idx) => {
                         const value =
                           (Number(delegation.delegated) /
@@ -1272,7 +1245,7 @@ function ExpandedPositionView({
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {actualRelatedAVS.map((avsReward: RewardsByAVS) => (
+                {actualRelatedAVS.map((avsReward: RewardsPerAVS) => (
                   <div
                     key={avsReward.avs.address}
                     className="flex items-center justify-between p-2 bg-[#13131a] rounded"
@@ -1294,7 +1267,7 @@ function ExpandedPositionView({
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-[#9999aa]">
-                        {avsReward.tokens
+                        {Array.from(avsReward.tokens.values())
                           .map(
                             (t: { token: Token; amount: bigint }) =>
                               t.token.symbol,
@@ -1384,7 +1357,7 @@ function ExpandedPositionView({
 function ExpandedRewardView({
   rewardPosition,
 }: {
-  rewardPosition: RewardsWithValues;
+  rewardPosition: RewardsPerTokenWithValues;
 }) {
   return (
     <motion.div

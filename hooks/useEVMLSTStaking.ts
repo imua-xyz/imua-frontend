@@ -4,7 +4,6 @@ import { useBalance } from "wagmi";
 import { maxUint256, getContract, erc20Abi } from "viem";
 import { TxHandlerOptions, TxStatus, StakerBalance } from "@/types/staking";
 import { StakingService } from "@/types/staking-service";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useVault } from "./useVault";
 import { EVMLSTToken } from "@/types/tokens";
 import { usePortalContract } from "./usePortalContract";
@@ -12,7 +11,7 @@ import { useAccount } from "wagmi";
 import { OperationType } from "@/types/staking";
 import { handleEVMTxWithStatus } from "@/lib/txUtils";
 import { useBootstrapStatus } from "./useBootstrapStatus";
-import { useStakerBalances, StakerBalanceQuery } from "./useStakerBalances";
+import { useStakerBalances } from "./useStakerBalances";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress, chainId } = useAccount();
@@ -43,11 +42,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     vaultAddress || undefined,
   );
 
-  const [stakerBalanceAfterBootstrap] = useStakerBalances([{
-    userAddress: userAddress,
-    endpointId: lzEndpointIdOrCustomChainId,
-    tokenAddress: token.address,
-  }]);
+  const [stakerBalanceAfterBootstrap] = useStakerBalances([token]);
 
   const walletBalance = {
     customClientChainID: lzEndpointIdOrCustomChainId || 0,

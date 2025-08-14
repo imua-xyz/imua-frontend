@@ -9,7 +9,7 @@ export interface PriceResponse {
   };
 }
 
-export interface Price {
+export interface PricePerToken {
   token: Token;
   data: number;
   decimals: number;

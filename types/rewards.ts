@@ -14,33 +14,33 @@ export interface RewardResponse {
 export interface RewardsPerStakerId {
   userAddress: string;
   customChainId: number;
-  rewards: Array<{
+  rewards: Map<string, {
     avs: AVS;
-    tokens: Array<{
+    tokens: Map<string, {
       token: Token;
       amount: bigint;
     }>;
   }>;
 }
 
-export interface RewardsByAVS {
+export interface RewardsPerAVS {
   avs: AVS;
-  tokens: Array<{
+  tokens: Map<string, {
     token: Token;
     amount: bigint;
   }>;
 }
 
-export interface RewardsByToken {
+export interface RewardsPerToken {
   token: Token;
   totalAmount: bigint;
-  sources: Array<{
+  sources: Map<string, {
     avs: AVS;
     amount: bigint;
   }>;
 }
 
-export interface RewardsWithValues {
+export interface RewardsPerTokenWithValues {
   token: Token;
   totalAmount: bigint;
   totalValue: number;

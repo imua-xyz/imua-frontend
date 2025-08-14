@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import {
   TxHandlerOptions,
   StakerBalance,
@@ -58,11 +57,7 @@ export function useXRPStaking(): StakingService {
   const { contract, publicClient } = usePortalContract(xrp.network);
   const { address: evmAddress, isConnected: isWagmiConnected } = useAccount();
 
-  const [stakerBalanceResponse] = useStakerBalances([{
-    userAddress: boundImuaAddress,
-    endpointId: XRP_CHAIN_ID,
-    tokenAddress: XRP_TOKEN_ADDRESS,
-  }]);
+  const [stakerBalanceResponse] = useStakerBalances([xrp]);
 
   // Fetch staking position
   const stakerBalance = useQuery({

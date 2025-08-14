@@ -23,5 +23,5 @@ export interface DelegationPerOperator {
 export interface DelegationsPerToken {
   token: Token;
   userAddress: string;
-  delegations: DelegationPerOperator[];
+  delegationsByOperator: Map<string, DelegationPerOperator>; // operator address -> delegation info
 }

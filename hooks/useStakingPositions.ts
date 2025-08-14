@@ -1,103 +1,72 @@
-import { useAllWalletsStore } from "@/stores/allWalletsStore";
-import { validTokens } from "@/types/tokens";
-import { StakingPosition } from "@/types/position";
-import { useStakerBalances, StakerBalanceQuery } from "./useStakerBalances";
+import { getQueryStakerAddress } from "@/stores/allWalletsStore";
+import { validTokens, getTokenKey } from "@/types/tokens";
+import { StakingPositionPerToken } from "@/types/position";
+import { useStakerBalances } from "./useStakerBalances";
 
 export function useStakingPositions(): {
-  positions: Array<{
-    position: StakingPosition | undefined;
+  data: Map<string, {
+    data: StakingPositionPerToken | undefined;
     isLoading: boolean;
     error: Error | null;
   }>;
   isLoading: boolean;
   error: Error | null;
 } {
-  const wallets = useAllWalletsStore((s) => s.wallets);
-  const stakerBalanceQueries: StakerBalanceQuery[] = validTokens.map((token) => ({
-    userAddress: wallets[token.network.customChainIdByImua]?.address as `0x${string}`,
-    endpointId: token.network.customChainIdByImua,
-    tokenAddress: token.address,
-  }));
+  const results = useStakerBalances(validTokens);
 
-  const results = useStakerBalances(stakerBalanceQueries);
+  const positions = new Map<string, {
+    data: StakingPositionPerToken | undefined;
+    isLoading: boolean;
+    error: Error | null;
+  }>();
 
   // Transform results to match the expected format
-  const positions = results.map((result, index) => {
+  results.forEach((result, index) => {
     const token = validTokens[index];
-    const wallet = wallets[token.network.customChainIdByImua];
+    const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
+    const boundImuaAddressNotSetup = stakerAddress && !queryAddress;
 
-    let stakerAddress: string | undefined = undefined;
-    let shouldFetch = false;
-
-    if (wallet) {
-      if (token.connector.requireExtraConnectToImua) {
-        if (wallet.boundImuaAddress) {
-          stakerAddress = wallet.boundImuaAddress;
-          shouldFetch = true;
-        } else if (wallet.address) {
-          stakerAddress = wallet.address;
-          shouldFetch = false;
-        }
-      } else {
-        stakerAddress = wallet.address;
-        shouldFetch = true;
-      }
+    let position: StakingPositionPerToken | undefined = undefined;
+    let isLoading: boolean = false;
+    let error: Error | null = null;
+    if ( boundImuaAddressNotSetup ) {
+      position = {
+        token,
+        stakerAddress,
+        totalDeposited: BigInt(0),
+        delegated: BigInt(0),
+        undelegated: BigInt(0),
+      };
+      isLoading = false;
+      error = null;
+    } else if ( result.data ) {
+      position = {
+        token,
+        stakerAddress: stakerAddress!,
+        totalDeposited: result.data.totalDeposited,
+        delegated: result.data.delegated,
+        undelegated: result.data.withdrawable,
+      };
+      isLoading = result.isLoading;
+      error = result.error;
+    } else {
+      position = undefined;
+      isLoading = result.isLoading;
+      error = result.error;
     }
 
-    // Handle the logic conditionally
-    if (!shouldFetch || !stakerAddress) {
-      if (
-        wallet &&
-        token.connector.requireExtraConnectToImua &&
-        wallet.address &&
-        !wallet.boundImuaAddress
-      ) {
-        // User has not bound an imua address yet, show zero balance
-        return {
-          position: {
-            token,
-            stakerAddress: wallet.address,
-            data: {
-              totalDeposited: BigInt(0),
-              delegated: BigInt(0),
-              undelegated: BigInt(0),
-            },
-          },
-          isLoading: false,
-          error: null,
-        };
-      } else {
-        // No wallet connected for this token
-        return {
-          position: undefined,
-          isLoading: false,
-          error: null,
-        };
-      }
-    }
-
-    return {
-      position: result.data
-        ? {
-            token,
-            stakerAddress,
-            data: {
-              totalDeposited: result.data?.totalDeposited || BigInt(0),
-              delegated: result.data?.delegated || BigInt(0),
-              undelegated: result.data?.withdrawable || BigInt(0),
-            },
-          }
-        : undefined,
-      isLoading: result.isLoading,
-      error: result.error,
-    };
+    positions.set(getTokenKey(token), {
+      data: position,
+      isLoading,
+      error,
+    });
   });
 
-  const isLoading = positions.some((p) => p.isLoading);
-  const error = positions.find((p) => p && p.error)?.error || null;
+  const isLoading = Array.from(positions.values()).some((p) => p.isLoading);
+  const error = Array.from(positions.values()).find((p) => p && p.error)?.error || null;
 
   return {
-    positions,
+    data: positions,
     isLoading,
     error,
   };

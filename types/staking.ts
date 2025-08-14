@@ -40,24 +40,6 @@ export interface WalletBalance {
   symbol: string;
 }
 
-export interface StakingPosition {
-  assetId: string;
-  tokenAddress: `0x${string}`;
-  lzEndpointIdOrCustomChainId: number;
-  totalBalance: bigint;
-  claimableBalance: bigint;
-  delegatedBalance: bigint;
-  pendingUndelegatedBalance: bigint;
-  metadata: {
-    name: string;
-    symbol: string;
-    decimals: number;
-    imuaChainIndex: string;
-    metaInfo: string;
-    totalStaked: bigint;
-  };
-}
-
 export interface TokenInfo {
   address: `0x${string}`;
   name: string;

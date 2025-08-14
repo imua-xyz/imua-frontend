@@ -44,7 +44,7 @@ export function UndelegateTab({
   const slashRate = INSTANT_UNBOND_SLASH_RATE ? parseFloat(INSTANT_UNBOND_SLASH_RATE) / 100 : 0.25;
   
   // Get unbond period from config, default to "7-21 days" if not set
-  const unbondPeriod = UNBOND_PERIOD ? `${UNBOND_PERIOD} days` : "7-21 days";
+  const unbondPeriod = UNBOND_PERIOD ? `${UNBOND_PERIOD} days` : "7 days";
 
   // Balance and amount state
   const maxAmount = stakingService.stakerBalance?.delegated || BigInt(0);
