@@ -1,10 +1,10 @@
 import { TxHandlerOptions } from "./staking";
 import { StakerBalance, WalletBalance, OperationType } from "./staking";
-import { NativeToken, LSTToken, NSTToken } from "./tokens";
+import { Token } from "./tokens";
 
 export interface StakingService {
   // core data
-  token: NativeToken | LSTToken | NSTToken;
+  token: Token;
   stakerBalance: StakerBalance | undefined;
   walletBalance: WalletBalance | undefined;
   vaultAddress: string | undefined;
