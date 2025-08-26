@@ -39,13 +39,13 @@ export interface StakingService {
   // functions that may not be supported by all staking providers
   deposit?: (
     amount: bigint,
-    approvingTx?: (() => Promise<`0x${string}`>),
+    approvingTx?: () => Promise<`0x${string}`>,
     options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   depositAndDelegate?: (
     amount: bigint,
     operator: string,
-    approvingTx?: (() => Promise<`0x${string}`>),
+    approvingTx?: () => Promise<`0x${string}`>,
     options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   claimPrincipal?: (

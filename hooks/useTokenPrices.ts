@@ -3,12 +3,15 @@ import { COSMOS_CONFIG } from "@/config/cosmos";
 import { getTokenKey, Token } from "@/types/tokens";
 import { PricePerToken, PriceResponse } from "@/types/price";
 
-export function useTokenPrices(tokens: Token[]):{
-  data: Map<string, {
-    data: PricePerToken | undefined;
-    isLoading: boolean;
-    error: Error | null;
-  }>;
+export function useTokenPrices(tokens: Token[]): {
+  data: Map<
+    string,
+    {
+      data: PricePerToken | undefined;
+      isLoading: boolean;
+      error: Error | null;
+    }
+  >;
   isLoading: boolean;
   error: Error | null;
 } {
@@ -33,11 +36,14 @@ export function useTokenPrices(tokens: Token[]):{
     })),
   });
 
-  const prices = new Map<string, {
-    data: PricePerToken | undefined;
-    isLoading: boolean;
-    error: Error | null;
-  }>();
+  const prices = new Map<
+    string,
+    {
+      data: PricePerToken | undefined;
+      isLoading: boolean;
+      error: Error | null;
+    }
+  >();
   results.forEach((result, index) => {
     const token = tokens[index];
     const tokenKey = getTokenKey(token);
@@ -49,7 +55,8 @@ export function useTokenPrices(tokens: Token[]):{
   });
 
   const isLoading = Array.from(prices.values()).some((p) => p.isLoading);
-  const error = Array.from(prices.values()).find((p) => p && p.error)?.error || null;
+  const error =
+    Array.from(prices.values()).find((p) => p && p.error)?.error || null;
 
   return {
     data: prices,

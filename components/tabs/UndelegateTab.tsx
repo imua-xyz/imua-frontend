@@ -3,15 +3,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
-import { Phase, PhaseStatus, OperationMode } from "@/types/staking";
+import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
-import { 
-  OperationProgress, 
+import {
+  OperationProgress,
   OperationStep,
   transactionStep,
   confirmationStep,
   sendingRequestStep,
-  completionStep
+  completionStep,
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useDelegations } from "@/hooks/useDelegations";
@@ -31,22 +31,26 @@ export function UndelegateTab({
   onSuccess,
 }: UndelegateTabProps) {
   // Step management - same as DelegateTab
-  const [currentStep, setCurrentStep] = useState<"delegation" | "review">("delegation");
+  const [currentStep, setCurrentStep] = useState<"delegation" | "review">(
+    "delegation",
+  );
   const [showDelegationModal, setShowDelegationModal] = useState(false);
-  
+
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
-  
+
   // Get delegations for this token
-  const { data: delegationsData, isLoading: delegationsLoading } = useDelegations(token);
-  
+  const { data: delegationsData, isLoading: delegationsLoading } =
+    useDelegations(token);
+
   // State for delegation selection
-  const [selectedDelegation, setSelectedDelegation] = useState<DelegationPerOperator | null>(null);
-  
+  const [selectedDelegation, setSelectedDelegation] =
+    useState<DelegationPerOperator | null>(null);
+
   // State for undelegation details
   const [isInstantUnbond, setIsInstantUnbond] = useState(false);
-  
+
   // Check if this is a native chain operation
   const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
 
@@ -84,7 +88,10 @@ export function UndelegateTab({
       steps = [
         { ...transactionStep, description: "Sending undelegate transaction" },
         { ...confirmationStep },
-        { ...sendingRequestStep, description: `Relaying message to ${destinationChain}` },
+        {
+          ...sendingRequestStep,
+          description: `Relaying message to ${destinationChain}`,
+        },
         { ...completionStep },
       ];
     }
@@ -94,15 +101,17 @@ export function UndelegateTab({
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
-    setOperationSteps(prev => {
+    setOperationSteps((prev) => {
       const updatedSteps = [...prev];
-      
+
       // Find the target index for the new phase
-      const targetIndex = updatedSteps.findIndex(step => step.phase === newPhase);
+      const targetIndex = updatedSteps.findIndex(
+        (step) => step.phase === newPhase,
+      );
       if (targetIndex >= 0) {
         // Mark the new step as processing
         updatedSteps[targetIndex].status = "processing";
-        
+
         // Update transaction hash for transaction step
         if (newPhase === "sendingTx" && txHash) {
           updatedSteps[targetIndex].txHash = txHash;
@@ -120,8 +129,9 @@ export function UndelegateTab({
   };
 
   // Get active delegations count
-  const activeDelegationsCount = Array.from(delegationsData?.delegationsByOperator?.values() || [])
-    .filter(delegation => delegation.delegated > BigInt(0)).length;
+  const activeDelegationsCount = Array.from(
+    delegationsData?.delegationsByOperator?.values() || [],
+  ).filter((delegation) => delegation.delegated > BigInt(0)).length;
 
   // Handle delegation selection
   const handleDelegationSelect = (delegation: DelegationPerOperator) => {
@@ -143,11 +153,18 @@ export function UndelegateTab({
     if (!selectedDelegation || !parsedAmount) return;
 
     // Reset progress state
-    setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+    setOperationSteps((prev) =>
+      prev.map((step) => ({ ...step, status: "pending" })),
+    );
     setShowProgress(true);
 
     try {
-      console.log("undelegateFrom", selectedDelegation.operatorAddress, parsedAmount, isInstantUnbond);
+      console.log(
+        "undelegateFrom",
+        selectedDelegation.operatorAddress,
+        parsedAmount,
+        isInstantUnbond,
+      );
       const result = await stakingService.undelegateFrom(
         selectedDelegation.operatorAddress,
         parsedAmount,
@@ -164,7 +181,7 @@ export function UndelegateTab({
 
       if (result.success) {
         // Mark the final step (verifying completion) as success
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
           // Find the last step (verifying completion) and mark it as success
           const lastStepIndex = updated.length - 1;
@@ -173,16 +190,19 @@ export function UndelegateTab({
           }
           return updated;
         });
-        
+
         if (onSuccess) onSuccess();
       } else {
         // Mark current step as error
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
-          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          const processingStepIndex = updated.findIndex(
+            (step) => step.status === "processing",
+          );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage = result.error || "Operation failed";
+            updated[processingStepIndex].errorMessage =
+              result.error || "Operation failed";
           }
           return updated;
         });
@@ -190,9 +210,11 @@ export function UndelegateTab({
     } catch (error) {
       console.error("Undelegation failed:", error);
       // Mark current step as error
-      setOperationSteps(prev => {
+      setOperationSteps((prev) => {
         const updated = [...prev];
-        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        const processingStepIndex = updated.findIndex(
+          (step) => step.status === "processing",
+        );
         if (processingStepIndex >= 0) {
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage = "Operation failed";
@@ -211,7 +233,9 @@ export function UndelegateTab({
   };
 
   // Get operator display name - use operatorName if available, fallback to address
-  const getOperatorDisplayName = (delegation: DelegationPerOperator): string => {
+  const getOperatorDisplayName = (
+    delegation: DelegationPerOperator,
+  ): string => {
     if (delegation.operatorName) {
       return delegation.operatorName;
     }
@@ -219,9 +243,10 @@ export function UndelegateTab({
   };
 
   // Calculate final amount (considering instant unbonding penalty)
-  const finalAmount = isInstantUnbond && parsedAmount ? 
-    parsedAmount * BigInt(75) / BigInt(100) : // 25% penalty for instant
-    parsedAmount;
+  const finalAmount =
+    isInstantUnbond && parsedAmount
+      ? (parsedAmount * BigInt(75)) / BigInt(100) // 25% penalty for instant
+      : parsedAmount;
 
   // Get unbonding period display text
   const getUnbondingPeriodText = (): string => {
@@ -240,26 +265,35 @@ export function UndelegateTab({
   // Create operation progress data
   const operationProgress = {
     operation: "undelegate",
-    chainInfo: isNativeChainOperation ? undefined : {
-      sourceChain,
-      destinationChain,
-    },
+    chainInfo: isNativeChainOperation
+      ? undefined
+      : {
+          sourceChain,
+          destinationChain,
+        },
     steps: operationSteps,
     overallStatus: {
       // Derive current phase from step statuses
       currentPhase: (() => {
-        const processingStep = operationSteps.find(step => step.status === "processing");
+        const processingStep = operationSteps.find(
+          (step) => step.status === "processing",
+        );
         if (processingStep) return processingStep.phase;
-        
-        const lastSuccessStep = operationSteps.filter(step => step.status === "success").pop();
+
+        const lastSuccessStep = operationSteps
+          .filter((step) => step.status === "success")
+          .pop();
         if (lastSuccessStep) return lastSuccessStep.phase;
-        
+
         return "sendingTx";
       })(),
       currentPhaseStatus: (() => {
-        if (operationSteps.some(step => step.status === "error")) return "error" as PhaseStatus;
-        if (operationSteps.every(step => step.status === "success")) return "success" as PhaseStatus;
-        if (operationSteps.some(step => step.status === "processing")) return "processing" as PhaseStatus;
+        if (operationSteps.some((step) => step.status === "error"))
+          return "error" as PhaseStatus;
+        if (operationSteps.every((step) => step.status === "success"))
+          return "success" as PhaseStatus;
+        if (operationSteps.some((step) => step.status === "processing"))
+          return "processing" as PhaseStatus;
         return "pending" as PhaseStatus;
       })(),
     },
@@ -268,8 +302,10 @@ export function UndelegateTab({
   // Handle modal close - only reset on success
   const handleModalClose = () => {
     // Check if operation completed successfully by checking final step status
-    const isSuccess = operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success";
-    
+    const isSuccess =
+      operationSteps.length > 0 &&
+      operationSteps[operationSteps.length - 1]?.status === "success";
+
     if (isSuccess) {
       // Reset to initial state
       setCurrentStep("delegation");
@@ -277,10 +313,12 @@ export function UndelegateTab({
       setSelectedDelegation(null);
       setIsInstantUnbond(false);
       // Reset steps back to pending (not empty)
-      setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
       setTxHash(undefined);
     }
-    
+
     // Always close modal
     setShowProgress(false);
   };
@@ -299,12 +337,14 @@ export function UndelegateTab({
         <div className="w-16 h-16 bg-[#666677]/20 rounded-full flex items-center justify-center mx-auto mb-6">
           <span className="text-[#666677] text-2xl">📊</span>
         </div>
-        <h3 className="text-xl font-semibold text-white mb-3">No Active Delegations</h3>
+        <h3 className="text-xl font-semibold text-white mb-3">
+          No Active Delegations
+        </h3>
         <p className="text-[#9999aa] mb-6">
-          You don't have any active delegations for this token.
+          You don&apos;t have any active delegations for this token.
         </p>
-        <Button 
-          onClick={() => window.location.href = '/staking'}
+        <Button
+          onClick={() => (window.location.href = "/staking")}
           className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black font-medium"
         >
           Start Delegating
@@ -347,7 +387,8 @@ export function UndelegateTab({
               Available delegations
             </span>
             <span className="text-sm font-medium text-white">
-              {activeDelegationsCount} operator{activeDelegationsCount > 1 ? 's' : ''}
+              {activeDelegationsCount} operator
+              {activeDelegationsCount > 1 ? "s" : ""}
             </span>
           </div>
 
@@ -359,7 +400,7 @@ export function UndelegateTab({
               </label>
             </div>
 
-            <div 
+            <div
               className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white cursor-pointer hover:border-[#00e5ff] transition-colors"
               onClick={() => setShowDelegationModal(true)}
             >
@@ -367,7 +408,8 @@ export function UndelegateTab({
                 <div className="flex items-center justify-between">
                   <span>{getOperatorDisplayName(selectedDelegation)}</span>
                   <span className="text-[#00e5ff] text-sm">
-                    {formatUnits(selectedDelegation.delegated, decimals)} {token.symbol}
+                    {formatUnits(selectedDelegation.delegated, decimals)}{" "}
+                    {token.symbol}
                   </span>
                 </div>
               ) : (
@@ -431,7 +473,14 @@ export function UndelegateTab({
                   </label>
                   <button
                     className="text-xs font-medium text-[#00e5ff]"
-                    onClick={() => setAmount(formatUnits(selectedDelegation?.delegated || BigInt(0), decimals))}
+                    onClick={() =>
+                      setAmount(
+                        formatUnits(
+                          selectedDelegation?.delegated || BigInt(0),
+                          decimals,
+                        ),
+                      )
+                    }
                   >
                     MAX
                   </button>
@@ -540,8 +589,12 @@ export function UndelegateTab({
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-[#222233]">
               <div>
-                <h2 className="text-xl font-semibold text-white">Select Delegation</h2>
-                <p className="text-sm text-[#9999aa]">Choose which delegation to undelegate from</p>
+                <h2 className="text-xl font-semibold text-white">
+                  Select Delegation
+                </h2>
+                <p className="text-sm text-[#9999aa]">
+                  Choose which delegation to undelegate from
+                </p>
               </div>
               <Button
                 variant="ghost"
@@ -556,8 +609,10 @@ export function UndelegateTab({
             {/* Content */}
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               <div className="space-y-3">
-                {Array.from(delegationsData?.delegationsByOperator?.values() || [])
-                  .filter(delegation => delegation.delegated > BigInt(0))
+                {Array.from(
+                  delegationsData?.delegationsByOperator?.values() || [],
+                )
+                  .filter((delegation) => delegation.delegated > BigInt(0))
                   .map((delegation) => (
                     <div
                       key={delegation.operatorAddress}
@@ -568,10 +623,13 @@ export function UndelegateTab({
                         <div className="flex items-center space-x-4">
                           <div className="w-12 h-12 bg-[#00e5ff] rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                             <span className="text-black font-bold text-sm">
-                              {delegation.operatorName ? 
-                                delegation.operatorName.slice(0, 2).toUpperCase() : 
-                                delegation.operatorAddress.slice(2, 4).toUpperCase()
-                              }
+                              {delegation.operatorName
+                                ? delegation.operatorName
+                                    .slice(0, 2)
+                                    .toUpperCase()
+                                : delegation.operatorAddress
+                                    .slice(2, 4)
+                                    .toUpperCase()}
                             </span>
                           </div>
                           <div>
@@ -583,10 +641,11 @@ export function UndelegateTab({
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="text-right">
                           <p className="text-white font-medium">
-                            {formatUnits(delegation.delegated, decimals)} {token.symbol}
+                            {formatUnits(delegation.delegated, decimals)}{" "}
+                            {token.symbol}
                           </p>
                           <p className="text-sm text-[#00e5ff]">
                             Available to undelegate

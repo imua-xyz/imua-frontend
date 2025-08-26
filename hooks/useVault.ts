@@ -1,22 +1,11 @@
-import { useCallback } from "react";
-import { useAccount, useBalance, useWalletClient } from "wagmi";
-import { publicClients } from "@/config/wagmi";
 import { getContract } from "viem";
-import { OperationType } from "@/types/staking";
-import { getPortalContractByEvmChainID } from "@/config/stakingPortals";
-import { EVMLSTToken, Token } from "@/types/tokens";
-import { getPublicClient } from "@wagmi/core";
-import { config } from "@/config/wagmi";
-import { imuaChain } from "@/types/networks";
-import { EVMNetwork, XRPL } from "@/types/networks";
+import { EVMLSTToken } from "@/types/tokens";
 import { usePortalContract } from "./usePortalContract";
 import { useQuery } from "@tanstack/react-query";
 import VaultABI from "@/abi/Vault.abi.json";
 
 export function useEVMVault(token: EVMLSTToken) {
-  const { contract, publicClient } = usePortalContract(
-    token.network,
-  );
+  const { contract, publicClient } = usePortalContract(token.network);
 
   // Optimized vault address caching - permanent once fetched
   const { data: vaultAddress } = useQuery({
@@ -34,13 +23,16 @@ export function useEVMVault(token: EVMLSTToken) {
     refetchOnReconnect: false, // ✅ Don't refetch on reconnect if already cached
   });
 
-  const vault = vaultAddress && publicClient ? getContract({
-    address: vaultAddress as `0x${string}`,
-    abi: VaultABI,
-    client: {
-      public: publicClient,
-    },
-  }) : undefined;
+  const vault =
+    vaultAddress && publicClient
+      ? getContract({
+          address: vaultAddress as `0x${string}`,
+          abi: VaultABI,
+          client: {
+            public: publicClient,
+          },
+        })
+      : undefined;
 
   return {
     vaultAddress,

@@ -1,30 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
-import {
-  TxHandlerOptions,
-  StakerBalance,
-  WalletBalance,
-} from "@/types/staking";
-import {
-  XRP_CHAIN_ID,
-  XRP_TOKEN_ENUM,
-  XRP_TOKEN_ADDRESS,
-  XRP_VAULT_ADDRESS,
-  XRP_STAKING_DESTINATION_TAG,
-} from "@/config/xrp";
-import { MINIMUM_STAKE_AMOUNT_DROPS } from "@/config/xrp";
-import { StakingService } from "@/types/staking-service";
-import { xrp } from "@/types/tokens";
 import { useGemWalletStore } from "@/stores/gemWalletClient";
 import { useBindingStore } from "@/stores/bindingClient";
-import { usePortalContract } from "./usePortalContract";
 import { imuaChain } from "@/types/networks";
 import { useXrplStore } from "@/stores/xrplClient";
-import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { XRPWalletConnector } from "@/types/wallet-connector";
 
 export function useXRPWalletConnector(): XRPWalletConnector {

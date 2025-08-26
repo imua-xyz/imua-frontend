@@ -14,30 +14,42 @@ export interface RewardResponse {
 export interface RewardsPerStakerId {
   userAddress: string;
   customChainId: number;
-  rewards: Map<string, {
-    avs: AVS;
-    tokens: Map<string, {
-      token: Token;
-      amount: bigint;
-    }>;
-  }>;
+  rewards: Map<
+    string,
+    {
+      avs: AVS;
+      tokens: Map<
+        string,
+        {
+          token: Token;
+          amount: bigint;
+        }
+      >;
+    }
+  >;
 }
 
 export interface RewardsPerAVS {
   avs: AVS;
-  tokens: Map<string, {
-    token: Token;
-    amount: bigint;
-  }>;
+  tokens: Map<
+    string,
+    {
+      token: Token;
+      amount: bigint;
+    }
+  >;
 }
 
 export interface RewardsPerToken {
   token: Token;
   totalAmount: bigint;
-  sources: Map<string, {
-    avs: AVS;
-    amount: bigint;
-  }>;
+  sources: Map<
+    string,
+    {
+      avs: AVS;
+      amount: bigint;
+    }
+  >;
 }
 
 export interface RewardsPerTokenWithValues {

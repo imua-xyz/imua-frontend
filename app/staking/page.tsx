@@ -39,14 +39,17 @@ function StakingContent({
   // Read initial tab from localStorage (set by dashboard navigation)
   useEffect(() => {
     try {
-      const storedTab = localStorage.getItem('initialStakingTab');
-      if (storedTab && ['stake', 'delegate', 'undelegate', 'withdraw'].includes(storedTab)) {
+      const storedTab = localStorage.getItem("initialStakingTab");
+      if (
+        storedTab &&
+        ["stake", "delegate", "undelegate", "withdraw"].includes(storedTab)
+      ) {
         setCurrentTab(storedTab as TabType);
         // Clear the stored tab after reading
-        localStorage.removeItem('initialStakingTab');
+        localStorage.removeItem("initialStakingTab");
       }
     } catch (error) {
-      console.error('Error reading initial staking tab:', error);
+      console.error("Error reading initial staking tab:", error);
     }
   }, []);
 
@@ -260,31 +263,33 @@ export default function StakingPage() {
 
   useEffect(() => {
     setMounted(true);
-    
+
     // Read selected token and tab from localStorage (set by dashboard navigation)
     try {
-      const storedToken = localStorage.getItem('selectedStakingToken');
-      const storedTab = localStorage.getItem('selectedStakingTab');
-      
+      const storedToken = localStorage.getItem("selectedStakingToken");
+      const storedTab = localStorage.getItem("selectedStakingTab");
+
       if (storedToken) {
         const parsedToken = JSON.parse(storedToken);
         // Find the token in validTokens to ensure it's valid
-        const foundToken = validTokens.find(t => t.symbol === parsedToken.symbol);
+        const foundToken = validTokens.find(
+          (t) => t.symbol === parsedToken.symbol,
+        );
         if (foundToken) {
           setSelectedToken(foundToken);
         }
         // Clear the stored token after reading
-        localStorage.removeItem('selectedStakingToken');
+        localStorage.removeItem("selectedStakingToken");
       }
-      
+
       if (storedTab) {
         // Store the tab for the StakingContent component to read
-        localStorage.setItem('initialStakingTab', storedTab);
+        localStorage.setItem("initialStakingTab", storedTab);
         // Clear the stored tab after reading
-        localStorage.removeItem('selectedStakingTab');
+        localStorage.removeItem("selectedStakingTab");
       }
     } catch (error) {
-      console.error('Error reading stored staking preferences:', error);
+      console.error("Error reading stored staking preferences:", error);
     }
   }, []);
 

@@ -1,11 +1,17 @@
 import { useQueries } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { COSMOS_CONFIG } from "@/config/cosmos";
-import { validTokens, Token, imua, getTokenKey, getTokenBySymbol, getTokenByKey } from "@/types/tokens";
+import {
+  validTokens,
+  Token,
+  getTokenKey,
+  getTokenBySymbol,
+  getTokenByKey,
+} from "@/types/tokens";
 import { RewardResponse, RewardsPerStakerId } from "@/types/rewards";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
-import { imuaDenom, RewardsPerAVS, RewardsPerToken } from "@/types/rewards";
-import { AVS, findKnownAVSByAddress, UnknownAVS, createUnknownAVS } from "@/types/avs";
+import { RewardsPerAVS, RewardsPerToken } from "@/types/rewards";
+import { AVS, findKnownAVSByAddress, createUnknownAVS } from "@/types/avs";
 
 // Helper function to get unique stakerIds from validTokens and connected wallets
 function getUniqueStakerIds(): Array<{
@@ -49,11 +55,14 @@ function getUniqueStakerIds(): Array<{
   return Array.from(uniqueStakerIds.values());
 }
 
-async function fetchRewards(userAddress: string, customChainId: number): Promise<RewardsPerStakerId> {
+async function fetchRewards(
+  userAddress: string,
+  customChainId: number,
+): Promise<RewardsPerStakerId> {
   if (!userAddress || !customChainId) {
     throw new Error("Invalid parameters");
   }
-  
+
   // Cosmos RPC: /imuachain/feedistribution/v1/unclaimed_rewards/{stakerId}
   const stakerId = `${userAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
   const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.REWARDS(stakerId)}`;
@@ -65,10 +74,10 @@ async function fetchRewards(userAddress: string, customChainId: number): Promise
 
   data.rewards.forEach((avsReward) => {
     const avsAddress = avsReward.avs_address;
-    
+
     // Get or create the token amounts map for this AVS
     let tokenAmounts = rewardsByAvs.get(avsAddress);
-    
+
     // Aggregate all rewards for this AVS entry first
     const newTokenAmounts = new Map<string, bigint>();
     avsReward.rewards.forEach((reward) => {
@@ -80,7 +89,7 @@ async function fetchRewards(userAddress: string, customChainId: number): Promise
         newTokenAmounts.set(tokenKey, newAmount);
       }
     });
-    
+
     if (tokenAmounts) {
       // Merge new aggregated amounts with existing amounts
       newTokenAmounts.forEach((amount, tokenKey) => {
@@ -94,24 +103,34 @@ async function fetchRewards(userAddress: string, customChainId: number): Promise
   });
 
   // Create the rewards map as defined in RewardsPerStakerId
-  const rewards = new Map<string, {
-    avs: AVS;
-    tokens: Map<string, {
-      token: Token;
-      amount: bigint;
-    }>;
-  }>();
-  
+  const rewards = new Map<
+    string,
+    {
+      avs: AVS;
+      tokens: Map<
+        string,
+        {
+          token: Token;
+          amount: bigint;
+        }
+      >;
+    }
+  >();
+
   rewardsByAvs.forEach((tokenAmounts, avsAddress) => {
     // Find the AVS object by address, or create an unknown AVS if not found
-    let avs: AVS = findKnownAVSByAddress(avsAddress) || createUnknownAVS(avsAddress);
-    
+    let avs: AVS =
+      findKnownAVSByAddress(avsAddress) || createUnknownAVS(avsAddress);
+
     // Create the tokens map for this AVS
-    const tokens = new Map<string, {
-      token: Token;
-      amount: bigint;
-    }>();
-    
+    const tokens = new Map<
+      string,
+      {
+        token: Token;
+        amount: bigint;
+      }
+    >();
+
     // Add each token with its aggregated amount
     tokenAmounts.forEach((amount, tokenKey) => {
       // Get the token by token key to make this generic
@@ -123,13 +142,13 @@ async function fetchRewards(userAddress: string, customChainId: number): Promise
         });
       }
     });
-    
+
     rewards.set(avsAddress, {
       avs,
       tokens,
     });
   });
-  
+
   return {
     userAddress: userAddress,
     customChainId: customChainId,
@@ -155,7 +174,7 @@ export function useRewardsPerStakerId(
     enabled: !!userAddress && !!customChainId,
     refetchInterval: 30000,
   });
- 
+
   return {
     data: query.data,
     isLoading: query.isLoading,
@@ -163,8 +182,8 @@ export function useRewardsPerStakerId(
   };
 }
 
-export function useAllRewards():{
-  data:{
+export function useAllRewards(): {
+  data: {
     rewardsByAvs: Map<string, RewardsPerAVS | undefined>;
     rewardsByToken: Map<string, RewardsPerToken | undefined>;
   };
@@ -202,7 +221,7 @@ export function useAllRewards():{
             // Use token key for the tokens map
             const tokenKey = getTokenKey(newToken.token);
             const existingToken = existing.tokens.get(tokenKey);
-            
+
             if (existingToken) {
               // Add amounts for the same token
               existing.tokens.set(tokenKey, {
@@ -219,7 +238,7 @@ export function useAllRewards():{
           rewardsByAvs.set(avsKey, {
             avs: reward.avs,
             tokens: new Map<string, { token: Token; amount: bigint }>(
-              Array.from(reward.tokens.entries())
+              Array.from(reward.tokens.entries()),
             ),
           });
         }
@@ -250,14 +269,20 @@ export function useAllRewards():{
           rewardsByToken.set(tokenKey, {
             token: tokenReward.token,
             totalAmount: tokenReward.amount,
-            sources: new Map<string, {
-              avs: AVS;
-              amount: bigint;
-            }>([
-              [avsReward.avs.address, {
-                avs: avsReward.avs,
-                amount: tokenReward.amount,
-              }],
+            sources: new Map<
+              string,
+              {
+                avs: AVS;
+                amount: bigint;
+              }
+            >([
+              [
+                avsReward.avs.address,
+                {
+                  avs: avsReward.avs,
+                  amount: tokenReward.amount,
+                },
+              ],
             ]),
           });
         }

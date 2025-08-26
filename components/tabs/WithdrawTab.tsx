@@ -3,34 +3,34 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
-import { Phase, PhaseStatus, OperationMode } from "@/types/staking";
+import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
-import { Info, ArrowRight, AlertCircle, Unlock, Wallet } from "lucide-react";
+import { ArrowRight, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
-import { 
-  OperationProgress, 
+import {
+  OperationProgress,
   OperationStep,
   transactionStep,
   confirmationStep,
   sendingRequestStep,
   receivingResponseStep,
-  completionStep
+  completionStep,
 } from "@/components/ui/operation-progress";
 import Image from "next/image";
 
 // Utility function to format amounts with fixed decimal places for DISPLAY ONLY
 // Use this for UI elements that don't require precise values (badges, status messages)
 // For functional elements (placeholders, MAX buttons), use formatUnits() for accuracy
-const formatAmountForDisplay = (amount: bigint, decimals: number, maxDecimals: number = 4): string => {
+const formatAmountForDisplay = (amount: bigint, decimals: number): string => {
   const fullAmount = formatUnits(amount, decimals);
   const num = parseFloat(fullAmount);
-  
+
   // Smart decimal formatting based on amount size
-  if (num < 0.0001) return num.toFixed(6);    // Very small: 6 decimals
-  if (num < 0.01) return num.toFixed(5);      // Small: 5 decimals  
-  if (num < 1) return num.toFixed(4);         // Medium: 4 decimals
-  if (num < 100) return num.toFixed(3);       // Large: 3 decimals
-  return num.toFixed(2);                       // Very large: 2 decimals
+  if (num < 0.0001) return num.toFixed(6); // Very small: 6 decimals
+  if (num < 0.01) return num.toFixed(5); // Small: 5 decimals
+  if (num < 1) return num.toFixed(4); // Medium: 4 decimals
+  if (num < 100) return num.toFixed(3); // Large: 3 decimals
+  return num.toFixed(2); // Very large: 2 decimals
 };
 
 interface WithdrawTabProps {
@@ -83,7 +83,7 @@ export function WithdrawTab({
 
   // Tab state for cleaner UX - Start with appropriate tab based on token type
   const [activeTab, setActiveTab] = useState<"claim" | "withdraw">(
-    isDirectWithdrawal ? "withdraw" : "claim"
+    isDirectWithdrawal ? "withdraw" : "claim",
   );
 
   // Operation progress state
@@ -100,7 +100,11 @@ export function WithdrawTab({
   useEffect(() => {
     if (isDirectWithdrawal && activeTab === "claim") {
       setActiveTab("withdraw");
-    } else if (!isDirectWithdrawal && activeTab === "withdraw" && maxWithdrawAmount === BigInt(0)) {
+    } else if (
+      !isDirectWithdrawal &&
+      activeTab === "withdraw" &&
+      maxWithdrawAmount === BigInt(0)
+    ) {
       setActiveTab("claim");
     }
   }, [isDirectWithdrawal, activeTab, maxWithdrawAmount]);
@@ -112,8 +116,14 @@ export function WithdrawTab({
       const steps: OperationStep[] = [
         { ...transactionStep, description: "Sending claim transaction" },
         { ...confirmationStep },
-        { ...sendingRequestStep, description: "Sending claim request to Imuachain" },
-        { ...receivingResponseStep, description: "Receiving approval from Imuachain" },
+        {
+          ...sendingRequestStep,
+          description: "Sending claim request to Imuachain",
+        },
+        {
+          ...receivingResponseStep,
+          description: "Receiving approval from Imuachain",
+        },
         { ...completionStep, description: "Claim completed" },
       ];
       setOperationSteps(steps);
@@ -130,15 +140,17 @@ export function WithdrawTab({
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
-    setOperationSteps(prev => {
+    setOperationSteps((prev) => {
       const updatedSteps = [...prev];
-      
+
       // Find the target index for the new phase
-      const targetIndex = updatedSteps.findIndex(step => step.phase === newPhase);
+      const targetIndex = updatedSteps.findIndex(
+        (step) => step.phase === newPhase,
+      );
       if (targetIndex >= 0) {
         // Mark the new step as processing
         updatedSteps[targetIndex].status = "processing";
-        
+
         // Update transaction hash for transaction step
         if (newPhase === "sendingTx" && txHash) {
           updatedSteps[targetIndex].txHash = txHash;
@@ -173,14 +185,14 @@ export function WithdrawTab({
 
       if (result.success) {
         // Mark final step as success
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
           if (updated[updated.length - 1]) {
             updated[updated.length - 1].status = "success";
           }
           return updated;
         });
-        
+
         // Auto-switch to withdraw tab after successful claim
         if (maxWithdrawAmount > BigInt(0) || parsedClaimAmount) {
           setActiveTab("withdraw");
@@ -188,12 +200,15 @@ export function WithdrawTab({
         if (onSuccess) onSuccess();
       } else {
         // Mark current step as error
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
-          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          const processingStepIndex = updated.findIndex(
+            (step) => step.status === "processing",
+          );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage = result.error || "Claim failed";
+            updated[processingStepIndex].errorMessage =
+              result.error || "Claim failed";
           }
           return updated;
         });
@@ -201,12 +216,15 @@ export function WithdrawTab({
     } catch (error) {
       console.error("Operation failed:", error);
       // Mark current step as error
-      setOperationSteps(prev => {
+      setOperationSteps((prev) => {
         const updated = [...prev];
-        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        const processingStepIndex = updated.findIndex(
+          (step) => step.status === "processing",
+        );
         if (processingStepIndex >= 0) {
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = error instanceof Error ? error.message : "Claim failed";
+          updated[processingStepIndex].errorMessage =
+            error instanceof Error ? error.message : "Claim failed";
         }
         return updated;
       });
@@ -234,23 +252,26 @@ export function WithdrawTab({
 
       if (result.success) {
         // Mark final step as success
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
           if (updated[updated.length - 1]) {
             updated[updated.length - 1].status = "success";
           }
           return updated;
         });
-        
+
         if (onSuccess) onSuccess();
       } else {
         // Mark current step as error
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
-          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          const processingStepIndex = updated.findIndex(
+            (step) => step.status === "processing",
+          );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage = result.error || "Withdrawal failed";
+            updated[processingStepIndex].errorMessage =
+              result.error || "Withdrawal failed";
           }
           return updated;
         });
@@ -258,12 +279,15 @@ export function WithdrawTab({
     } catch (error) {
       console.error("Operation failed:", error);
       // Mark current step as error
-      setOperationSteps(prev => {
+      setOperationSteps((prev) => {
         const updated = [...prev];
-        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        const processingStepIndex = updated.findIndex(
+          (step) => step.status === "processing",
+        );
         if (processingStepIndex >= 0) {
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = error instanceof Error ? error.message : "Withdrawal failed";
+          updated[processingStepIndex].errorMessage =
+            error instanceof Error ? error.message : "Withdrawal failed";
         }
         return updated;
       });
@@ -273,8 +297,10 @@ export function WithdrawTab({
   // Handle modal close - only reset on success
   const handleModalClose = () => {
     // Check if operation completed successfully by checking final step status
-    const isSuccess = operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success";
-    
+    const isSuccess =
+      operationSteps.length > 0 &&
+      operationSteps[operationSteps.length - 1]?.status === "success";
+
     if (isSuccess) {
       // Reset to initial state
       setClaimAmount("");
@@ -282,10 +308,12 @@ export function WithdrawTab({
       setRecipientAddress("");
       setActiveOperation(null);
       // Reset steps back to pending (not empty)
-      setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
       setTxHash(undefined);
     }
-    
+
     // Always close modal
     setShowProgress(false);
   };
@@ -330,7 +358,7 @@ export function WithdrawTab({
               </span>
             )}
           </button>
-          
+
           <button
             onClick={() => setActiveTab("withdraw")}
             disabled={maxWithdrawAmount === BigInt(0)}
@@ -356,7 +384,9 @@ export function WithdrawTab({
           <div className="inline-flex items-center space-x-2 px-4 py-2 bg-[#1a1a24] rounded-lg border border-[#333344]">
             <Wallet size={16} className="text-[#4ade80]" />
             <span className="text-white font-medium">Direct Withdrawal</span>
-            <span className="text-xs text-[#9999aa]">(No claim step needed)</span>
+            <span className="text-xs text-[#9999aa]">
+              (No claim step needed)
+            </span>
           </div>
         </div>
       )}
@@ -372,7 +402,9 @@ export function WithdrawTab({
               <div className="flex items-center justify-center space-x-2 text-xs mt-2">
                 <div className="w-2 h-2 rounded-full bg-[#4ade80]"></div>
                 <span className="text-[#4ade80]">
-                  You already have {formatAmountForDisplay(maxWithdrawAmount, decimals)} {token.symbol} unlocked
+                  You already have{" "}
+                  {formatAmountForDisplay(maxWithdrawAmount, decimals)}{" "}
+                  {token.symbol} unlocked
                 </span>
               </div>
             )}
@@ -394,119 +426,134 @@ export function WithdrawTab({
           </>
         ) : (
           <p className="text-sm text-[#9999aa]">
-            Direct withdrawal from Imuachain to your wallet (no claim step needed)
+            Direct withdrawal from Imuachain to your wallet (no claim step
+            needed)
           </p>
         )}
       </div>
 
       {/* Tab Content - Handle XRP tokens differently */}
-      {!isDirectWithdrawal && activeTab === "claim" && canClaimPrincipal && maxClaimAmount > BigInt(0) && (
-        <div className="p-6 bg-[#1a1a24] rounded-lg border border-[#333344]">
-          <div className="space-y-4">
-            {/* Simple header */}
-            <div className="text-center pb-2">
-              <h3 className="text-lg font-medium text-white">Claim Tokens</h3>
-            </div>
+      {!isDirectWithdrawal &&
+        activeTab === "claim" &&
+        canClaimPrincipal &&
+        maxClaimAmount > BigInt(0) && (
+          <div className="p-6 bg-[#1a1a24] rounded-lg border border-[#333344]">
+            <div className="space-y-4">
+              {/* Simple header */}
+              <div className="text-center pb-2">
+                <h3 className="text-lg font-medium text-white">Claim Tokens</h3>
+              </div>
 
-            {/* Simple flow indicator */}
-            <div className="flex items-center justify-center space-x-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-[#00e5ff] flex items-center justify-center text-black font-medium">
-                  {destinationChain.slice(0, 3)}
+              {/* Simple flow indicator */}
+              <div className="flex items-center justify-center space-x-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-full bg-[#00e5ff] flex items-center justify-center text-black font-medium">
+                    {destinationChain.slice(0, 3)}
+                  </div>
+                  <span className="text-[#9999aa]">
+                    From {destinationChain}
+                  </span>
                 </div>
-                <span className="text-[#9999aa]">From {destinationChain}</span>
-              </div>
-              <ArrowRight className="text-[#666677]" size={16} />
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-[#333344] flex items-center justify-center text-white font-medium">
-                  {sourceChain.slice(0, 3)}
+                <ArrowRight className="text-[#666677]" size={16} />
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-full bg-[#333344] flex items-center justify-center text-white font-medium">
+                    {sourceChain.slice(0, 3)}
+                  </div>
+                  <span className="text-[#9999aa]">To {sourceChain}</span>
                 </div>
-                <span className="text-[#9999aa]">To {sourceChain}</span>
-              </div>
-            </div>
-
-            {/* Amount input */}
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <label className="text-sm font-medium text-white">
-                  Amount to claim
-                </label>
-                <button
-                  className="text-xs font-medium text-[#00e5ff]"
-                  onClick={() => setClaimAmount(formatUnits(maxClaimAmount, decimals))}
-                >
-                  MAX
-                </button>
               </div>
 
-              <Input
-                type="text"
-                value={claimAmount}
-                onChange={(e) => setClaimAmount(e.target.value)}
-                className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
-                placeholder={`Enter amount (max: ${formatUnits(maxClaimAmount, decimals)} ${token.symbol})`}
-              />
+              {/* Amount input */}
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <label className="text-sm font-medium text-white">
+                    Amount to claim
+                  </label>
+                  <button
+                    className="text-xs font-medium text-[#00e5ff]"
+                    onClick={() =>
+                      setClaimAmount(formatUnits(maxClaimAmount, decimals))
+                    }
+                  >
+                    MAX
+                  </button>
+                </div>
 
-              {claimAmountError && (
-                <p className="text-sm text-red-500">{claimAmountError}</p>
-              )}
+                <Input
+                  type="text"
+                  value={claimAmount}
+                  onChange={(e) => setClaimAmount(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
+                  placeholder={`Enter amount (max: ${formatUnits(maxClaimAmount, decimals)} ${token.symbol})`}
+                />
+
+                {claimAmountError && (
+                  <p className="text-sm text-red-500">{claimAmountError}</p>
+                )}
+              </div>
+
+              <Button
+                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+                disabled={
+                  showProgress ||
+                  !!claimAmountError ||
+                  !claimAmount ||
+                  !parsedClaimAmount ||
+                  parsedClaimAmount === BigInt(0)
+                }
+                onClick={handleClaimOperation}
+              >
+                {showProgress && activeOperation === "claim"
+                  ? "Processing..."
+                  : "Claim Tokens"}
+              </Button>
             </div>
-
-            <Button
-              className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
-              disabled={
-                showProgress ||
-                !!claimAmountError ||
-                !claimAmount ||
-                !parsedClaimAmount ||
-                parsedClaimAmount === BigInt(0)
-              }
-              onClick={handleClaimOperation}
-            >
-              {showProgress && activeOperation === "claim"
-                ? "Processing..."
-                : "Claim Tokens"}
-            </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === "claim" && (!canClaimPrincipal || maxClaimAmount === BigInt(0)) && (
-        <div className="p-8 text-center">
-          <div className="w-16 h-16 bg-[#666677]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Unlock size={24} className="text-[#666677]" />
+      {activeTab === "claim" &&
+        (!canClaimPrincipal || maxClaimAmount === BigInt(0)) && (
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 bg-[#666677]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Unlock size={24} className="text-[#666677]" />
+            </div>
+            <h3 className="text-lg font-medium text-white mb-2">
+              No Tokens to Claim
+            </h3>
+            <p className="text-[#9999aa]">
+              {!canClaimPrincipal
+                ? "Claim functionality is not available for this token."
+                : "You don't have any tokens available to claim."}
+            </p>
           </div>
-          <h3 className="text-lg font-medium text-white mb-2">No Tokens to Claim</h3>
-          <p className="text-[#9999aa]">
-            {!canClaimPrincipal 
-              ? "Claim functionality is not available for this token."
-              : "You don't have any tokens available to claim."
-            }
-          </p>
-        </div>
-      )}
+        )}
 
       {/* Success State for Claim */}
-      {!isDirectWithdrawal && activeTab === "claim" && activeOperation === "claim" && 
-       operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success" && (
-        <div className="p-6 bg-[#0a1a0a] rounded-lg border border-[#4ade80]/30">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-[#4ade80] rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-black text-xl">✓</span>
+      {!isDirectWithdrawal &&
+        activeTab === "claim" &&
+        activeOperation === "claim" &&
+        operationSteps.length > 0 &&
+        operationSteps[operationSteps.length - 1]?.status === "success" && (
+          <div className="p-6 bg-[#0a1a0a] rounded-lg border border-[#4ade80]/30">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-[#4ade80] rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-black text-xl">✓</span>
+              </div>
+              <h3 className="text-lg font-medium text-[#4ade80] mb-2">
+                Tokens Claimed Successfully!
+              </h3>
+              <p className="text-[#86efac] mb-4">
+                Your tokens are now unlocked and available for withdrawal.
+              </p>
+              <Button
+                onClick={() => setActiveTab("withdraw")}
+                className="bg-[#4ade80] hover:bg-[#4ade80]/90 text-black font-medium"
+              >
+                Go to Withdraw
+              </Button>
             </div>
-            <h3 className="text-lg font-medium text-[#4ade80] mb-2">Tokens Claimed Successfully!</h3>
-            <p className="text-[#86efac] mb-4">
-              Your tokens are now unlocked and available for withdrawal.
-            </p>
-            <Button
-              onClick={() => setActiveTab("withdraw")}
-              className="bg-[#4ade80] hover:bg-[#4ade80]/90 text-black font-medium"
-            >
-              Go to Withdraw
-            </Button>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Direct Withdrawal for XRP tokens */}
       {isDirectWithdrawal && (
@@ -514,7 +561,9 @@ export function WithdrawTab({
           <div className="space-y-4">
             {/* Header */}
             <div className="text-center pb-2">
-              <h3 className="text-lg font-medium text-white">Direct Withdrawal</h3>
+              <h3 className="text-lg font-medium text-white">
+                Direct Withdrawal
+              </h3>
             </div>
 
             {/* Amount input */}
@@ -525,7 +574,9 @@ export function WithdrawTab({
                 </label>
                 <button
                   className="text-xs font-medium text-[#00e5ff]"
-                  onClick={() => setWithdrawAmount(formatUnits(maxWithdrawAmount, decimals))}
+                  onClick={() =>
+                    setWithdrawAmount(formatUnits(maxWithdrawAmount, decimals))
+                  }
                 >
                   MAX
                 </button>
@@ -580,95 +631,107 @@ export function WithdrawTab({
       )}
 
       {/* Withdraw Tab Content */}
-      {!isDirectWithdrawal && activeTab === "withdraw" && maxWithdrawAmount > BigInt(0) && (
-        <div className="p-6 bg-[#1a1a24] rounded-lg border border-[#333344]">
-          <div className="space-y-4">
-            {/* Simple header */}
-            <div className="text-center pb-2">
-              <h3 className="text-lg font-medium text-white">Withdraw Tokens</h3>
-            </div>
-
-            {/* Amount input */}
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <label className="text-sm font-medium text-white">
-                  Amount to withdraw
-                </label>
-                <button
-                  className="text-xs font-medium text-[#00e5ff]"
-                  onClick={() => setWithdrawAmount(formatUnits(maxWithdrawAmount, decimals))}
-                >
-                  MAX
-                </button>
+      {!isDirectWithdrawal &&
+        activeTab === "withdraw" &&
+        maxWithdrawAmount > BigInt(0) && (
+          <div className="p-6 bg-[#1a1a24] rounded-lg border border-[#333344]">
+            <div className="space-y-4">
+              {/* Simple header */}
+              <div className="text-center pb-2">
+                <h3 className="text-lg font-medium text-white">
+                  Withdraw Tokens
+                </h3>
               </div>
 
-              <Input
-                type="text"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
-                placeholder={`Enter amount (max: ${formatUnits(maxWithdrawAmount, decimals)} ${token.symbol})`}
-              />
+              {/* Amount input */}
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <label className="text-sm font-medium text-white">
+                    Amount to withdraw
+                  </label>
+                  <button
+                    className="text-xs font-medium text-[#00e5ff]"
+                    onClick={() =>
+                      setWithdrawAmount(
+                        formatUnits(maxWithdrawAmount, decimals),
+                      )
+                    }
+                  >
+                    MAX
+                  </button>
+                </div>
 
-              {withdrawAmountError && (
-                <p className="text-sm text-red-500">{withdrawAmountError}</p>
-              )}
+                <Input
+                  type="text"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
+                  placeholder={`Enter amount (max: ${formatUnits(maxWithdrawAmount, decimals)} ${token.symbol})`}
+                />
+
+                {withdrawAmountError && (
+                  <p className="text-sm text-red-500">{withdrawAmountError}</p>
+                )}
+              </div>
+
+              {/* Recipient address */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white">
+                  Recipient Address (optional)
+                </label>
+                <Input
+                  placeholder="Enter address or leave blank to use your wallet"
+                  value={recipientAddress}
+                  onChange={(e) => setRecipientAddress(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white"
+                />
+                <p className="text-xs text-[#9999aa]">
+                  If left blank, tokens will be sent to your connected wallet
+                </p>
+              </div>
+
+              <Button
+                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+                disabled={
+                  showProgress ||
+                  !!withdrawAmountError ||
+                  !withdrawAmount ||
+                  !parsedWithdrawAmount ||
+                  parsedWithdrawAmount === BigInt(0)
+                }
+                onClick={handleWithdrawOperation}
+              >
+                {showProgress && activeOperation === "withdraw"
+                  ? "Processing..."
+                  : "Withdraw Tokens"}
+              </Button>
             </div>
+          </div>
+        )}
 
-            {/* Recipient address */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-white">
-                Recipient Address (optional)
-              </label>
-              <Input
-                placeholder="Enter address or leave blank to use your wallet"
-                value={recipientAddress}
-                onChange={(e) => setRecipientAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white"
-              />
-              <p className="text-xs text-[#9999aa]">
-                If left blank, tokens will be sent to your connected wallet
-              </p>
+      {!isDirectWithdrawal &&
+        activeTab === "withdraw" &&
+        maxWithdrawAmount === BigInt(0) && (
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 bg-[#666677]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Wallet size={24} className="text-[#666677]" />
             </div>
-
-            <Button
-              className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
-              disabled={
-                showProgress ||
-                !!withdrawAmountError ||
-                !withdrawAmount ||
-                !parsedWithdrawAmount ||
-                parsedWithdrawAmount === BigInt(0)
-              }
-              onClick={handleWithdrawOperation}
-            >
-              {showProgress && activeOperation === "withdraw"
-                ? "Processing..."
-                : "Withdraw Tokens"}
-            </Button>
+            <h3 className="text-lg font-medium text-white mb-2">
+              No Tokens to Withdraw
+            </h3>
+            <p className="text-[#9999aa] mb-4">
+              Claim tokens first to unlock them for withdrawal.
+            </p>
+            {canClaimPrincipal && maxClaimAmount > BigInt(0) && (
+              <Button
+                onClick={() => setActiveTab("claim")}
+                className="bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              >
+                Go to Claim
+              </Button>
+            )}
           </div>
-        </div>
-      )}
-
-      {!isDirectWithdrawal && activeTab === "withdraw" && maxWithdrawAmount === BigInt(0) && (
-        <div className="p-8 text-center">
-          <div className="w-16 h-16 bg-[#666677]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Wallet size={24} className="text-[#666677]" />
-          </div>
-          <h3 className="text-lg font-medium text-white mb-2">No Tokens to Withdraw</h3>
-          <p className="text-[#9999aa] mb-4">
-            Claim tokens first to unlock them for withdrawal.
-          </p>
-          {canClaimPrincipal && maxClaimAmount > BigInt(0) && (
-            <Button
-              onClick={() => setActiveTab("claim")}
-              className="bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
-            >
-              Go to Claim
-            </Button>
-          )}
-        </div>
-      )}
+        )}
 
       {/* Progress overlay - Use OperationProgress directly */}
       {showProgress && operationSteps.length > 0 && (
@@ -676,25 +739,34 @@ export function WithdrawTab({
           progress={{
             operation: activeOperation === "claim" ? "claim" : "withdraw",
             chainInfo: {
-              sourceChain: activeOperation === "claim" ? destinationChain : sourceChain,
-              destinationChain: activeOperation === "claim" ? sourceChain : destinationChain,
+              sourceChain:
+                activeOperation === "claim" ? destinationChain : sourceChain,
+              destinationChain:
+                activeOperation === "claim" ? sourceChain : destinationChain,
             },
             steps: operationSteps,
             overallStatus: {
               // Derive current phase from step statuses
               currentPhase: (() => {
-                const processingStep = operationSteps.find(step => step.status === "processing");
+                const processingStep = operationSteps.find(
+                  (step) => step.status === "processing",
+                );
                 if (processingStep) return processingStep.phase;
-                
-                const lastSuccessStep = operationSteps.filter(step => step.status === "success").pop();
+
+                const lastSuccessStep = operationSteps
+                  .filter((step) => step.status === "success")
+                  .pop();
                 if (lastSuccessStep) return lastSuccessStep.phase;
-                
+
                 return "sendingTx";
               })(),
               currentPhaseStatus: (() => {
-                if (operationSteps.some(step => step.status === "error")) return "error" as PhaseStatus;
-                if (operationSteps.every(step => step.status === "success")) return "success" as PhaseStatus;
-                if (operationSteps.some(step => step.status === "processing")) return "processing" as PhaseStatus;
+                if (operationSteps.some((step) => step.status === "error"))
+                  return "error" as PhaseStatus;
+                if (operationSteps.every((step) => step.status === "success"))
+                  return "success" as PhaseStatus;
+                if (operationSteps.some((step) => step.status === "processing"))
+                  return "processing" as PhaseStatus;
                 return "pending" as PhaseStatus;
               })(),
             },

@@ -1,12 +1,4 @@
-import { Connector } from "wagmi";
-import {
-  Network,
-  EVMNetwork,
-  XRPL,
-  sepolia,
-  xrpl,
-  imuaChain,
-} from "./networks";
+import { Network, EVMNetwork, sepolia, xrpl, imuaChain } from "./networks";
 import { ConnectorBase, evmConnector, gemConnector } from "./connectors";
 import { imuaDenom } from "./rewards";
 
@@ -115,9 +107,13 @@ export function getTokenKey(token: Token): string {
 
 // Helper function for reverse lookup
 export function getTokenByKey(key: string): Token | undefined {
-  const [customChainId, tokenAddress] = key.split('_');
+  const [customChainId, tokenAddress] = key.split("_");
   const tokens = new Set<Token>([...validTokens, ...validRewardTokens]);
-  const token = Array.from(tokens).find(t => t.address.toLowerCase() === tokenAddress.toLowerCase() && t.network.customChainIdByImua === parseInt(customChainId));
+  const token = Array.from(tokens).find(
+    (t) =>
+      t.address.toLowerCase() === tokenAddress.toLowerCase() &&
+      t.network.customChainIdByImua === parseInt(customChainId),
+  );
   if (!token) {
     return undefined;
   }
@@ -125,11 +121,13 @@ export function getTokenByKey(key: string): Token | undefined {
 }
 
 export function getTokenBySymbol(symbol: string): Token | undefined {
-  if ( symbol === imuaDenom) {
+  if (symbol === imuaDenom) {
     return imua;
   }
   const tokens = new Set<Token>([...validTokens, ...validRewardTokens]);
-  const matchingTokens = Array.from(tokens).filter(t => t.symbol.toLowerCase() === symbol.toLowerCase());
+  const matchingTokens = Array.from(tokens).filter(
+    (t) => t.symbol.toLowerCase() === symbol.toLowerCase(),
+  );
   if (matchingTokens.length === 0) {
     return undefined;
   }

@@ -1,13 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import {
-  BaseTxOptions,
-  StakerBalance,
-  WalletBalance,
-} from "@/types/staking";
+import { BaseTxOptions, StakerBalance, WalletBalance } from "@/types/staking";
 import {
   XRP_CHAIN_ID,
   XRP_TOKEN_ENUM,
@@ -138,7 +134,8 @@ export function useXRPStaking(): StakingService {
       if (operatorAddress)
         throw new Error("Operator address not supported for now");
       if (!evmAddress) throw new Error("EVM wallet not connected");
-      if (boundImuaAddress && boundImuaAddress !== evmAddress) throw new Error("EVM wallet address does not match bound address");
+      if (boundImuaAddress && boundImuaAddress !== evmAddress)
+        throw new Error("EVM wallet address does not match bound address");
 
       // Get account info using the xrplClient
       const accountInfo = await getAccountInfo(xrpAddress);
@@ -183,24 +180,29 @@ export function useXRPStaking(): StakingService {
 
       const spawnTx = () => sendTransaction(txPayload);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(effectiveAddress as `0x${string}`, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
+        const balance = await getStakerBalanceByToken(
+          effectiveAddress as `0x${string}`,
+          XRP_CHAIN_ID,
+          XRP_TOKEN_ADDRESS,
+        );
         return balance?.totalDeposited || BigInt(0);
       };
-      const verifyCompletion = async (balanceBefore: bigint, balanceAfter: bigint) => {
+      const verifyCompletion = async (
+        balanceBefore: bigint,
+        balanceAfter: bigint,
+      ) => {
         return balanceAfter === balanceBefore + amount;
       };
 
-      const { hash, success, error } = await handleXrplTxWithStatus(
-        {
-          spawnTx: spawnTx,
-          mode: "simplex",
-          getTransactionStatus: getTransactionStatus,
-          verifyCompletion: verifyCompletion,
-          getStateSnapshot: getStateSnapshot,
-          onPhaseChange: options?.onPhaseChange,
-          utxoGateway: contract,
-        },
-      );
+      const { hash, success, error } = await handleXrplTxWithStatus({
+        spawnTx: spawnTx,
+        mode: "simplex",
+        getTransactionStatus: getTransactionStatus,
+        verifyCompletion: verifyCompletion,
+        getStateSnapshot: getStateSnapshot,
+        onPhaseChange: options?.onPhaseChange,
+        utxoGateway: contract,
+      });
 
       // If transaction and following checks were successful and we don't have a bound address yet, we should explicitly set the bound address
       if (success && !boundImuaAddress && effectiveAddress) {
@@ -231,61 +233,95 @@ export function useXRPStaking(): StakingService {
 
   // Delegate XRP to an operator
   const delegateXrp = useCallback(
-    async (operator: string, amount: bigint, options?: Pick<BaseTxOptions, "onPhaseChange">) => {
-      if (!contract || !boundImuaAddress) throw new Error("Contract not available or bound address not found");
+    async (
+      operator: string,
+      amount: bigint,
+      options?: Pick<BaseTxOptions, "onPhaseChange">,
+    ) => {
+      if (!contract || !boundImuaAddress)
+        throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
-      if (evmAddress && evmAddress !== boundImuaAddress) throw new Error("EVM wallet address does not match bound address");
+      if (evmAddress && evmAddress !== boundImuaAddress)
+        throw new Error("EVM wallet address does not match bound address");
 
-      const spawnTx = () => contract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
+      const spawnTx = () =>
+        contract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(boundImuaAddress, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
+        const balance = await getStakerBalanceByToken(
+          boundImuaAddress,
+          XRP_CHAIN_ID,
+          XRP_TOKEN_ADDRESS,
+        );
         return balance?.delegated || BigInt(0);
       };
-      const verifyCompletion = async (delegatedBefore: bigint, delegatedAfter: bigint) => {
+      const verifyCompletion = async (
+        delegatedBefore: bigint,
+        delegatedAfter: bigint,
+      ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
 
-      return handleEVMTxWithStatus(
-        {
-          spawnTx: spawnTx,
-          mode: "local",
-          publicClient: publicClient,
-          verifyCompletion: verifyCompletion,
-          getStateSnapshot: getStateSnapshot,
-          onPhaseChange: options?.onPhaseChange,
-        },
-      );
+      return handleEVMTxWithStatus({
+        spawnTx: spawnTx,
+        mode: "local",
+        publicClient: publicClient,
+        verifyCompletion: verifyCompletion,
+        getStateSnapshot: getStateSnapshot,
+        onPhaseChange: options?.onPhaseChange,
+      });
     },
     [contract, handleEVMTxWithStatus, publicClient],
   );
 
   // Undelegate XRP from an operator
   const undelegateXrp = useCallback(
-    async (operator: string, amount: bigint, instantUnbond: boolean, options?: Pick<BaseTxOptions, "onPhaseChange">) => {
-      if (!contract || !boundImuaAddress) throw new Error("Contract not available or bound address not found");
+    async (
+      operator: string,
+      amount: bigint,
+      instantUnbond: boolean,
+      options?: Pick<BaseTxOptions, "onPhaseChange">,
+    ) => {
+      if (!contract || !boundImuaAddress)
+        throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
-      if (evmAddress && evmAddress !== boundImuaAddress) throw new Error("EVM wallet address does not match bound address");
+      if (evmAddress && evmAddress !== boundImuaAddress)
+        throw new Error("EVM wallet address does not match bound address");
 
-      const spawnTx = () => contract.write.undelegateFrom([XRP_TOKEN_ENUM, operator, amount, instantUnbond]);
+      const spawnTx = () =>
+        contract.write.undelegateFrom([
+          XRP_TOKEN_ENUM,
+          operator,
+          amount,
+          instantUnbond,
+        ]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(boundImuaAddress, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
-        return instantUnbond ? balance?.withdrawable : balance?.pendingUndelegated || BigInt(0);
+        const balance = await getStakerBalanceByToken(
+          boundImuaAddress,
+          XRP_CHAIN_ID,
+          XRP_TOKEN_ADDRESS,
+        );
+        return instantUnbond
+          ? balance?.withdrawable
+          : balance?.pendingUndelegated || BigInt(0);
       };
 
-      const verifyCompletion = async (balanceBefore: bigint, BalanceAfter: bigint) => {
-        return instantUnbond ? BalanceAfter > balanceBefore : BalanceAfter === balanceBefore + amount;
+      const verifyCompletion = async (
+        balanceBefore: bigint,
+        BalanceAfter: bigint,
+      ) => {
+        return instantUnbond
+          ? BalanceAfter > balanceBefore
+          : BalanceAfter === balanceBefore + amount;
       };
 
-      return handleEVMTxWithStatus(
-        {
-          spawnTx: spawnTx,
-          mode: "local",
-          publicClient: publicClient,
-          verifyCompletion: verifyCompletion,
-          getStateSnapshot: getStateSnapshot,
-          onPhaseChange: options?.onPhaseChange,
-        },
-      );
+      return handleEVMTxWithStatus({
+        spawnTx: spawnTx,
+        mode: "local",
+        publicClient: publicClient,
+        verifyCompletion: verifyCompletion,
+        getStateSnapshot: getStateSnapshot,
+        onPhaseChange: options?.onPhaseChange,
+      });
     },
     [contract, handleEVMTxWithStatus, publicClient],
   );
@@ -297,30 +333,38 @@ export function useXRPStaking(): StakingService {
       recipient?: `0x${string}`,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !boundImuaAddress) throw new Error("Contract not available or bound address not found");
+      if (!contract || !boundImuaAddress)
+        throw new Error("Contract not available or bound address not found");
       if (!amount) throw new Error("Invalid parameters");
       if (recipient) throw new Error("Recipient not supported for now");
-      if (evmAddress && evmAddress !== boundImuaAddress) throw new Error("EVM wallet address does not match bound address");
+      if (evmAddress && evmAddress !== boundImuaAddress)
+        throw new Error("EVM wallet address does not match bound address");
 
-      const spawnTx = () => contract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
+      const spawnTx = () =>
+        contract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(boundImuaAddress, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
+        const balance = await getStakerBalanceByToken(
+          boundImuaAddress,
+          XRP_CHAIN_ID,
+          XRP_TOKEN_ADDRESS,
+        );
         return balance?.withdrawable || BigInt(0);
       };
-      const verifyCompletion = async (balanceBefore: bigint, balanceAfter: bigint) => {
+      const verifyCompletion = async (
+        balanceBefore: bigint,
+        balanceAfter: bigint,
+      ) => {
         return balanceAfter === balanceBefore - amount;
       };
 
-      return handleEVMTxWithStatus(
-        {
-          spawnTx: spawnTx,
-          mode: "local",
-          publicClient: publicClient,
-          verifyCompletion: verifyCompletion,
-          getStateSnapshot: getStateSnapshot,
-          onPhaseChange: options?.onPhaseChange,
-        },
-      );
+      return handleEVMTxWithStatus({
+        spawnTx: spawnTx,
+        mode: "local",
+        publicClient: publicClient,
+        verifyCompletion: verifyCompletion,
+        getStateSnapshot: getStateSnapshot,
+        onPhaseChange: options?.onPhaseChange,
+      });
     },
     [contract, handleEVMTxWithStatus, publicClient],
   );

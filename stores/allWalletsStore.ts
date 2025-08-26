@@ -25,7 +25,10 @@ export const useAllWalletsStore = create<AllWalletsState>((set) => ({
     }),
 }));
 
-export function getQueryStakerAddress(token: Token): { queryAddress: string | undefined, stakerAddress: string | undefined } {
+export function getQueryStakerAddress(token: Token): {
+  queryAddress: string | undefined;
+  stakerAddress: string | undefined;
+} {
   const wallets = useAllWalletsStore.getState().wallets;
   const wallet = wallets[token.network.customChainIdByImua];
   let stakerAddress: string | undefined = undefined;

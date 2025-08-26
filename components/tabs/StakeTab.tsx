@@ -4,18 +4,18 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
-import { Phase, PhaseStatus, OperationMode } from "@/types/staking";
+import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { 
-  OperationProgress, 
+import {
+  OperationProgress,
   OperationStep,
   approvalStep,
   transactionStep,
   confirmationStep,
   sendingRequestStep,
-  completionStep
+  completionStep,
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
@@ -98,15 +98,17 @@ export function StakeTab({
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
-    setOperationSteps(prev => {
+    setOperationSteps((prev) => {
       const updatedSteps = [...prev];
-      
+
       // Find the target index for the new phase
-      const targetIndex = updatedSteps.findIndex(step => step.phase === newPhase);
+      const targetIndex = updatedSteps.findIndex(
+        (step) => step.phase === newPhase,
+      );
       if (targetIndex >= 0) {
         // Mark the new step as processing
         updatedSteps[targetIndex].status = "processing";
-        
+
         // Update transaction hash for transaction step
         if (newPhase === "sendingTx" && txHash) {
           updatedSteps[targetIndex].txHash = txHash;
@@ -175,7 +177,9 @@ export function StakeTab({
   // Handle stake/deposit operation
   const handleOperation = async () => {
     // Reset progress state
-    setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+    setOperationSteps((prev) =>
+      prev.map((step) => ({ ...step, status: "pending" })),
+    );
     setShowProgress(true);
 
     try {
@@ -195,7 +199,7 @@ export function StakeTab({
 
       if (result.success) {
         // ✅ FIX: Mark the final step (verifying completion) as success
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
           // Find the last step (verifying completion) and mark it as success
           const lastStepIndex = updated.length - 1;
@@ -204,27 +208,31 @@ export function StakeTab({
           }
           return updated;
         });
-        
+
         if (onSuccess) onSuccess();
       } else {
         // Mark current step as error
-        setOperationSteps(prev => {
+        setOperationSteps((prev) => {
           const updated = [...prev];
-          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          const processingStepIndex = updated.findIndex(
+            (step) => step.status === "processing",
+          );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage = result.error || "Operation failed";
+            updated[processingStepIndex].errorMessage =
+              result.error || "Operation failed";
           }
           return updated;
         });
-        
       }
     } catch (error) {
       console.error("Operation failed:", error);
       // Mark current step as error
-      setOperationSteps(prev => {
+      setOperationSteps((prev) => {
         const updated = [...prev];
-        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        const processingStepIndex = updated.findIndex(
+          (step) => step.status === "processing",
+        );
         if (processingStepIndex >= 0) {
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage = "Operation failed";
@@ -265,18 +273,25 @@ export function StakeTab({
     overallStatus: {
       // Derive current phase from step statuses
       currentPhase: (() => {
-        const processingStep = operationSteps.find(step => step.status === "processing");
+        const processingStep = operationSteps.find(
+          (step) => step.status === "processing",
+        );
         if (processingStep) return processingStep.phase;
-        
-        const lastSuccessStep = operationSteps.filter(step => step.status === "success").pop();
+
+        const lastSuccessStep = operationSteps
+          .filter((step) => step.status === "success")
+          .pop();
         if (lastSuccessStep) return lastSuccessStep.phase;
-        
+
         return "approving";
       })(),
       currentPhaseStatus: (() => {
-        if (operationSteps.some(step => step.status === "error")) return "error" as PhaseStatus;
-        if (operationSteps.every(step => step.status === "success")) return "success" as PhaseStatus;
-        if (operationSteps.some(step => step.status === "processing")) return "processing" as PhaseStatus;
+        if (operationSteps.some((step) => step.status === "error"))
+          return "error" as PhaseStatus;
+        if (operationSteps.every((step) => step.status === "success"))
+          return "success" as PhaseStatus;
+        if (operationSteps.some((step) => step.status === "processing"))
+          return "processing" as PhaseStatus;
         return "pending" as PhaseStatus;
       })(),
     },
@@ -285,18 +300,22 @@ export function StakeTab({
   // Handle modal close - only reset on success
   const handleModalClose = () => {
     // Check if operation completed successfully by checking final step status
-    const isSuccess = operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success";
-    
+    const isSuccess =
+      operationSteps.length > 0 &&
+      operationSteps[operationSteps.length - 1]?.status === "success";
+
     if (isSuccess) {
       // Reset to initial state
       setCurrentStep("amount");
       setAmount("");
       setSelectedOperator(null);
       // Reset steps back to pending (not empty)
-      setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
       setTxHash(undefined);
     }
-    
+
     // Always close modal
     setShowProgress(false);
   };

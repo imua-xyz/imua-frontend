@@ -2,27 +2,19 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  TrendingUp, 
-  DollarSign, 
-  Users, 
-  RefreshCw, 
-  ArrowRight, 
-  Plus, 
-  Eye, 
-  Zap,
+import { motion } from "framer-motion";
+import {
+  ChevronDown,
+  TrendingUp,
+  ArrowRight,
   ChevronRight,
   AlertCircle,
-  Wallet
+  Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { validTokens, Token, getTokenKey } from "@/types/tokens";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
 import { useSyncAllWalletsToStore } from "@/hooks/useSyncAllWalletsToStore";
-import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { WalletConnectorProvider } from "@/components/providers/WalletConnectorProvider";
 import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal";
 import { Header } from "@/components/layout/header";
@@ -39,7 +31,11 @@ import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { useDelegations } from "@/hooks/useDelegations";
 import { useOperators, useOperatorsWithOptInAVS } from "@/hooks/useOperators";
 import { validRewardTokens } from "@/types/tokens";
-import { RewardsPerToken, RewardsPerAVS, RewardsPerTokenWithValues } from "@/types/rewards";
+import {
+  RewardsPerToken,
+  RewardsPerAVS,
+  RewardsPerTokenWithValues,
+} from "@/types/rewards";
 import { StakingPositionPerToken } from "@/types/position";
 import { DelegationPerOperator } from "@/types/delegations";
 import { AVS } from "@/types/avs";
@@ -115,17 +111,17 @@ export default function DashboardPage() {
 
   // Sync wallet state
   useSyncAllWalletsToStore();
-  
+
   // Get wallet connection status
   const { wallets } = useAllWalletsStore();
-  
+
   // Helper function to check if wallet is connected for a token
   const isWalletConnectedForToken = (token: Token) => {
     const chainId = token.network.customChainIdByImua;
     const walletState = wallets[chainId];
-    return walletState?.isConnected && !!walletState?.address || false;
+    return (walletState?.isConnected && !!walletState?.address) || false;
   };
-  
+
   // Helper function to open wallet connection modal for a specific token
   const openWalletConnectionModal = (token: Token) => {
     setProviderToken(token); // Switch provider to the correct token
@@ -134,11 +130,14 @@ export default function DashboardPage() {
   };
 
   // Navigation functions to staking page with correct token and tab
-  const navigateToStaking = (token: Token, tab: 'stake' | 'delegate' | 'undelegate' | 'withdraw' = 'stake') => {
+  const navigateToStaking = (
+    token: Token,
+    tab: "stake" | "delegate" | "undelegate" | "withdraw" = "stake",
+  ) => {
     // Store the selected token and tab in localStorage for the staking page to read
-    localStorage.setItem('selectedStakingToken', JSON.stringify(token));
-    localStorage.setItem('selectedStakingTab', tab);
-    router.push('/staking');
+    localStorage.setItem("selectedStakingToken", JSON.stringify(token));
+    localStorage.setItem("selectedStakingTab", tab);
+    router.push("/staking");
   };
 
   // Always call hooks, but handle logic conditionally
@@ -178,7 +177,8 @@ export default function DashboardPage() {
     return Array.from(positions?.values() || []).reduce((sum, pos) => {
       if (pos.data) {
         const price = prices?.get(getTokenKey(pos.data.token))?.data?.data || 0;
-        const priceDecimals = prices?.get(getTokenKey(pos.data.token))?.data?.decimals || 0;
+        const priceDecimals =
+          prices?.get(getTokenKey(pos.data.token))?.data?.decimals || 0;
         const priceValue = Number(price) / Math.pow(10, priceDecimals);
         const value =
           (Number(pos.data.totalDeposited) /
@@ -194,7 +194,8 @@ export default function DashboardPage() {
     return Array.from(rewardsByToken?.values() || []).reduce((sum, reward) => {
       if (!reward) return sum;
       const price = prices?.get(getTokenKey(reward.token))?.data?.data || 0;
-      const priceDecimals = prices?.get(getTokenKey(reward.token))?.data?.decimals || 0;
+      const priceDecimals =
+        prices?.get(getTokenKey(reward.token))?.data?.decimals || 0;
       const priceValue = Number(price) / Math.pow(10, priceDecimals);
       const value =
         (Number(reward.totalAmount) / Math.pow(10, reward.token.decimals)) *
@@ -209,12 +210,13 @@ export default function DashboardPage() {
       .filter((reward): reward is RewardsPerToken => reward !== undefined)
       .map((reward) => {
         const price = prices?.get(getTokenKey(reward.token))?.data?.data || 0;
-        const priceDecimals = prices?.get(getTokenKey(reward.token))?.data?.decimals || 0;
+        const priceDecimals =
+          prices?.get(getTokenKey(reward.token))?.data?.decimals || 0;
         const priceValue = Number(price) / Math.pow(10, priceDecimals);
         const totalValue =
           (Number(reward.totalAmount) / Math.pow(10, reward.token.decimals)) *
           priceValue;
-        
+
         // Convert sources Map to array with values
         const sourcesArray = Array.from(reward.sources.values());
         const sourcesWithValues = sourcesArray.map((source) => {
@@ -226,7 +228,7 @@ export default function DashboardPage() {
             value: sourceValue,
           };
         });
-        
+
         return {
           ...reward,
           totalValue,
@@ -273,17 +275,21 @@ export default function DashboardPage() {
                 <SkeletonCard />
                 <SkeletonCard />
               </div>
-              
+
               {/* Positions Section Skeleton */}
-              <h2 className="text-xl font-bold text-white mb-6">Your Positions</h2>
+              <h2 className="text-xl font-bold text-white mb-6">
+                Your Positions
+              </h2>
               <div className="space-y-6 mb-10">
                 {[1, 2, 3].map((i) => (
                   <SkeletonPositionCard key={i} />
                 ))}
               </div>
-              
+
               {/* Rewards Section Skeleton */}
-              <h2 className="text-xl font-bold text-white mb-6">Your Rewards</h2>
+              <h2 className="text-xl font-bold text-white mb-6">
+                Your Rewards
+              </h2>
               <div className="space-y-4 mb-10">
                 {[1, 2].map((i) => (
                   <SkeletonPositionCard key={i} />
@@ -299,8 +305,8 @@ export default function DashboardPage() {
               <p className="text-[#9999aa] text-sm mt-2 mb-4">
                 Please try refreshing the page
               </p>
-              <Button 
-                onClick={() => window.location.reload()} 
+              <Button
+                onClick={() => window.location.reload()}
                 className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
               >
                 Refresh Dashboard
@@ -313,20 +319,20 @@ export default function DashboardPage() {
               {/* Quick Actions */}
               <div className="mb-6">
                 <div className="flex flex-wrap gap-3">
-                  <Button 
+                  <Button
                     className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
-                    onClick={() => window.location.href = '/staking'}
+                    onClick={() => (window.location.href = "/staking")}
                   >
                     Start Staking
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="border-[#00e5ff] text-[#00e5ff] hover:bg-[#00e5ff] hover:text-black"
                   >
                     View All Operators
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="border-[#00e5ff] text-[#00e5ff] hover:bg-[#00e5ff] hover:text-black"
                   >
                     Claim All Rewards
@@ -359,9 +365,14 @@ export default function DashboardPage() {
                               .filter((pos) => pos.data)
                               .map((pos, idx) => {
                                 const position = pos.data!;
-                                const price = prices?.get(getTokenKey(position.token))?.data?.data || 0;
-                                const priceDecimals = prices?.get(getTokenKey(position.token))?.data?.decimals || 0;
-                                const priceValue = Number(price) / Math.pow(10, priceDecimals);
+                                const price =
+                                  prices?.get(getTokenKey(position.token))?.data
+                                    ?.data || 0;
+                                const priceDecimals =
+                                  prices?.get(getTokenKey(position.token))?.data
+                                    ?.decimals || 0;
+                                const priceValue =
+                                  Number(price) / Math.pow(10, priceDecimals);
                                 const value =
                                   (Number(position.totalDeposited) /
                                     Math.pow(10, position.token.decimals)) *
@@ -411,9 +422,14 @@ export default function DashboardPage() {
                           .filter((pos) => pos.data)
                           .map((pos, idx) => {
                             const position = pos.data!;
-                            const price = prices?.get(getTokenKey(position.token))?.data?.data || 0;
-                            const priceDecimals = prices?.get(getTokenKey(position.token))?.data?.decimals || 0;
-                            const priceValue = Number(price) / Math.pow(10, priceDecimals);
+                            const price =
+                              prices?.get(getTokenKey(position.token))?.data
+                                ?.data || 0;
+                            const priceDecimals =
+                              prices?.get(getTokenKey(position.token))?.data
+                                ?.decimals || 0;
+                            const priceValue =
+                              Number(price) / Math.pow(10, priceDecimals);
                             const value =
                               (Number(position.totalDeposited) /
                                 Math.pow(10, position.token.decimals)) *
@@ -618,14 +634,17 @@ export default function DashboardPage() {
                 {validTokens.map((token) => {
                   // Check if wallet is connected for this token
                   const isWalletConnected = isWalletConnectedForToken(token);
-                  
+
                   // Find position data for this token using Map lookup
                   const positionData = positions?.get(getTokenKey(token));
-                  
+
                   // If wallet is not connected, show connect wallet card
                   if (!isWalletConnected) {
                     return (
-                      <Card key={token.symbol} className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
+                      <Card
+                        key={token.symbol}
+                        className="bg-[#13131a] border-[#222233] text-white overflow-hidden"
+                      >
                         <div className="flex items-center justify-between p-6">
                           <div className="flex items-center flex-1">
                             <TokenIcon
@@ -646,7 +665,8 @@ export default function DashboardPage() {
                           <div className="flex items-center gap-4">
                             <div className="text-center">
                               <p className="text-sm text-[#9999aa]">
-                                Connect your {token.network.chainName} wallet to view positions
+                                Connect your {token.network.chainName} wallet to
+                                view positions
                               </p>
                             </div>
                             <Button
@@ -661,11 +681,14 @@ export default function DashboardPage() {
                       </Card>
                     );
                   }
-                  
+
                   // If wallet is connected but no position data, show empty state
                   if (!positionData?.data) {
                     return (
-                      <Card key={token.symbol} className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
+                      <Card
+                        key={token.symbol}
+                        className="bg-[#13131a] border-[#222233] text-white overflow-hidden"
+                      >
                         <div className="flex items-center justify-between p-6">
                           <div className="flex items-center flex-1">
                             <TokenIcon
@@ -690,7 +713,9 @@ export default function DashboardPage() {
                               </p>
                             </div>
                             <Button
-                              onClick={() => window.location.href = '/staking'}
+                              onClick={() =>
+                                (window.location.href = "/staking")
+                              }
                               className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
                             >
                               Start Staking
@@ -700,19 +725,24 @@ export default function DashboardPage() {
                       </Card>
                     );
                   }
-                  
+
                   // If wallet is connected and has position data, show normal position card
                   const position = positionData.data;
                   if (!position) {
                     return null; // Skip rendering if no position data
                   }
-                  
+
                   // At this point, position is guaranteed to be defined
                   const safePosition = position as StakingPositionPerToken;
-                  
-                  const price = prices?.get(getTokenKey(safePosition.token))?.data?.data || 0;
-                  const priceDecimals = prices?.get(getTokenKey(safePosition.token))?.data?.decimals || 0;
-                  const priceValue = Number(price) / Math.pow(10, priceDecimals);
+
+                  const price =
+                    prices?.get(getTokenKey(safePosition.token))?.data?.data ||
+                    0;
+                  const priceDecimals =
+                    prices?.get(getTokenKey(safePosition.token))?.data
+                      ?.decimals || 0;
+                  const priceValue =
+                    Number(price) / Math.pow(10, priceDecimals);
                   const totalValue =
                     (Number(safePosition.totalDeposited) /
                       Math.pow(10, safePosition.token.decimals)) *
@@ -787,7 +817,11 @@ export default function DashboardPage() {
                                 Active AVS
                               </p>
                               <p className="text-base font-medium text-[#00e5ff]">
-                                {Array.from(rewardsByAvs?.values() || []).filter(avs => avs !== undefined).length}
+                                {
+                                  Array.from(
+                                    rewardsByAvs?.values() || [],
+                                  ).filter((avs) => avs !== undefined).length
+                                }
                               </p>
                             </div>
                           </div>
@@ -818,7 +852,9 @@ export default function DashboardPage() {
                           <ExpandedPositionView
                             position={safePosition}
                             priceValue={priceValue}
-                            rewardsByAvs={Array.from(rewardsByAvs?.values() || []).filter(avs => avs !== undefined)}
+                            rewardsByAvs={Array.from(
+                              rewardsByAvs?.values() || [],
+                            ).filter((avs) => avs !== undefined)}
                             onNavigateToStaking={navigateToStaking}
                           />
                         )}
@@ -1058,7 +1094,7 @@ export default function DashboardPage() {
             </>
           )}
         </main>
-        
+
         {/* Wallet Connection Modal - Inside provider context */}
         {walletModalToken && (
           <WalletConnectionModal
@@ -1091,7 +1127,10 @@ function ExpandedPositionView({
   position: StakingPositionPerToken;
   priceValue: number;
   rewardsByAvs: RewardsPerAVS[];
-  onNavigateToStaking: (token: Token, tab: 'stake' | 'delegate' | 'undelegate' | 'withdraw') => void;
+  onNavigateToStaking: (
+    token: Token,
+    tab: "stake" | "delegate" | "undelegate" | "withdraw",
+  ) => void;
 }) {
   const { data: delegationsData, isLoading: delegationsLoading } =
     useDelegations(position.token);
@@ -1133,8 +1172,7 @@ function ExpandedPositionView({
   const delegatedAmount =
     Number(position.delegated) / Math.pow(10, position.token.decimals);
   const totalAmount =
-    Number(position.totalDeposited) /
-    Math.pow(10, position.token.decimals);
+    Number(position.totalDeposited) / Math.pow(10, position.token.decimals);
   const delegationPercentage =
     totalAmount > 0 ? (delegatedAmount / totalAmount) * 100 : 0;
 
@@ -1164,7 +1202,9 @@ function ExpandedPositionView({
                 <>
                   <div className="h-40 flex justify-center">
                     <PieChart
-                      data={Array.from(delegationsData.delegationsByOperator.values())
+                      data={Array.from(
+                        delegationsData.delegationsByOperator.values(),
+                      )
                         .map((delegation, idx) => {
                           const value =
                             (Number(delegation.delegated) /
@@ -1318,27 +1358,33 @@ function ExpandedPositionView({
               </div>
 
               <div className="pt-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full mb-2 hover:bg-[#00e5ff] hover:text-black transition-colors"
-                  onClick={() => onNavigateToStaking(position.token, 'delegate')}
+                  onClick={() =>
+                    onNavigateToStaking(position.token, "delegate")
+                  }
                 >
                   <ArrowRight className="w-4 h-4 mr-2" />
                   Delegate More
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button 
+                  <Button
                     variant="outline"
                     className="hover:bg-[#00e5ff] hover:text-black transition-colors"
-                    onClick={() => onNavigateToStaking(position.token, 'undelegate')}
+                    onClick={() =>
+                      onNavigateToStaking(position.token, "undelegate")
+                    }
                   >
                     <ArrowRight className="w-4 h-4 mr-2" />
                     Undelegate
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
                     className="hover:bg-[#00e5ff] hover:text-black transition-colors"
-                    onClick={() => onNavigateToStaking(position.token, 'withdraw')}
+                    onClick={() =>
+                      onNavigateToStaking(position.token, "withdraw")
+                    }
                   >
                     <ArrowRight className="w-4 h-4 mr-2" />
                     Withdraw

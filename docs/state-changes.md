@@ -18,6 +18,7 @@ There is an important distinction between Imuachain's claimable balance and the 
 - **Client Chain Withdrawable Balance**: Represents the actual unlocked amount in vault contracts that can be withdrawn to user wallets
 
 **Two-Step Withdrawal Process**:
+
 1. **Claim**: Decreases Imuachain claimable balance, increases client chain withdrawable balance (unlocks tokens in vault)
 2. **Withdraw**: Decreases client chain withdrawable balance, increases user wallet balance (transfers tokens from vault to wallet)
 
@@ -65,6 +66,7 @@ There is an important distinction between Imuachain's claimable balance and the 
 - **State Change Options**:
 
 #### 2.4.1 Delayed Unbonding (Traditional)
+
 - **State Change** (on Imuachain only):
   - ↓ Delegated Balance
   - ↑ Pending Undelegated Balance
@@ -80,6 +82,7 @@ There is an important distinction between Imuachain's claimable balance and the 
   - **No client chain state changes**: Unlocked balance and wallet balance remain unchanged
 
 #### 2.4.2 Instant Unbonding
+
 - **State Change** (on Imuachain only):
   - ↓ Delegated Balance
   - ↑ Claimable Balance (immediately, bypassing unbonding period)
@@ -160,7 +163,7 @@ User Wallet <──(Withdraw)──── Unlocked <──(Claim)──── Cl
 
 1. **Deposit Resilience**: Deposits must always succeed when properly validated
 2. **Delegation Flexibility**: Delegation can occur at time of deposit or later
-3. **Unbonding Security**: 
+3. **Unbonding Security**:
    - Delayed unbonding: Undelegated tokens must go through unbonding period
    - Instant unbonding: Tokens bypass unbonding period for immediate availability
 4. **Cross-Chain Custody**: Assets are physically held on client chain but accounted for on Imua Chain
@@ -170,17 +173,20 @@ User Wallet <──(Withdraw)──── Unlocked <──(Claim)──── Cl
 ## 6. Instant Unbonding Considerations
 
 ### 6.1 When to Use Instant Unbonding
+
 - **Immediate liquidity needs**: When tokens are needed right away
 - **Market timing**: To capitalize on favorable market conditions
 - **Emergency situations**: When quick access to funds is critical
 
 ### 6.2 When to Use Delayed Unbonding
+
 - **Cost optimization**: No extra fee for patient users
 - **Security preference**: Traditional unbonding period for added security
 - **Long-term planning**: When immediate access isn't required
 
 ### 6.3 Technical Implementation
-- **Fee structure**: 
+
+- **Fee structure**:
   - Delayed unbonding: No additional fee (standard processing)
   - Instant unbonding: Higher fees to compensate for immediate processing
 - **State bypass**: Tokens move directly from delegated to claimable state on Imuachain

@@ -1,12 +1,6 @@
 // components/ui/operation-progress.tsx
 import { useState, useEffect } from "react";
-import {
-  CheckCircle,
-  XCircle,
-  Loader2,
-  ArrowRight,
-  Clock,
-} from "lucide-react";
+import { CheckCircle, XCircle, Loader2, ArrowRight, Clock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -97,7 +91,9 @@ export function OperationProgress({
     progress.chainInfo?.sourceChain && progress.chainInfo?.destinationChain
   );
   const hasError = progress.steps.some((step) => step.status === "error");
-  const success = progress.overallStatus.currentPhase === "verifyingCompletion" && progress.overallStatus.currentPhaseStatus === "success";
+  const success =
+    progress.overallStatus.currentPhase === "verifyingCompletion" &&
+    progress.overallStatus.currentPhaseStatus === "success";
 
   // Calculate progress percentage based on steps
   useEffect(() => {
@@ -127,16 +123,11 @@ export function OperationProgress({
         ((completedSteps + processingCredit) / totalSteps) * 100,
       );
     }
-  }, [progress, hasError]);
-
-  // Get error message if any
-  const errorStep = progress.steps.find((step) => step.status === "error");
-  const errorMessage =
-    errorStep?.errorMessage || "Transaction failed. You may try again.";
+  }, [progress, hasError, success]);
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onOpenChange={(isOpen) => {
         // Only allow closing if operation is completed (success/error) or if explicitly opening
         if (!isOpen && (success || hasError)) {
@@ -184,8 +175,6 @@ export function OperationProgress({
             style={{ width: `${progressValue}%` }}
           ></div>
         </div>
-
-
 
         {/* Steps list with connecting lines */}
         <div className="space-y-0">
@@ -237,7 +226,7 @@ export function OperationProgress({
                           ? "text-red-500"
                           : step.status === "processing"
                             ? "text-[#00e5ff]"
-                              : "text-white"
+                            : "text-white"
                     }`}
                   >
                     {step.title}
@@ -309,7 +298,9 @@ export function OperationProgress({
             <div className="w-full text-center text-sm text-[#9999aa] py-2">
               <div className="flex items-center justify-center space-x-2">
                 <div className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse"></div>
-                <span>Please keep this window open until the process completes</span>
+                <span>
+                  Please keep this window open until the process completes
+                </span>
                 <div className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse"></div>
               </div>
             </div>

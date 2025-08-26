@@ -2,7 +2,13 @@ import { XrplClientState } from "@/stores/xrplClient";
 import { Network } from "@gemwallet/api";
 import { PublicClient } from "viem";
 
-export type Phase = "approving" | "sendingTx" | "confirmingTx" | "sendingRequest" | "receivingResponse" | "verifyingCompletion";
+export type Phase =
+  | "approving"
+  | "sendingTx"
+  | "confirmingTx"
+  | "sendingRequest"
+  | "receivingResponse"
+  | "verifyingCompletion";
 
 export type PhaseStatus = "pending" | "processing" | "success" | "error";
 
@@ -13,27 +19,35 @@ export interface OverallStatus {
 
 export type OperationMode = "local" | "simplex" | "duplex";
 
-export type OperationType = "asset" | "delegation" | "undelegation" | "associate" | "dissociate";
+export type OperationType =
+  | "asset"
+  | "delegation"
+  | "undelegation"
+  | "associate"
+  | "dissociate";
 
 export interface BaseTxOptions {
-  mode: OperationMode,
-  spawnTx: () => Promise<any>,
+  mode: OperationMode;
+  spawnTx: () => Promise<any>;
 
   getStateSnapshot?: () => Promise<any>;
-  verifyCompletion?: (snapshotBefore: any, snapshotAfter: any) => Promise<boolean>;
+  verifyCompletion?: (
+    snapshotBefore: any,
+    snapshotAfter: any,
+  ) => Promise<boolean>;
   onPhaseChange?: (newPhase: Phase) => void;
   onSuccess?: (result: { hash: string; success: boolean }) => void;
 }
 
 export interface EVMTxOptions extends BaseTxOptions {
-  publicClient: PublicClient,
-  approvingTx?: () => Promise<`0x${string}`>,
+  publicClient: PublicClient;
+  approvingTx?: () => Promise<`0x${string}`>;
 }
 
 export interface XrplTxOptions extends BaseTxOptions {
-  spawnTx: () => Promise<GemWalletResponse>,
-  utxoGateway: any,
-  getTransactionStatus: XrplClientState["getTransactionStatus"],
+  spawnTx: () => Promise<GemWalletResponse>;
+  utxoGateway: any;
+  getTransactionStatus: XrplClientState["getTransactionStatus"];
 }
 
 export interface StakerBalance {

@@ -4,21 +4,27 @@ import { StakingPositionPerToken } from "@/types/position";
 import { useStakerBalances } from "./useStakerBalances";
 
 export function useStakingPositions(): {
-  data: Map<string, {
-    data: StakingPositionPerToken | undefined;
-    isLoading: boolean;
-    error: Error | null;
-  }>;
+  data: Map<
+    string,
+    {
+      data: StakingPositionPerToken | undefined;
+      isLoading: boolean;
+      error: Error | null;
+    }
+  >;
   isLoading: boolean;
   error: Error | null;
 } {
   const results = useStakerBalances(validTokens);
 
-  const positions = new Map<string, {
-    data: StakingPositionPerToken | undefined;
-    isLoading: boolean;
-    error: Error | null;
-  }>();
+  const positions = new Map<
+    string,
+    {
+      data: StakingPositionPerToken | undefined;
+      isLoading: boolean;
+      error: Error | null;
+    }
+  >();
 
   // Transform results to match the expected format
   results.forEach((result, index) => {
@@ -29,7 +35,7 @@ export function useStakingPositions(): {
     let position: StakingPositionPerToken | undefined = undefined;
     let isLoading: boolean = false;
     let error: Error | null = null;
-    if ( boundImuaAddressNotSetup ) {
+    if (boundImuaAddressNotSetup) {
       position = {
         token,
         stakerAddress,
@@ -39,7 +45,7 @@ export function useStakingPositions(): {
       };
       isLoading = false;
       error = null;
-    } else if ( result.data ) {
+    } else if (result.data) {
       position = {
         token,
         stakerAddress: stakerAddress!,
@@ -63,7 +69,8 @@ export function useStakingPositions(): {
   });
 
   const isLoading = Array.from(positions.values()).some((p) => p.isLoading);
-  const error = Array.from(positions.values()).find((p) => p && p.error)?.error || null;
+  const error =
+    Array.from(positions.values()).find((p) => p && p.error)?.error || null;
 
   return {
     data: positions,

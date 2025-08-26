@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { useChainId } from "wagmi";
 import { getContract } from "viem";
 import IAssetsABI from "@/abi/IAssets.abi.json";
 import { imua, publicClients } from "@/config/wagmi";
@@ -36,11 +35,12 @@ export function useAssetsPrecompile() {
 
       try {
         // Use the contract instance to call the method
-        const [success, stakerBalanceResponse] = (await contract.read.getStakerBalanceByToken([
-          endpointId,
-          encodePacked(["address"], [userAddress]),
-          encodePacked(["address"], [tokenAddress]),
-        ])) as [boolean, StakerBalanceResponseFromPrecompile];
+        const [success, stakerBalanceResponse] =
+          (await contract.read.getStakerBalanceByToken([
+            endpointId,
+            encodePacked(["address"], [userAddress]),
+            encodePacked(["address"], [tokenAddress]),
+          ])) as [boolean, StakerBalanceResponseFromPrecompile];
 
         if (!success || !stakerBalanceResponse) {
           return {

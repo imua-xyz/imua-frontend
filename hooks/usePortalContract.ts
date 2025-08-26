@@ -1,5 +1,4 @@
-import { useCallback } from "react";
-import { useAccount, useWalletClient } from "wagmi";
+import { useWalletClient } from "wagmi";
 import { publicClients } from "@/config/wagmi";
 import { getContract } from "viem";
 import { getPublicClient } from "@wagmi/core";
