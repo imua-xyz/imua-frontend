@@ -1,7 +1,7 @@
 // app/new-staking/staking/page.tsx (refined)
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { validTokens, Token } from "@/types/tokens";
@@ -17,16 +17,73 @@ import { Header } from "@/components/layout/header";
 import { WalletConnectorProvider } from "@/components/providers/WalletConnectorProvider";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import Image from "next/image";
+import { BootstrapPhaseBanner } from "@/components/BootstrapPhaseBanner";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useSyncAllWalletsToStore } from "@/hooks/useSyncAllWalletsToStore";
+import { AlertCircle } from "lucide-react";
+import { BootstrapStatus } from "@/types/bootstrap-status";
 
 type TabType = "stake" | "delegate" | "undelegate" | "withdraw";
 
 // Main content component that uses the staking service
-function StakingContent({ selectedToken }: { selectedToken: Token }) {
+function StakingContent({
+  selectedToken,
+  bootstrapStatus,
+}: {
+  selectedToken: Token;
+  bootstrapStatus: BootstrapStatus;
+}) {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabType>("stake");
 
+  // Read initial tab from localStorage (set by dashboard navigation)
+  useEffect(() => {
+    try {
+      const storedTab = localStorage.getItem("initialStakingTab");
+      if (
+        storedTab &&
+        ["stake", "delegate", "undelegate", "withdraw"].includes(storedTab)
+      ) {
+        setCurrentTab(storedTab as TabType);
+        // Clear the stored tab after reading
+        localStorage.removeItem("initialStakingTab");
+      }
+    } catch (error) {
+      console.error("Error reading initial staking tab:", error);
+    }
+  }, []);
+
   const walletConnector = useWalletConnectorContext();
   const isWalletConnected = walletConnector.isReady;
+
+  // Determine available tabs based on bootstrap status and connector type
+  const availableTabs = useMemo(() => {
+    const isBootstrapped = bootstrapStatus?.isBootstrapped || false;
+    const requiresExtraConnect =
+      selectedToken.connector?.requireExtraConnectToImua || false;
+
+    // Default tabs for all scenarios
+    const tabs = [{ id: "stake", label: "Stake" }];
+
+    // Only add other tabs if bootstrapped or if the connector doesn't require extra connection
+    if (isBootstrapped || !requiresExtraConnect) {
+      tabs.push(
+        { id: "delegate", label: "Delegate" },
+        { id: "undelegate", label: "Undelegate" },
+        { id: "withdraw", label: "Withdraw" },
+      );
+    }
+
+    return tabs;
+  }, [bootstrapStatus, selectedToken.connector]);
+
+  // Reset to stake tab if current tab becomes unavailable
+  useEffect(() => {
+    const tabExists = availableTabs.some((tab) => tab.id === currentTab);
+    if (!tabExists) {
+      setCurrentTab("stake");
+    }
+  }, [availableTabs, currentTab]);
 
   // Handle wallet connection
   const handleConnectWallet = () => {
@@ -90,15 +147,55 @@ function StakingContent({ selectedToken }: { selectedToken: Token }) {
       );
     }
 
+    // Determine source and destination chains based on bootstrap status
+    const isBootstrapped = bootstrapStatus?.isBootstrapped || false;
+
     switch (currentTab) {
       case "stake":
-        return <StakeTab sourceChain="ethereum" destinationChain="imua" />;
+        // For stake, if not bootstrapped, both source and destination are the token's native chain
+        return (
+          <StakeTab
+            sourceChain={selectedToken.network.chainName.toLowerCase()}
+            destinationChain={
+              isBootstrapped
+                ? "imua"
+                : selectedToken.network.chainName.toLowerCase()
+            }
+          />
+        );
       case "delegate":
-        return <DelegateTab sourceChain="imua" destinationChain="imua" />;
+        return (
+          <DelegateTab
+            sourceChain={selectedToken.network.chainName.toLowerCase()}
+            destinationChain={
+              isBootstrapped
+                ? "imua"
+                : selectedToken.network.chainName.toLowerCase()
+            }
+          />
+        );
       case "undelegate":
-        return <UndelegateTab sourceChain="imua" destinationChain="imua" />;
+        return (
+          <UndelegateTab
+            sourceChain={selectedToken.network.chainName.toLowerCase()}
+            destinationChain={
+              isBootstrapped
+                ? "imua"
+                : selectedToken.network.chainName.toLowerCase()
+            }
+          />
+        );
       case "withdraw":
-        return <WithdrawTab sourceChain="imua" destinationChain="ethereum" />;
+        return (
+          <WithdrawTab
+            sourceChain={selectedToken.network.chainName.toLowerCase()}
+            destinationChain={
+              isBootstrapped
+                ? "imua"
+                : selectedToken.network.chainName.toLowerCase()
+            }
+          />
+        );
     }
   };
 
@@ -107,12 +204,7 @@ function StakingContent({ selectedToken }: { selectedToken: Token }) {
       {/* Operation Tabs - Refined tab design */}
       <div className="mb-8">
         <div className="flex border-b border-[#222233]">
-          {[
-            { id: "stake", label: "Stake" },
-            { id: "delegate", label: "Delegate" },
-            { id: "undelegate", label: "Undelegate" },
-            { id: "withdraw", label: "Withdraw" },
-          ].map((tab) => (
+          {availableTabs.map((tab) => (
             <button
               key={tab.id}
               className={`py-4 px-6 text-base font-medium relative ${
@@ -164,9 +256,41 @@ export default function StakingPage() {
   const [mounted, setMounted] = useState(false);
   const [selectedToken, setSelectedToken] = useState<Token>(validTokens[0]);
   const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
+  const { bootstrapStatus } = useBootstrapStatus();
+
+  // Sync wallet state
+  useSyncAllWalletsToStore();
 
   useEffect(() => {
     setMounted(true);
+
+    // Read selected token and tab from localStorage (set by dashboard navigation)
+    try {
+      const storedToken = localStorage.getItem("selectedStakingToken");
+      const storedTab = localStorage.getItem("selectedStakingTab");
+
+      if (storedToken) {
+        const parsedToken = JSON.parse(storedToken);
+        // Find the token in validTokens to ensure it's valid
+        const foundToken = validTokens.find(
+          (t) => t.symbol === parsedToken.symbol,
+        );
+        if (foundToken) {
+          setSelectedToken(foundToken);
+        }
+        // Clear the stored token after reading
+        localStorage.removeItem("selectedStakingToken");
+      }
+
+      if (storedTab) {
+        // Store the tab for the StakingContent component to read
+        localStorage.setItem("initialStakingTab", storedTab);
+        // Clear the stored tab after reading
+        localStorage.removeItem("selectedStakingTab");
+      }
+    } catch (error) {
+      console.error("Error reading stored staking preferences:", error);
+    }
   }, []);
 
   if (!mounted) return null;
@@ -177,37 +301,65 @@ export default function StakingPage() {
         <Header token={selectedToken} />
 
         {/* Main content area - cleaner with more focus */}
-        <div className="max-w-xl mx-auto px-6 py-12">
-          <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl">
-            {/* Card header with token selector - simplified */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-[#222233]">
-              <h2 className="text-xl font-bold text-white">Stake Assets</h2>
-              <button
-                onClick={() => setIsTokenSelectorOpen(true)}
-                className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
-              >
-                <Image
-                  src={selectedToken.iconUrl}
-                  alt={selectedToken.symbol}
-                  className="w-5 h-5 mr-2"
-                  width={20}
-                  height={20}
-                />
-                <span className="font-medium">{selectedToken.symbol}</span>
-                <ChevronDown size={16} className="ml-2 text-[#9999aa]" />
-              </button>
-            </div>
+        {bootstrapStatus && (
+          <div className="max-w-xl mx-auto px-6 py-12">
+            <BootstrapPhaseBanner bootstrapStatus={bootstrapStatus} />
 
-            {/* Card body with staking content */}
-            <div className="p-6">
-              <StakingServiceProvider token={selectedToken}>
-                <OperatorsProvider>
-                  <StakingContent selectedToken={selectedToken} />
-                </OperatorsProvider>
-              </StakingServiceProvider>
-            </div>
+            {!bootstrapStatus?.isLocked && (
+              <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl">
+                {/* Card header with token selector - simplified */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-[#222233]">
+                  <h2 className="text-xl font-bold text-white">Stake Assets</h2>
+                  <button
+                    onClick={() => setIsTokenSelectorOpen(true)}
+                    className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
+                  >
+                    <Image
+                      src={selectedToken.iconUrl}
+                      alt={selectedToken.symbol}
+                      className="w-5 h-5 mr-2"
+                      width={20}
+                      height={20}
+                    />
+                    <span className="font-medium">{selectedToken.symbol}</span>
+                    <ChevronDown size={16} className="ml-2 text-[#9999aa]" />
+                  </button>
+                </div>
+
+                {/* Card body with staking content */}
+                <div className="p-6">
+                  <StakingServiceProvider token={selectedToken}>
+                    <OperatorsProvider>
+                      <StakingContent
+                        selectedToken={selectedToken}
+                        bootstrapStatus={bootstrapStatus}
+                      />
+                    </OperatorsProvider>
+                  </StakingServiceProvider>
+                </div>
+              </div>
+            )}
+
+            {/* Show additional message when locked */}
+            {bootstrapStatus?.isLocked && (
+              <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl mt-6 p-8 text-center">
+                <div className="flex flex-col items-center">
+                  <div className="w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-amber-950/20">
+                    <AlertCircle className="text-amber-400" size={32} />
+                  </div>
+                  <h3 className="text-white text-xl font-medium mb-3">
+                    Staking is Currently Disabled
+                  </h3>
+                  <p className="text-[#9999aa] max-w-md">
+                    During this bootstrap phase, staking operations are
+                    temporarily disabled. You&apos;ll be able to stake again
+                    once the network is fully operational.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Token Selector Modal */}
         <TokenSelectorModal

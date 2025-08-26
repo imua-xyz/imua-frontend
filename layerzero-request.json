@@ -1,0 +1,117 @@
+{
+  "data": [
+    {
+      "pathway": {
+        "srcEid": 40161,
+        "dstEid": 40259,
+        "sender": {
+          "address": "0xdf9cadcfb027d9f6264ecd5eaec839a8335d8520",
+          "chain": "sepolia"
+        },
+        "receiver": {
+          "address": "0xeaf4e4d09b9ceb936492518a852026c914beb11e",
+          "chain": "exocore-testnet"
+        },
+        "id": "40161-40259-0xdf9cadcfb027d9f6264ecd5eaec839a8335d8520-0xeaf4e4d09b9ceb936492518a852026c914beb11e",
+        "nonce": 194
+      },
+      "source": {
+        "status": "SUCCEEDED",
+        "tx": {
+          "txHash": "0x4104a3d83335a7fa05fd7f1ca503746acb3ebbf4701797a18ec568fd9661133d",
+          "blockHash": "0x1bbf77e5149d389dc8cdfe3744a4aacf3b52ff576937bd2ace4e322c663a130c",
+          "blockNumber": "7643857",
+          "blockTimestamp": 1738744836,
+          "from": "0x481e020db4709e6eddbf8134d41b866c6fc8555e",
+          "payload": "0x04481e020db4709e6eddbf8134d41b866c6fc8555e000000000000000000000000000000000000000000000000000000000000000000000000016345785d8a000083e6850591425e3c1e263c054f4466838b9bd9e4000000000000000000000000",
+          "readinessTimestamp": 1738744860,
+          "options": {
+            "lzReceive": {
+              "gas": "500000",
+              "value": "0"
+            },
+            "ordered": true
+          }
+        }
+      },
+      "destination": {
+        "nativeDrop": {
+          "status": "N/A"
+        },
+        "lzCompose": {
+          "status": "N/A"
+        },
+        "tx": {
+          "txHash": "0xd42a707333aaab0878f87c0c65e41851ac2a32dc8d4fdebd469b959174250bef",
+          "blockHash": "0xedf9b72f9b0270bef9553e7f14262471190ce34e99fbcd5d332335b740856dfc",
+          "blockNumber": 11031132,
+          "blockTimestamp": 1738744941
+        },
+        "status": "SUCCEEDED"
+      },
+      "verification": {
+        "dvn": {
+          "dvns": {
+            "0xf49d162484290eaead7bb8c2c7e3a6f8f52e32d6": {
+              "txHash": "0xaf074ff4b714858724815e6d2606ba5e45bc4ace87e0ddd3d7a13a39d1647a56",
+              "blockHash": "0xf857d9409ee669c5ca1c4a8507af1cbb924f56661bfbc6162284bff1f1cbc67d",
+              "blockNumber": 11031120,
+              "blockTimestamp": 1738744897,
+              "proof": {
+                "packetHeader": "0x0100000000000000c200009ce1000000000000000000000000df9cadcfb027d9f6264ecd5eaec839a8335d852000009d43000000000000000000000000eaf4e4d09b9ceb936492518a852026c914beb11e",
+                "payloadHash": "0x5d8a97d803da4f3677e61de5de767b902db5b783e50660ad5ed5970fc60452f1"
+              },
+              "optional": false,
+              "status": "SUCCEEDED"
+            }
+          },
+          "status": "SUCCEEDED"
+        },
+        "sealer": {
+          "tx": {
+            "txHash": "0x053153a8738627e17499d02af92b68e4b917165d4aaf4e225c553be7381fbad8",
+            "blockHash": "0x7d1e73c9ae334a995dc581970db6136dd62b2bc18ff5b2275fcfdcc2ed940f7d",
+            "blockNumber": 11031126,
+            "blockTimestamp": 1738744919
+          },
+          "status": "SUCCEEDED"
+        }
+      },
+      "guid": "0x35493606a370c059a6e400662f9cffcdce29acff70efcc55a5e82ad0a9585860",
+      "config": {
+        "error": false,
+        "receiveLibrary": "0xcF1B0F4106B0324F96fEfcC31bA9498caa80701C",
+        "sendLibrary": "0xcc1ae8Cf5D3904Cef3360A9532B477529b177cCE",
+        "inboundConfig": {
+          "confirmations": 2,
+          "requiredDVNCount": 1,
+          "optionalDVNCount": 0,
+          "optionalDVNThreshold": 0,
+          "requiredDVNs": ["0xf49d162484290eaead7bb8c2c7e3a6f8f52e32d6"],
+          "requiredDVNNames": ["LayerZero Labs"],
+          "optionalDVNs": [],
+          "optionalDVNNames": []
+        },
+        "outboundConfig": {
+          "confirmations": 2,
+          "requiredDVNCount": 1,
+          "optionalDVNCount": 0,
+          "optionalDVNThreshold": 0,
+          "requiredDVNs": ["0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193"],
+          "requiredDVNNames": ["LayerZero Labs"],
+          "optionalDVNs": [],
+          "optionalDVNNames": [],
+          "executor": "0x718B92b5CB0a5552039B593faF724D182A881eDA"
+        },
+        "ulnSendVersion": "V302",
+        "ulnReceiveVersion": "V302"
+      },
+      "status": {
+        "name": "DELIVERED",
+        "message": "Executor transaction confirmed"
+      },
+      "created": "2025-02-05T08:41:27.000Z",
+      "updated": "2025-02-05T08:42:54.000Z"
+    }
+  ]
+}

@@ -1,10 +1,10 @@
-import { TxHandlerOptions } from "./staking";
+import { BaseTxOptions } from "./staking";
 import { StakerBalance, WalletBalance, OperationType } from "./staking";
-import { NativeToken, LSTToken, NSTToken } from "./tokens";
+import { Token } from "./tokens";
 
 export interface StakingService {
   // core data
-  token: NativeToken | LSTToken | NSTToken;
+  token: Token;
   stakerBalance: StakerBalance | undefined;
   walletBalance: WalletBalance | undefined;
   vaultAddress: string | undefined;
@@ -15,22 +15,23 @@ export interface StakingService {
   stake: (
     amount: bigint,
     operatorAddress?: string,
-    options?: TxHandlerOptions,
+    options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   withdrawPrincipal: (
     amount: bigint,
     recipient?: `0x${string}`,
-    options?: TxHandlerOptions,
+    options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   delegateTo: (
     operator: string,
     amount: bigint,
-    options?: TxHandlerOptions,
+    options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   undelegateFrom: (
     operator: string,
     amount: bigint,
-    options?: TxHandlerOptions,
+    instantUnbond: boolean,
+    options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   // Fee estimation
   getQuote: (operation: OperationType) => Promise<bigint>;
@@ -38,15 +39,17 @@ export interface StakingService {
   // functions that may not be supported by all staking providers
   deposit?: (
     amount: bigint,
-    options?: TxHandlerOptions,
+    approvingTx?: () => Promise<`0x${string}`>,
+    options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   depositAndDelegate?: (
     amount: bigint,
     operator: string,
-    options?: TxHandlerOptions,
+    approvingTx?: () => Promise<`0x${string}`>,
+    options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   claimPrincipal?: (
     amount: bigint,
-    options?: TxHandlerOptions,
+    options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
 }

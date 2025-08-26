@@ -4,10 +4,16 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
-import { TxStatus } from "@/types/staking";
+import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
-import { CrossChainProgress } from "@/components/ui/cross-chain-progress";
-import { NativeChainProgress } from "@/components/ui/native-chain-progress";
+import {
+  OperationProgress,
+  OperationStep,
+  transactionStep,
+  confirmationStep,
+  sendingRequestStep,
+  completionStep,
+} from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
@@ -53,13 +59,66 @@ export function DelegateTab({
     null,
   );
 
-  // Transaction state
-  const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
+  // Operation progress state
+  const [showProgress, setShowProgress] = useState(false);
+  const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Progress tracking
-  const [showProgress, setShowProgress] = useState(false);
+  // Determine operation mode and initialize steps
+  useEffect(() => {
+    let steps: OperationStep[] = [];
+
+    if (isNativeChainOperation) {
+      // Local mode: transaction, confirmation, completion (no approval needed)
+      steps = [
+        { ...transactionStep, description: "Sending delegate transaction" },
+        { ...confirmationStep },
+        { ...completionStep },
+      ];
+    } else {
+      // Simplex mode: transaction, confirmation, relay, completion (no approval needed)
+      steps = [
+        { ...transactionStep, description: "Sending delegate transaction" },
+        { ...confirmationStep },
+        {
+          ...sendingRequestStep,
+          description: `Relaying message to ${destinationChain}`,
+        },
+        { ...completionStep },
+      ];
+    }
+
+    setOperationSteps(steps);
+  }, [isNativeChainOperation, destinationChain]);
+
+  // Handle phase changes from txUtils
+  const handlePhaseChange = (newPhase: Phase) => {
+    setOperationSteps((prev) => {
+      const updatedSteps = [...prev];
+
+      // Find the target index for the new phase
+      const targetIndex = updatedSteps.findIndex(
+        (step) => step.phase === newPhase,
+      );
+      if (targetIndex >= 0) {
+        // Mark the new step as processing
+        updatedSteps[targetIndex].status = "processing";
+
+        // Update transaction hash for transaction step
+        if (newPhase === "sendingTx" && txHash) {
+          updatedSteps[targetIndex].txHash = txHash;
+          updatedSteps[targetIndex].explorerUrl = token.network.txExplorerUrl;
+        }
+
+        // Mark all previous steps as success
+        for (let i = 0; i < targetIndex; i++) {
+          updatedSteps[i].status = "success";
+        }
+      }
+
+      return updatedSteps;
+    });
+  };
 
   // Try to restore last used operator from localStorage
   useEffect(() => {
@@ -113,8 +172,10 @@ export function DelegateTab({
   const handleOperation = async () => {
     if (!selectedOperator) return;
 
-    setTxError(null);
-    setTxStatus("processing");
+    // Reset progress state
+    setOperationSteps((prev) =>
+      prev.map((step) => ({ ...step, status: "pending" })),
+    );
     setShowProgress(true);
 
     try {
@@ -122,10 +183,7 @@ export function DelegateTab({
         selectedOperator.address,
         parsedAmount,
         {
-          onStatus: (status, error) => {
-            setTxStatus(status);
-            if (error) setTxError(error);
-          },
+          onPhaseChange: handlePhaseChange,
         },
       );
 
@@ -134,31 +192,53 @@ export function DelegateTab({
       }
 
       if (result.success) {
-        setTxStatus("success");
+        // Mark the final step (verifying completion) as success
+        setOperationSteps((prev) => {
+          const updated = [...prev];
+          // Find the last step (verifying completion) and mark it as success
+          const lastStepIndex = updated.length - 1;
+          if (updated[lastStepIndex]) {
+            updated[lastStepIndex].status = "success";
+          }
+          return updated;
+        });
+
         if (onSuccess) onSuccess();
       } else {
-        setTxStatus("error");
-        setTxError(result.error || "Transaction failed");
+        // Mark current step as error
+        setOperationSteps((prev) => {
+          const updated = [...prev];
+          const processingStepIndex = updated.findIndex(
+            (step) => step.status === "processing",
+          );
+          if (processingStepIndex >= 0) {
+            updated[processingStepIndex].status = "error";
+            updated[processingStepIndex].errorMessage =
+              result.error || "Operation failed";
+          }
+          return updated;
+        });
       }
     } catch (error) {
       console.error("Operation failed:", error);
-      setTxStatus("error");
-      setTxError(error instanceof Error ? error.message : "Transaction failed");
+      // Mark current step as error
+      setOperationSteps((prev) => {
+        const updated = [...prev];
+        const processingStepIndex = updated.findIndex(
+          (step) => step.status === "processing",
+        );
+        if (processingStepIndex >= 0) {
+          updated[processingStepIndex].status = "error";
+          updated[processingStepIndex].errorMessage = "Operation failed";
+        }
+        return updated;
+      });
     }
-
-    setTimeout(() => {
-      setTxStatus(null);
-      setTxError(null);
-      setTxHash(undefined);
-    }, 1000);
   };
 
   // Format button text based on state
   const getButtonText = () => {
-    if (txStatus === "approving") return "Approving...";
-    if (txStatus === "processing") return "Processing...";
-    if (txStatus === "success") return "Success!";
-    if (txStatus === "error") return "Failed!";
+    if (showProgress) return "Processing...";
 
     if (currentStep === "amount") return "Continue";
     return "Delegate";
@@ -172,6 +252,66 @@ export function DelegateTab({
     const yearlyRewards = amountNumber * (selectedOperator.apr / 100);
 
     return yearlyRewards.toFixed(2);
+  };
+
+  // Create operation progress data
+  const operationProgress = {
+    operation: "delegate",
+    chainInfo: isNativeChainOperation
+      ? undefined
+      : {
+          sourceChain,
+          destinationChain,
+        },
+    steps: operationSteps,
+    overallStatus: {
+      // Derive current phase from step statuses
+      currentPhase: (() => {
+        const processingStep = operationSteps.find(
+          (step) => step.status === "processing",
+        );
+        if (processingStep) return processingStep.phase;
+
+        const lastSuccessStep = operationSteps
+          .filter((step) => step.status === "success")
+          .pop();
+        if (lastSuccessStep) return lastSuccessStep.phase;
+
+        return "sendingTx";
+      })(),
+      currentPhaseStatus: (() => {
+        if (operationSteps.some((step) => step.status === "error"))
+          return "error" as PhaseStatus;
+        if (operationSteps.every((step) => step.status === "success"))
+          return "success" as PhaseStatus;
+        if (operationSteps.some((step) => step.status === "processing"))
+          return "processing" as PhaseStatus;
+        return "pending" as PhaseStatus;
+      })(),
+    },
+  };
+
+  // Handle modal close - only reset on success
+  const handleModalClose = () => {
+    // Check if operation completed successfully by checking final step status
+    const isSuccess =
+      operationSteps.length > 0 &&
+      operationSteps[operationSteps.length - 1]?.status === "success";
+
+    if (isSuccess) {
+      // Reset to initial state
+      setCurrentStep("amount");
+      setAmount("");
+      setSelectedOperator(null);
+      // Reset steps back to pending (not empty)
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
+    }
+
+    // Always close modal
+    setShowProgress(false);
   };
 
   return (
@@ -232,7 +372,7 @@ export function DelegateTab({
               type="text"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
+              className="w-full px-3 py-3 bg-[#15151c] border border-[#333344] rounded-md text-white text-lg"
               placeholder="0.0"
             />
 
@@ -347,7 +487,7 @@ export function DelegateTab({
             <Button
               className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
               disabled={
-                !!txStatus ||
+                showProgress ||
                 !selectedOperator ||
                 !parsedAmount ||
                 parsedAmount === BigInt(0)
@@ -357,8 +497,6 @@ export function DelegateTab({
               {getButtonText()}
             </Button>
           </div>
-
-          {txError && <p className="mt-3 text-sm text-red-500">{txError}</p>}
         </>
       )}
 
@@ -371,43 +509,17 @@ export function DelegateTab({
         selectedOperator={selectedOperator}
       />
 
-      {/* Progress overlay - conditionally render based on token connector */}
-      {isNativeChainOperation ? (
-        <NativeChainProgress
-          chain={sourceChain}
-          operation="delegate"
-          txHash={txHash}
-          explorerUrl={token.network.txExplorerUrl}
-          txStatus={txStatus}
-          open={showProgress}
-          onClose={() => {
-            setShowProgress(false);
-          }}
-          onViewDetails={() => {
-            if (token.network.txExplorerUrl && txHash) {
-              window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
-            }
-          }}
-        />
-      ) : (
-        <CrossChainProgress
-          sourceChain={sourceChain}
-          destinationChain={destinationChain}
-          operation="delegate"
-          txHash={txHash}
-          explorerUrl={token.network.txExplorerUrl}
-          txStatus={txStatus}
-          open={showProgress}
-          onClose={() => {
-            setShowProgress(false);
-          }}
-          onViewDetails={() => {
-            if (token.network.txExplorerUrl && txHash) {
-              window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
-            }
-          }}
-        />
-      )}
+      {/* Operation Progress Modal */}
+      <OperationProgress
+        progress={operationProgress}
+        open={showProgress}
+        onClose={handleModalClose}
+        onViewDetails={() => {
+          if (token.network.txExplorerUrl && txHash) {
+            window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
+          }
+        }}
+      />
     </div>
   );
 }

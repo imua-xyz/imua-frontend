@@ -1,0 +1,136 @@
+{
+  "data": [
+    {
+      "pathway": {
+        "srcEid": 0,
+        "dstEid": 0,
+        "sender": {
+          "address": "string",
+          "id": "string",
+          "name": "string",
+          "chain": "string"
+        },
+        "receiver": {
+          "address": "string",
+          "id": "string",
+          "name": "string",
+          "chain": "string"
+        },
+        "id": "string",
+        "nonce": 0
+      },
+      "source": {
+        "status": "string",
+        "tx": {
+          "txHash": "string",
+          "blockHash": "string",
+          "blockNumber": "string",
+          "blockTimestamp": 0,
+          "from": "string",
+          "blockConfirmations": 0,
+          "payload": "string",
+          "value": "string",
+          "readinessTimestamp": 0,
+          "resolvedPayload": "string",
+          "adapterParams": {
+            "version": "string",
+            "dstGasLimit": "string",
+            "dstNativeGasTransferAmount": "string",
+            "dstNativeGasTransferAddress": "string"
+          },
+          "options": {
+            "lzReceive": {
+              "gas": "string",
+              "value": "string"
+            },
+            "nativeDrop": [
+              {
+                "amount": "string",
+                "receiver": "string"
+              }
+            ],
+            "compose": [
+              {
+                "index": 0,
+                "gas": "string",
+                "value": "string"
+              }
+            ],
+            "ordered": false
+          }
+        },
+        "failedTx": ["string"]
+      },
+      "destination": {
+        "status": "string",
+        "tx": {
+          "txHash": "string",
+          "blockHash": "string",
+          "blockNumber": 0,
+          "blockTimestamp": 0
+        },
+        "payloadStoredTx": "string",
+        "failedTx": ["string"]
+      },
+      "verification": {
+        "dvn": {
+          "dvns": {},
+          "status": "string"
+        },
+        "sealer": {
+          "tx": {
+            "txHash": "string",
+            "blockHash": "string",
+            "blockNumber": 0,
+            "blockTimestamp": 0
+          },
+          "failedTx": [
+            {
+              "txHash": "string",
+              "txError": "string"
+            }
+          ],
+          "status": "string"
+        }
+      },
+      "guid": "string",
+      "config": {
+        "error": false,
+        "errorMessage": "string",
+        "dvnConfigError": false,
+        "receiveLibrary": "string",
+        "sendLibrary": "string",
+        "inboundConfig": {
+          "confirmations": 0,
+          "requiredDVNCount": 0,
+          "optionalDVNCount": 0,
+          "optionalDVNThreshold": 0,
+          "requiredDVNs": ["string"],
+          "requiredDVNNames": ["string"],
+          "optionalDVNs": ["string"],
+          "optionalDVNNames": ["string"],
+          "executor": "string"
+        },
+        "outboundConfig": {
+          "confirmations": 0,
+          "requiredDVNCount": 0,
+          "optionalDVNCount": 0,
+          "optionalDVNThreshold": 0,
+          "requiredDVNs": ["string"],
+          "requiredDVNNames": ["string"],
+          "optionalDVNs": ["string"],
+          "optionalDVNNames": ["string"],
+          "executor": "string"
+        },
+        "ulnSendVersion": "string",
+        "ulnReceiveVersion": "string"
+      },
+      "status": {
+        "name": "string",
+        "message": "string"
+      },
+      "created": "2025-05-27T19:20:54.362Z",
+      "updated": "2025-05-27T19:20:54.362Z"
+    }
+  ]
+}

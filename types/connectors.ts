@@ -1,8 +1,3 @@
-import { useGemWalletStore } from "@/stores/gemWalletClient";
-import { GemWalletResponse } from "@/types/staking";
-import { metaMask } from "wagmi/connectors";
-import { config } from "@/config/wagmi";
-
 export interface ConnectorBase {
   evmCompatible: boolean;
   requireExtraConnectToImua: boolean;

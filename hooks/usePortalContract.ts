@@ -1,17 +1,13 @@
-import { useCallback } from "react";
-import { useAccount, useWalletClient } from "wagmi";
+import { useWalletClient } from "wagmi";
 import { publicClients } from "@/config/wagmi";
 import { getContract } from "viem";
-import { OperationType } from "@/types/staking";
-import { getPortalContractByEvmChainID } from "@/config/stakingPortals";
-import { EVMLSTToken, Token } from "@/types/tokens";
 import { getPublicClient } from "@wagmi/core";
 import { config } from "@/config/wagmi";
-import { imua } from "@/types/networks";
+import { imuaChain } from "@/types/networks";
 import { EVMNetwork, XRPL } from "@/types/networks";
 
 export function usePortalContract(network: EVMNetwork | XRPL) {
-  const evmChainID = (network as EVMNetwork).evmChainID || imua.evmChainID;
+  const evmChainID = (network as EVMNetwork).evmChainID || imuaChain.evmChainID;
 
   const { data: walletClient } = useWalletClient({ chainId: evmChainID });
   const publicClient = getPublicClient(config, {

@@ -43,7 +43,7 @@ export function WalletDetailsModal({
 
   const openExplorer = () => {
     if (walletInfo.explorerUrl) {
-      window.open(walletInfo.explorerUrl, "_blank");
+      window.open(`${walletInfo.explorerUrl}${walletInfo.address}`, "_blank");
     }
   };
 

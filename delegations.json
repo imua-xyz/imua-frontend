@@ -1,0 +1,104 @@
+{
+  "delegation_infos": [
+    {
+      "operator": "im12fylkuhvymchspntl3vpqv5ync9t8j8e7ez99s",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "100000000000000000.000000000000000000",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "100000000000000000"
+      }
+    },
+    {
+      "operator": "im13vxcrm0m5csexcptqjap88nnmnpfa3c4arrtcy",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "200000000000000000.000000000000000000",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "200000000000000000"
+      }
+    },
+    {
+      "operator": "im160z8xuzdc2zty5nt07wppmywmqm6als8uxvl6e",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "105157453253212294.093301729120651474",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "99999999999999999"
+      }
+    },
+    {
+      "operator": "im1grs7tmk7pr7387xmhmg3uddu9f67c7pasd2584",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "101013845078669040.607486936706893773",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "100000000000000000"
+      }
+    },
+    {
+      "operator": "im1kfyjq8qtxzfe6dutts23cyguj4nt6fp4gyxd3m",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "113054950447904271.620010386530734307",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "100000000000000000"
+      }
+    },
+    {
+      "operator": "im1p33ghca2hp5phwfqf3dk5vqpae53x3phlunj54",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "119002194516560845.481871726073556873",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "100000000000000000"
+      }
+    },
+    {
+      "operator": "im1qqakf89qh7glaacat5z2wyn70lkvk56pvaea43",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "100000000000000000.000000000000000000",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "100000000000000000"
+      }
+    },
+    {
+      "operator": "im1r5nnsr9s0fztywlx0ekf9l7ugsrd82zwyuu9aw",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "10000000000000000.000000000000000000",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "10000000000000000"
+      }
+    },
+    {
+      "operator": "im1u25udsfm5wu3h5s5xqayf6jjycy2etwyexgwkt",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "101010100999859514.132249494480989472",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "100000000000000000"
+      }
+    },
+    {
+      "operator": "im1uu7cpkqrp259gpe3f64a8vr063p3tzv0xhlwf4",
+      "delegation_info": {
+        "delegation_amounts": {
+          "undelegatable_share": "115430621690779633.181248943387917979",
+          "wait_undelegation_amount": "0"
+        },
+        "max_undelegatable_amount": "99999999999999999"
+      }
+    }
+  ]
+}
