@@ -22,6 +22,7 @@ export interface BaseTxOptions {
   getStateSnapshot?: () => Promise<any>;
   verifyCompletion?: (snapshotBefore: any, snapshotAfter: any) => Promise<boolean>;
   onPhaseChange?: (newPhase: Phase) => void;
+  onSuccess?: (result: { hash: string; success: boolean }) => void;
 }
 
 export interface EVMTxOptions extends BaseTxOptions {

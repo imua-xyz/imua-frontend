@@ -103,7 +103,7 @@ async function queryLayerZeroStatus(sourceTxHash: string): Promise<{ confirmed: 
 // Consolidated completion function for all operation modes
 async function handleCompletion(
   hash: string,
-  options?: Pick<BaseTxOptions, "getStateSnapshot" | "verifyCompletion" | "onPhaseChange">,
+  options?: Pick<BaseTxOptions, "getStateSnapshot" | "verifyCompletion" | "onPhaseChange" | "onSuccess">,
   snapshotBefore?: any
 ): Promise<{ hash: string; success: boolean; error?: string }> {
   try {
@@ -128,6 +128,9 @@ async function handleCompletion(
         return { hash, success: false, error: "Verification failed" };
       }
     }
+
+    // Call onSuccess callback after successful verification
+    options?.onSuccess?.({ hash, success: true });
 
     return { hash, success: true };
   } catch (error) {

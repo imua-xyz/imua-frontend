@@ -1,4 +1,4 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { COSMOS_CONFIG } from "@/config/cosmos";
 import { validTokens, Token, getTokenKey } from "@/types/tokens";
@@ -7,11 +7,8 @@ import { useAllWalletsStore, getQueryStakerAddress } from "@/stores/allWalletsSt
 import { useOperators } from "./useOperators";
 
 // If no staker address, returns { data: undefined, isLoading: false, error: null, ... }
-export function useDelegations(token: Token): {
-  data: DelegationsPerToken | undefined;
-  isLoading: boolean;
-  error: Error | null;
-} {
+export function useDelegations(token: Token): UseQueryResult<DelegationsPerToken, Error>  
+{
   const { data: operators } = useOperators();
   const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
   
@@ -59,11 +56,7 @@ export function useDelegations(token: Token): {
     refetchInterval: 3000,
   });
   
-  return {
-    data: query.data,
-    isLoading: query.isLoading,
-    error: query.error,
-  };
+  return query;
 }
 
 export function useAllDelegations(): {
