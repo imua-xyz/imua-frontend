@@ -3,9 +3,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
-import { TxStatus } from "@/types/staking";
+import { Phase, PhaseStatus, OperationMode } from "@/types/staking";
 import { formatUnits } from "viem";
-import { MultiChainOperationProgress } from "@/components/ui/multi-chain-operation-progress";
+import { 
+  OperationProgress, 
+  OperationStep,
+  transactionStep,
+  confirmationStep,
+  sendingRequestStep,
+  completionStep
+} from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useDelegations } from "@/hooks/useDelegations";
 import { DelegationPerOperator } from "@/types/delegations";
@@ -56,11 +63,61 @@ export function UndelegateTab({
     maxAmount: maxAmount,
   });
 
-  // Transaction state
-  const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | undefined>(undefined);
+  // Operation progress state
   const [showProgress, setShowProgress] = useState(false);
+  const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
+  const [txHash, setTxHash] = useState<string | undefined>(undefined);
+
+  // Initialize operation steps based on mode
+  useState(() => {
+    let steps: OperationStep[] = [];
+
+    if (isNativeChainOperation) {
+      // Local mode: transaction, confirmation, completion (no approval needed)
+      steps = [
+        { ...transactionStep, description: "Sending undelegate transaction" },
+        { ...confirmationStep },
+        { ...completionStep },
+      ];
+    } else {
+      // Simplex mode: transaction, confirmation, relay, completion (no approval needed)
+      steps = [
+        { ...transactionStep, description: "Sending undelegate transaction" },
+        { ...confirmationStep },
+        { ...sendingRequestStep, description: `Relaying message to ${destinationChain}` },
+        { ...completionStep },
+      ];
+    }
+
+    setOperationSteps(steps);
+  });
+
+  // Handle phase changes from txUtils
+  const handlePhaseChange = (newPhase: Phase) => {
+    setOperationSteps(prev => {
+      const updatedSteps = [...prev];
+      
+      // Find the target index for the new phase
+      const targetIndex = updatedSteps.findIndex(step => step.phase === newPhase);
+      if (targetIndex >= 0) {
+        // Mark the new step as processing
+        updatedSteps[targetIndex].status = "processing";
+        
+        // Update transaction hash for transaction step
+        if (newPhase === "sendingTx" && txHash) {
+          updatedSteps[targetIndex].txHash = txHash;
+          updatedSteps[targetIndex].explorerUrl = token.network.txExplorerUrl;
+        }
+
+        // Mark all previous steps as success
+        for (let i = 0; i < targetIndex; i++) {
+          updatedSteps[i].status = "success";
+        }
+      }
+
+      return updatedSteps;
+    });
+  };
 
   // Get active delegations count
   const activeDelegationsCount = Array.from(delegationsData?.delegationsByOperator?.values() || [])
@@ -85,8 +142,8 @@ export function UndelegateTab({
   const handleUndelegate = async () => {
     if (!selectedDelegation || !parsedAmount) return;
 
-    setTxError(null);
-    setTxStatus("processing");
+    // Reset progress state
+    setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
     setShowProgress(true);
 
     try {
@@ -96,10 +153,7 @@ export function UndelegateTab({
         parsedAmount,
         isInstantUnbond,
         {
-          onStatus: (status, error) => {
-            setTxStatus(status);
-            if (error) setTxError(error);
-          },
+          onPhaseChange: handlePhaseChange,
         },
       );
       console.log("result", result);
@@ -109,25 +163,48 @@ export function UndelegateTab({
       }
 
       if (result.success) {
-        setTxStatus("success");
+        // Mark the final step (verifying completion) as success
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          // Find the last step (verifying completion) and mark it as success
+          const lastStepIndex = updated.length - 1;
+          if (updated[lastStepIndex]) {
+            updated[lastStepIndex].status = "success";
+          }
+          return updated;
+        });
+        
         if (onSuccess) onSuccess();
       } else {
-        setTxStatus("error");
-        setTxError(result.error || "Transaction failed");
+        // Mark current step as error
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          if (processingStepIndex >= 0) {
+            updated[processingStepIndex].status = "error";
+            updated[processingStepIndex].errorMessage = result.error || "Operation failed";
+          }
+          return updated;
+        });
       }
     } catch (error) {
       console.error("Undelegation failed:", error);
-      setTxStatus("error");
-      setTxError(error instanceof Error ? error.message : "Transaction failed");
+      // Mark current step as error
+      setOperationSteps(prev => {
+        const updated = [...prev];
+        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        if (processingStepIndex >= 0) {
+          updated[processingStepIndex].status = "error";
+          updated[processingStepIndex].errorMessage = "Operation failed";
+        }
+        return updated;
+      });
     }
   };
 
   // Format button text based on state
   const getButtonText = () => {
-    if (txStatus === "approving") return "Approving...";
-    if (txStatus === "processing") return "Processing...";
-    if (txStatus === "success") return "Success!";
-    if (txStatus === "error") return "Failed!";
+    if (showProgress) return "Processing...";
 
     if (currentStep === "delegation") return "Continue";
     return "Undelegate";
@@ -158,6 +235,34 @@ export function UndelegateTab({
       return `${period} days`;
     }
     return "7 days"; // fallback
+  };
+
+  // Create operation progress data
+  const operationProgress = {
+    operation: "undelegate",
+    chainInfo: isNativeChainOperation ? undefined : {
+      sourceChain,
+      destinationChain,
+    },
+    steps: operationSteps,
+    overallStatus: {
+      // Derive current phase from step statuses
+      currentPhase: (() => {
+        const processingStep = operationSteps.find(step => step.status === "processing");
+        if (processingStep) return processingStep.phase;
+        
+        const lastSuccessStep = operationSteps.filter(step => step.status === "success").pop();
+        if (lastSuccessStep) return lastSuccessStep.phase;
+        
+        return "sendingTx";
+      })(),
+      currentPhaseStatus: (() => {
+        if (operationSteps.some(step => step.status === "error")) return "error" as PhaseStatus;
+        if (operationSteps.every(step => step.status === "success")) return "success" as PhaseStatus;
+        if (operationSteps.some(step => step.status === "processing")) return "processing" as PhaseStatus;
+        return "pending" as PhaseStatus;
+      })(),
+    },
   };
 
   if (delegationsLoading) {
@@ -282,7 +387,7 @@ export function UndelegateTab({
                       </span>
                       <button
                         className="text-xs text-[#00e5ff]"
-                        onClick={() => setCurrentStep("delegation")}
+                        onClick={() => setShowDelegationModal(true)}
                       >
                         Change
                       </button>
@@ -290,7 +395,7 @@ export function UndelegateTab({
                   ) : (
                     <button
                       className="text-[#00e5ff]"
-                      onClick={() => setCurrentStep("delegation")}
+                      onClick={() => setShowDelegationModal(true)}
                     >
                       Select
                     </button>
@@ -392,7 +497,7 @@ export function UndelegateTab({
             <Button
               className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
               disabled={
-                !!txStatus ||
+                showProgress ||
                 !selectedDelegation ||
                 !!amountError ||
                 !amount ||
@@ -405,8 +510,6 @@ export function UndelegateTab({
               {getButtonText()}
             </Button>
           </div>
-
-          {txError && <p className="mt-3 text-sm text-red-500">{txError}</p>}
         </>
       )}
 
@@ -478,49 +581,20 @@ export function UndelegateTab({
         </div>
       )}
 
-      {/* Progress overlay */}
-      {isNativeChainOperation ? (
-        <MultiChainOperationProgress
-          sourceChain={destinationChain}
-          destinationChain={destinationChain}
-          operation="undelegate"
-          mode="local"
-          txHash={txHash}
-          explorerUrl={token.network.txExplorerUrl}
-          txStatus={txStatus}
-          open={showProgress}
-          onClose={() => {
-            setShowProgress(false);
-          }}
-          onViewDetails={() => {
-            if (token.network.txExplorerUrl && txHash) {
-              window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
-            }
-          }}
-        />
-      ) : (
-        <MultiChainOperationProgress
-          sourceChain={sourceChain}
-          destinationChain={destinationChain}
-          operation="undelegate"
-          mode="simplex"
-          txHash={txHash}
-          explorerUrl={token.network.txExplorerUrl}
-          txStatus={txStatus}
-          open={showProgress}
-          onClose={() => {
-            setShowProgress(false);
-            setTxStatus(null);
-            setTxError(null);
-            setTxHash(undefined);
-          }}
-          onViewDetails={() => {
-            if (token.network.txExplorerUrl && txHash) {
-              window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
-            }
-          }}
-        />
-      )}
+      {/* Operation Progress Modal */}
+      <OperationProgress
+        progress={operationProgress}
+        open={showProgress}
+        onClose={() => {
+          setShowProgress(false);
+          setTxHash(undefined);
+        }}
+        onViewDetails={() => {
+          if (token.network.txExplorerUrl && txHash) {
+            window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
+          }
+        }}
+      />
     </div>
   );
 }

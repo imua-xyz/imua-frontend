@@ -1,14 +1,12 @@
-import { useCallback } from "react";
-import { useAccount, useWalletClient } from "wagmi";
+import { useWalletClient } from "wagmi";
 import { publicClients } from "@/config/wagmi";
-import { getContract } from "viem";
+import { erc20Abi, getContract } from "viem";
+import { EVMLSTToken } from "@/types/tokens";
 import { getPublicClient } from "@wagmi/core";
 import { config } from "@/config/wagmi";
-import { imuaChain } from "@/types/networks";
-import { EVMNetwork, XRPL } from "@/types/networks";
 
-export function usePortalContract(network: EVMNetwork | XRPL) {
-  const evmChainID = (network as EVMNetwork).evmChainID || imuaChain.evmChainID;
+export function useERC20Token(token: EVMLSTToken) {
+  const evmChainID = token.network.evmChainID;
 
   const { data: walletClient } = useWalletClient({ chainId: evmChainID });
   const publicClient = getPublicClient(config, {
@@ -18,8 +16,8 @@ export function usePortalContract(network: EVMNetwork | XRPL) {
   const contract =
     publicClient && walletClient
       ? getContract({
-          address: network.portalContract.address as `0x${string}`,
-          abi: network.portalContract.abi,
+          address: token.address as `0x${string}`,
+          abi: erc20Abi,
           client: {
             public: publicClient,
             wallet: walletClient,

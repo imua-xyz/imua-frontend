@@ -4,7 +4,7 @@ import { useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import {
-  TxHandlerOptions,
+  BaseTxOptions,
   StakerBalance,
   WalletBalance,
 } from "@/types/staking";
@@ -24,6 +24,7 @@ import { usePortalContract } from "./usePortalContract";
 import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { useStakerBalances } from "./useStakerBalances";
+import { useAssetsPrecompile } from "./useAssetsPrecompile";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -39,12 +40,15 @@ export function useXRPStaking(): StakingService {
   );
 
   const checkBoundAddress = useBindingStore((state) => state.checkBinding);
+  const setBoundAddress = useBindingStore((state) => state.setBinding);
   const boundImuaAddress = useBindingStore(
     (state) => state.boundAddresses[xrpAddress ?? ""],
   );
 
   const xrplClient = useXrplStore((state) => state.client);
   const setNetwork = useXrplStore((state) => state.setNetwork);
+
+  const { getStakerBalanceByToken } = useAssetsPrecompile();
 
   useEffect(() => {
     if (walletNetwork) {
@@ -126,13 +130,15 @@ export function useXRPStaking(): StakingService {
     async (
       amount: bigint,
       operatorAddress?: string,
-      options?: TxHandlerOptions,
+      options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
       if (!isGemWalletConnected || !isWagmiConnected || !xrpAddress)
         throw new Error("Gem wallet not connected");
       if (!vaultAddress || !amount) throw new Error("Invalid parameters");
       if (operatorAddress)
         throw new Error("Operator address not supported for now");
+      if (!evmAddress) throw new Error("EVM wallet not connected");
+      if (boundImuaAddress && boundImuaAddress !== evmAddress) throw new Error("EVM wallet address does not match bound address");
 
       // Get account info using the xrplClient
       const accountInfo = await getAccountInfo(xrpAddress);
@@ -175,26 +181,31 @@ export function useXRPStaking(): StakingService {
         ],
       };
 
+      const spawnTx = () => sendTransaction(txPayload);
+      const getStateSnapshot = async () => {
+        const balance = await getStakerBalanceByToken(effectiveAddress as `0x${string}`, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
+        return balance?.totalDeposited || BigInt(0);
+      };
+      const verifyCompletion = async (balanceBefore: bigint, balanceAfter: bigint) => {
+        return balanceAfter === balanceBefore + amount;
+      };
+
       const { hash, success, error } = await handleXrplTxWithStatus(
-        sendTransaction(txPayload),
-        getTransactionStatus,
-        options,
+        {
+          spawnTx: spawnTx,
+          mode: "simplex",
+          getTransactionStatus: getTransactionStatus,
+          verifyCompletion: verifyCompletion,
+          getStateSnapshot: getStateSnapshot,
+          onPhaseChange: options?.onPhaseChange,
+          utxoGateway: contract,
+        },
       );
 
-      // If transaction was successful and:
-      // 1. We don't have a bound address yet
-      // 2. We used the EVM address in the memo
-      // 3. We have the checkBoundAddress method available
+      // If transaction and following checks were successful and we don't have a bound address yet, we should explicitly set the bound address
       if (success && !boundImuaAddress && effectiveAddress) {
-        // Schedule binding checks after successful deposit
-        setTimeout(async () => {
-          await checkBoundAddress(xrpAddress);
-
-          // Check again after a longer delay if still not found
-          setTimeout(async () => {
-            await checkBoundAddress(xrpAddress);
-          }, 15000); // Second check after 15 seconds
-        }, 5000); // First check after 5 seconds
+        // Given even the completion verification has been successful, we should explicitly set the bound address
+        setBoundAddress(xrpAddress, effectiveAddress);
       }
 
       return { hash, success, error };
@@ -220,14 +231,29 @@ export function useXRPStaking(): StakingService {
 
   // Delegate XRP to an operator
   const delegateXrp = useCallback(
-    async (operator: string, amount: bigint, options?: TxHandlerOptions) => {
-      if (!contract) throw new Error("Contract not available");
+    async (operator: string, amount: bigint, options?: Pick<BaseTxOptions, "onPhaseChange">) => {
+      if (!contract || !boundImuaAddress) throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
+      if (evmAddress && evmAddress !== boundImuaAddress) throw new Error("EVM wallet address does not match bound address");
+
+      const spawnTx = () => contract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
+      const getStateSnapshot = async () => {
+        const balance = await getStakerBalanceByToken(boundImuaAddress, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
+        return balance?.delegated || BigInt(0);
+      };
+      const verifyCompletion = async (delegatedBefore: bigint, delegatedAfter: bigint) => {
+        return delegatedAfter === delegatedBefore + amount;
+      };
 
       return handleEVMTxWithStatus(
-        contract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]),
-        publicClient,
-        options,
+        {
+          spawnTx: spawnTx,
+          mode: "local",
+          publicClient: publicClient,
+          verifyCompletion: verifyCompletion,
+          getStateSnapshot: getStateSnapshot,
+          onPhaseChange: options?.onPhaseChange,
+        },
       );
     },
     [contract, handleEVMTxWithStatus, publicClient],
@@ -235,14 +261,30 @@ export function useXRPStaking(): StakingService {
 
   // Undelegate XRP from an operator
   const undelegateXrp = useCallback(
-    async (operator: string, amount: bigint, instantUnbond: boolean, options?: TxHandlerOptions) => {
-      if (!contract) throw new Error("Contract not available");
+    async (operator: string, amount: bigint, instantUnbond: boolean, options?: Pick<BaseTxOptions, "onPhaseChange">) => {
+      if (!contract || !boundImuaAddress) throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
+      if (evmAddress && evmAddress !== boundImuaAddress) throw new Error("EVM wallet address does not match bound address");
+
+      const spawnTx = () => contract.write.undelegateFrom([XRP_TOKEN_ENUM, operator, amount, instantUnbond]);
+      const getStateSnapshot = async () => {
+        const balance = await getStakerBalanceByToken(boundImuaAddress, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
+        return instantUnbond ? balance?.withdrawable : balance?.pendingUndelegated || BigInt(0);
+      };
+
+      const verifyCompletion = async (balanceBefore: bigint, BalanceAfter: bigint) => {
+        return instantUnbond ? BalanceAfter > balanceBefore : BalanceAfter === balanceBefore + amount;
+      };
 
       return handleEVMTxWithStatus(
-        contract.write.undelegateFrom([XRP_TOKEN_ENUM, operator, amount, instantUnbond]),
-        publicClient,
-        options,
+        {
+          spawnTx: spawnTx,
+          mode: "local",
+          publicClient: publicClient,
+          verifyCompletion: verifyCompletion,
+          getStateSnapshot: getStateSnapshot,
+          onPhaseChange: options?.onPhaseChange,
+        },
       );
     },
     [contract, handleEVMTxWithStatus, publicClient],
@@ -253,16 +295,31 @@ export function useXRPStaking(): StakingService {
     async (
       amount: bigint,
       recipient?: `0x${string}`,
-      options?: TxHandlerOptions,
+      options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract) throw new Error("Contract not available");
+      if (!contract || !boundImuaAddress) throw new Error("Contract not available or bound address not found");
       if (!amount) throw new Error("Invalid parameters");
       if (recipient) throw new Error("Recipient not supported for now");
+      if (evmAddress && evmAddress !== boundImuaAddress) throw new Error("EVM wallet address does not match bound address");
+
+      const spawnTx = () => contract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
+      const getStateSnapshot = async () => {
+        const balance = await getStakerBalanceByToken(boundImuaAddress, XRP_CHAIN_ID, XRP_TOKEN_ADDRESS);
+        return balance?.withdrawable || BigInt(0);
+      };
+      const verifyCompletion = async (balanceBefore: bigint, balanceAfter: bigint) => {
+        return balanceAfter === balanceBefore - amount;
+      };
 
       return handleEVMTxWithStatus(
-        contract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]),
-        publicClient,
-        options,
+        {
+          spawnTx: spawnTx,
+          mode: "local",
+          publicClient: publicClient,
+          verifyCompletion: verifyCompletion,
+          getStateSnapshot: getStateSnapshot,
+          onPhaseChange: options?.onPhaseChange,
+        },
       );
     },
     [contract, handleEVMTxWithStatus, publicClient],

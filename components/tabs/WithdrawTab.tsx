@@ -3,11 +3,19 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
-import { TxStatus } from "@/types/staking";
+import { Phase, PhaseStatus, OperationMode } from "@/types/staking";
 import { formatUnits } from "viem";
 import { Info, ArrowRight, AlertCircle, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
-import { MultiChainOperationProgress } from "@/components/ui/multi-chain-operation-progress";
+import { 
+  OperationProgress, 
+  OperationStep,
+  transactionStep,
+  confirmationStep,
+  sendingRequestStep,
+  receivingResponseStep,
+  completionStep
+} from "@/components/ui/operation-progress";
 import Image from "next/image";
 
 // Utility function to format amounts with fixed decimal places for DISPLAY ONLY
@@ -78,9 +86,8 @@ export function WithdrawTab({
     isDirectWithdrawal ? "withdraw" : "claim"
   );
 
-  // Transaction state
-  const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
+  // Operation progress state
+  const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
   const [activeOperation, setActiveOperation] = useState<
     "claim" | "withdraw" | null
@@ -98,21 +105,66 @@ export function WithdrawTab({
     }
   }, [isDirectWithdrawal, activeTab, maxWithdrawAmount]);
 
+  // Initialize operation steps based on operation type
+  useEffect(() => {
+    if (activeOperation === "claim") {
+      // Duplex mode: transaction, confirmation, relay, response, completion
+      const steps: OperationStep[] = [
+        { ...transactionStep, description: "Sending claim transaction" },
+        { ...confirmationStep },
+        { ...sendingRequestStep, description: "Sending claim request to Imuachain" },
+        { ...receivingResponseStep, description: "Receiving approval from Imuachain" },
+        { ...completionStep, description: "Claim completed" },
+      ];
+      setOperationSteps(steps);
+    } else if (activeOperation === "withdraw") {
+      // Local mode: transaction, confirmation, completion
+      const steps: OperationStep[] = [
+        { ...transactionStep, description: "Sending withdraw transaction" },
+        { ...confirmationStep },
+        { ...completionStep, description: "Withdrawal completed" },
+      ];
+      setOperationSteps(steps);
+    }
+  }, [activeOperation]);
+
+  // Handle phase changes from txUtils
+  const handlePhaseChange = (newPhase: Phase) => {
+    setOperationSteps(prev => {
+      const updatedSteps = [...prev];
+      
+      // Find the target index for the new phase
+      const targetIndex = updatedSteps.findIndex(step => step.phase === newPhase);
+      if (targetIndex >= 0) {
+        // Mark the new step as processing
+        updatedSteps[targetIndex].status = "processing";
+        
+        // Update transaction hash for transaction step
+        if (newPhase === "sendingTx" && txHash) {
+          updatedSteps[targetIndex].txHash = txHash;
+          updatedSteps[targetIndex].explorerUrl = token.network.txExplorerUrl;
+        }
+
+        // Mark all previous steps as success
+        for (let i = 0; i < targetIndex; i++) {
+          updatedSteps[i].status = "success";
+        }
+      }
+
+      return updatedSteps;
+    });
+  };
+
   // Handle claim operation
   const handleClaimOperation = async () => {
     if (!canClaimPrincipal) return;
 
     setActiveOperation("claim");
-    setTxError(null);
-    setTxStatus("processing");
     setShowProgress(true);
 
     try {
       const result = await stakingService.claimPrincipal!(parsedClaimAmount, {
-        onStatus: (status, error) => {
-          setTxStatus(status);
-          if (error) setTxError(error);
-        },
+        onPhaseChange: handlePhaseChange,
       });
 
       if (result.hash) {
@@ -120,28 +172,50 @@ export function WithdrawTab({
       }
 
       if (result.success) {
-        setTxStatus("success");
+        // Mark final step as success
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          if (updated[updated.length - 1]) {
+            updated[updated.length - 1].status = "success";
+          }
+          return updated;
+        });
+        
         // Auto-switch to withdraw tab after successful claim
         if (maxWithdrawAmount > BigInt(0) || parsedClaimAmount) {
           setActiveTab("withdraw");
         }
         if (onSuccess) onSuccess();
       } else {
-        setTxStatus("error");
-        setTxError(result.error || "Transaction failed");
+        // Mark current step as error
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          if (processingStepIndex >= 0) {
+            updated[processingStepIndex].status = "error";
+            updated[processingStepIndex].errorMessage = result.error || "Claim failed";
+          }
+          return updated;
+        });
       }
     } catch (error) {
       console.error("Operation failed:", error);
-      setTxStatus("error");
-      setTxError(error instanceof Error ? error.message : "Transaction failed");
+      // Mark current step as error
+      setOperationSteps(prev => {
+        const updated = [...prev];
+        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        if (processingStepIndex >= 0) {
+          updated[processingStepIndex].status = "error";
+          updated[processingStepIndex].errorMessage = error instanceof Error ? error.message : "Claim failed";
+        }
+        return updated;
+      });
     }
   };
 
   // Handle withdraw operation
   const handleWithdrawOperation = async () => {
     setActiveOperation("withdraw");
-    setTxError(null);
-    setTxStatus("processing");
     setShowProgress(true);
 
     try {
@@ -150,10 +224,7 @@ export function WithdrawTab({
         (recipientAddress as `0x${string}`) ||
           stakingService.walletBalance?.stakerAddress,
         {
-          onStatus: (status, error) => {
-            setTxStatus(status);
-            if (error) setTxError(error);
-          },
+          onPhaseChange: handlePhaseChange,
         },
       );
 
@@ -162,16 +233,40 @@ export function WithdrawTab({
       }
 
       if (result.success) {
-        setTxStatus("success");
+        // Mark final step as success
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          if (updated[updated.length - 1]) {
+            updated[updated.length - 1].status = "success";
+          }
+          return updated;
+        });
+        
         if (onSuccess) onSuccess();
       } else {
-        setTxStatus("error");
-        setTxError(result.error || "Transaction failed");
+        // Mark current step as error
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          if (processingStepIndex >= 0) {
+            updated[processingStepIndex].status = "error";
+            updated[processingStepIndex].errorMessage = result.error || "Withdrawal failed";
+          }
+          return updated;
+        });
       }
     } catch (error) {
       console.error("Operation failed:", error);
-      setTxStatus("error");
-      setTxError(error instanceof Error ? error.message : "Transaction failed");
+      // Mark current step as error
+      setOperationSteps(prev => {
+        const updated = [...prev];
+        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        if (processingStepIndex >= 0) {
+          updated[processingStepIndex].status = "error";
+          updated[processingStepIndex].errorMessage = error instanceof Error ? error.message : "Withdrawal failed";
+        }
+        return updated;
+      });
     }
   };
 
@@ -340,7 +435,7 @@ export function WithdrawTab({
             <Button
               className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
               disabled={
-                (!!txStatus && txStatus !== "error" && activeOperation === "claim") ||
+                showProgress ||
                 !!claimAmountError ||
                 !claimAmount ||
                 !parsedClaimAmount ||
@@ -348,13 +443,9 @@ export function WithdrawTab({
               }
               onClick={handleClaimOperation}
             >
-              {activeOperation === "claim" && txStatus === "processing"
+              {showProgress && activeOperation === "claim"
                 ? "Processing..."
-                : activeOperation === "claim" && txStatus === "success"
-                  ? "Success!"
-                  : activeOperation === "claim" && txStatus === "error"
-                    ? "Failed!"
-                    : "Claim Tokens"}
+                : "Claim Tokens"}
             </Button>
           </div>
         </div>
@@ -376,7 +467,8 @@ export function WithdrawTab({
       )}
 
       {/* Success State for Claim */}
-      {!isDirectWithdrawal && activeTab === "claim" && activeOperation === "claim" && txStatus === "success" && (
+      {!isDirectWithdrawal && activeTab === "claim" && activeOperation === "claim" && 
+       operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success" && (
         <div className="p-6 bg-[#0a1a0a] rounded-lg border border-[#4ade80]/30">
           <div className="text-center">
             <div className="w-12 h-12 bg-[#4ade80] rounded-full flex items-center justify-center mx-auto mb-3">
@@ -451,7 +543,7 @@ export function WithdrawTab({
             <Button
               className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
               disabled={
-                (!!txStatus && txStatus !== "error" && activeOperation === "withdraw") ||
+                showProgress ||
                 !!withdrawAmountError ||
                 !withdrawAmount ||
                 !parsedWithdrawAmount ||
@@ -459,13 +551,9 @@ export function WithdrawTab({
               }
               onClick={handleWithdrawOperation}
             >
-              {activeOperation === "withdraw" && txStatus === "processing"
+              {showProgress && activeOperation === "withdraw"
                 ? "Processing..."
-                : activeOperation === "withdraw" && txStatus === "success"
-                  ? "Success!"
-                  : activeOperation === "withdraw" && txStatus === "error"
-                    ? "Failed!"
-                    : "Withdraw Tokens"}
+                : "Withdraw Tokens"}
             </Button>
           </div>
         </div>
@@ -526,7 +614,7 @@ export function WithdrawTab({
             <Button
               className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
               disabled={
-                (!!txStatus && txStatus !== "error" && activeOperation === "withdraw") ||
+                showProgress ||
                 !!withdrawAmountError ||
                 !withdrawAmount ||
                 !parsedWithdrawAmount ||
@@ -534,13 +622,9 @@ export function WithdrawTab({
               }
               onClick={handleWithdrawOperation}
             >
-              {activeOperation === "withdraw" && txStatus === "processing"
+              {showProgress && activeOperation === "withdraw"
                 ? "Processing..."
-                : activeOperation === "withdraw" && txStatus === "success"
-                  ? "Success!"
-                  : activeOperation === "withdraw" && txStatus === "error"
-                    ? "Failed!"
-                    : "Withdraw Tokens"}
+                : "Withdraw Tokens"}
             </Button>
           </div>
         </div>
@@ -566,29 +650,41 @@ export function WithdrawTab({
         </div>
       )}
 
-      {txError && <p className="mt-3 text-sm text-red-500">{txError}</p>}
-
-      {/* Progress overlay - Use MultiChainOperationProgress for consistency */}
-      {showProgress && (
-        <MultiChainOperationProgress
-          sourceChain={activeOperation === "claim" ? destinationChain : sourceChain}
-          destinationChain={activeOperation === "claim" ? sourceChain : destinationChain}
-          operation={activeOperation === "claim" ? "claim" : "withdraw"}
-          mode={activeOperation === "claim" ? "duplex" : "local"}
-          txHash={txHash}
-          explorerUrl={token.network.txExplorerUrl}
-          txStatus={txStatus}
+      {/* Progress overlay - Use OperationProgress directly */}
+      {showProgress && operationSteps.length > 0 && (
+        <OperationProgress
+          progress={{
+            operation: activeOperation === "claim" ? "claim" : "withdraw",
+            chainInfo: {
+              sourceChain: activeOperation === "claim" ? destinationChain : sourceChain,
+              destinationChain: activeOperation === "claim" ? sourceChain : destinationChain,
+            },
+            steps: operationSteps,
+            overallStatus: {
+              // Derive current phase from step statuses
+              currentPhase: (() => {
+                const processingStep = operationSteps.find(step => step.status === "processing");
+                if (processingStep) return processingStep.phase;
+                
+                const lastSuccessStep = operationSteps.filter(step => step.status === "success").pop();
+                if (lastSuccessStep) return lastSuccessStep.phase;
+                
+                return "sendingTx";
+              })(),
+              currentPhaseStatus: (() => {
+                if (operationSteps.some(step => step.status === "error")) return "error" as PhaseStatus;
+                if (operationSteps.every(step => step.status === "success")) return "success" as PhaseStatus;
+                if (operationSteps.some(step => step.status === "processing")) return "processing" as PhaseStatus;
+                return "pending" as PhaseStatus;
+              })(),
+            },
+          }}
           open={showProgress}
           onClose={() => {
             setShowProgress(false);
-            setTxStatus(null);
-            setTxError(null);
+            setOperationSteps([]);
+            setActiveOperation(null);
             setTxHash(undefined);
-          }}
-          onViewDetails={() => {
-            if (token.network.txExplorerUrl && txHash) {
-              window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
-            }
           }}
         />
       )}

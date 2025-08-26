@@ -4,11 +4,19 @@ import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
-import { TxStatus } from "@/types/staking";
+import { Phase, PhaseStatus, OperationMode } from "@/types/staking";
 import { formatUnits } from "viem";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CustomOperationProgress } from "@/components/ui/custom-opration-progress";
+import { 
+  OperationProgress, 
+  OperationStep,
+  approvalStep,
+  transactionStep,
+  confirmationStep,
+  sendingRequestStep,
+  completionStep
+} from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
@@ -66,13 +74,54 @@ export function StakeTab({
   const isDepositThenDelegateDisabled =
     !!stakingService.isDepositThenDelegateDisabled;
 
-  // Transaction state
-  const [txStatus, setTxStatus] = useState<TxStatus | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
+  // Operation progress state
+  const [showProgress, setShowProgress] = useState(false);
+  const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Cross-chain progress tracking
-  const [showProgress, setShowProgress] = useState(false);
+  // Initialize operation steps using predefined steps
+  useEffect(() => {
+    const steps: OperationStep[] = [
+      { ...approvalStep },
+      { ...transactionStep },
+      { ...confirmationStep },
+      { ...sendingRequestStep },
+      { ...completionStep },
+    ];
+
+    // Update descriptions for better context
+    steps[1].description = "Sending stake transaction";
+    steps[3].description = `Relaying message to ${destinationChain}`;
+
+    setOperationSteps(steps);
+  }, [destinationChain]);
+
+  // Handle phase changes from txUtils
+  const handlePhaseChange = (newPhase: Phase) => {
+    setOperationSteps(prev => {
+      const updatedSteps = [...prev];
+      
+      // Find the target index for the new phase
+      const targetIndex = updatedSteps.findIndex(step => step.phase === newPhase);
+      if (targetIndex >= 0) {
+        // Mark the new step as processing
+        updatedSteps[targetIndex].status = "processing";
+        
+        // Update transaction hash for transaction step
+        if (newPhase === "sendingTx" && txHash) {
+          updatedSteps[targetIndex].txHash = txHash;
+          updatedSteps[targetIndex].explorerUrl = token.network.txExplorerUrl;
+        }
+
+        // Mark all previous steps as success
+        for (let i = 0; i < targetIndex; i++) {
+          updatedSteps[i].status = "success";
+        }
+      }
+
+      return updatedSteps;
+    });
+  };
 
   // Try to restore last used operator from localStorage
   useEffect(() => {
@@ -125,8 +174,8 @@ export function StakeTab({
 
   // Handle stake/deposit operation
   const handleOperation = async () => {
-    setTxError(null);
-    setTxStatus("approving");
+    // Reset progress state
+    setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
     setShowProgress(true);
 
     try {
@@ -136,10 +185,7 @@ export function StakeTab({
           ? selectedOperator.address
           : undefined,
         {
-          onStatus: (status, error) => {
-            setTxStatus(status);
-            if (error) setTxError(error);
-          },
+          onPhaseChange: handlePhaseChange,
         },
       );
 
@@ -148,25 +194,49 @@ export function StakeTab({
       }
 
       if (result.success) {
-        setTxStatus("success");
+        // ✅ FIX: Mark the final step (verifying completion) as success
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          // Find the last step (verifying completion) and mark it as success
+          const lastStepIndex = updated.length - 1;
+          if (updated[lastStepIndex]) {
+            updated[lastStepIndex].status = "success";
+          }
+          return updated;
+        });
+        
         if (onSuccess) onSuccess();
       } else {
-        setTxStatus("error");
-        setTxError("Transaction rejected by the user Or Transaction failed");
+        // Mark current step as error
+        setOperationSteps(prev => {
+          const updated = [...prev];
+          const processingStepIndex = updated.findIndex(step => step.status === "processing");
+          if (processingStepIndex >= 0) {
+            updated[processingStepIndex].status = "error";
+            updated[processingStepIndex].errorMessage = result.error || "Operation failed";
+          }
+          return updated;
+        });
+        
       }
     } catch (error) {
       console.error("Operation failed:", error);
-      setTxStatus("error");
-      setTxError("Transaction rejected by the user Or Transaction failed");
+      // Mark current step as error
+      setOperationSteps(prev => {
+        const updated = [...prev];
+        const processingStepIndex = updated.findIndex(step => step.status === "processing");
+        if (processingStepIndex >= 0) {
+          updated[processingStepIndex].status = "error";
+          updated[processingStepIndex].errorMessage = "Operation failed";
+        }
+        return updated;
+      });
     }
   };
 
   // Format button text based on state
   const getButtonText = () => {
-    if (txStatus === "approving") return "Approving...";
-    if (txStatus === "processing") return "Processing...";
-    if (txStatus === "success") return "Success!";
-    if (txStatus === "error") return "Failed!";
+    if (showProgress) return "Processing...";
 
     if (currentStep === "amount") return "Continue";
 
@@ -182,6 +252,34 @@ export function StakeTab({
     const yearlyRewards = amountNumber * (selectedOperator.apr / 100);
 
     return yearlyRewards;
+  };
+
+  // Create operation progress data
+  const operationProgress = {
+    operation: isStakeMode && selectedOperator ? "stake" : "deposit",
+    chainInfo: {
+      sourceChain,
+      destinationChain,
+    },
+    steps: operationSteps,
+    overallStatus: {
+      // Derive current phase from step statuses
+      currentPhase: (() => {
+        const processingStep = operationSteps.find(step => step.status === "processing");
+        if (processingStep) return processingStep.phase;
+        
+        const lastSuccessStep = operationSteps.filter(step => step.status === "success").pop();
+        if (lastSuccessStep) return lastSuccessStep.phase;
+        
+        return "approving";
+      })(),
+      currentPhaseStatus: (() => {
+        if (operationSteps.some(step => step.status === "error")) return "error" as PhaseStatus;
+        if (operationSteps.every(step => step.status === "success")) return "success" as PhaseStatus;
+        if (operationSteps.some(step => step.status === "processing")) return "processing" as PhaseStatus;
+        return "pending" as PhaseStatus;
+      })(),
+    },
   };
 
   return (
@@ -411,7 +509,7 @@ export function StakeTab({
             <Button
               className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
               disabled={
-                !!txStatus ||
+                showProgress ||
                 (isStakeMode &&
                   !isDepositThenDelegateDisabled &&
                   !selectedOperator) ||
@@ -423,8 +521,6 @@ export function StakeTab({
               {getButtonText()}
             </Button>
           </div>
-
-          {txError && <p className="mt-3 text-sm text-red-500">{txError}</p>}
         </>
       )}
 
@@ -437,19 +533,12 @@ export function StakeTab({
         selectedOperator={selectedOperator}
       />
 
-      {/* Progress overlay */}
-      <CustomOperationProgress
-        sourceChain={sourceChain}
-        destinationChain={destinationChain}
-        operation={isStakeMode && selectedOperator ? "stake" : "deposit"}
-        txHash={txHash}
-        explorerUrl={token.network.txExplorerUrl}
-        txStatus={txStatus}
+      {/* Operation Progress Modal */}
+      <OperationProgress
+        progress={operationProgress}
         open={showProgress}
         onClose={() => {
           setShowProgress(false);
-          setTxStatus(null);
-          setTxError(null);
           setTxHash(undefined);
         }}
         onViewDetails={() => {

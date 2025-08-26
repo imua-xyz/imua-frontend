@@ -4,20 +4,11 @@ import { getContract } from "viem";
 import IAssetsABI from "@/abi/IAssets.abi.json";
 import { imua, publicClients } from "@/config/wagmi";
 import { encodePacked } from "viem";
+import { StakerBalanceResponseFromPrecompile } from "@/types/staking";
 
 // Address of the IAssets precompile contract
 export const ASSETS_PRECOMPILE_ADDRESS =
   "0x0000000000000000000000000000000000000804";
-interface StakerBalanceResponse {
-  clientChainID: number;
-  stakerAddress: `0x${string}`;
-  tokenID: `0x${string}`;
-  balance: bigint;
-  withdrawable: bigint;
-  delegated: bigint;
-  pendingUndelegated: bigint;
-  totalDeposited: bigint;
-}
 
 export function useAssetsPrecompile() {
   // Get the public client for the current chain (or fallback to imua chain)
@@ -39,7 +30,7 @@ export function useAssetsPrecompile() {
       userAddress: `0x${string}`,
       endpointId?: number,
       tokenAddress?: `0x${string}`,
-    ): Promise<StakerBalanceResponse> => {
+    ): Promise<StakerBalanceResponseFromPrecompile> => {
       if (!contract || !tokenAddress || !userAddress || !endpointId)
         throw new Error("Invalid parameters");
 
@@ -49,7 +40,7 @@ export function useAssetsPrecompile() {
           endpointId,
           encodePacked(["address"], [userAddress]),
           encodePacked(["address"], [tokenAddress]),
-        ])) as [boolean, StakerBalanceResponse];
+        ])) as [boolean, StakerBalanceResponseFromPrecompile];
 
         if (!success || !stakerBalanceResponse) {
           return {

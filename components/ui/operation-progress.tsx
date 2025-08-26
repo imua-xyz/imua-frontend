@@ -6,7 +6,6 @@ import {
   Loader2,
   ArrowRight,
   Clock,
-  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -16,48 +15,55 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TxStatus } from "@/types/staking";
+import { Phase, PhaseStatus, OverallStatus } from "@/types/staking";
 
 export type OperationStep = {
-  id: string;
+  phase: Phase;
   title: string;
   description: string;
-  status: "pending" | "processing" | "success" | "error" | "waiting";
+  status: PhaseStatus;
   errorMessage?: string;
   txHash?: string;
   explorerUrl?: string;
 };
 
 export const approvalStep: OperationStep = {
-  id: "approval",
+  phase: "approving",
   title: "Token Approval",
   description: "Approve tokens for staking",
   status: "pending",
 };
 
 export const transactionStep: OperationStep = {
-  id: "transaction",
+  phase: "sendingTx",
   title: "Submit Transaction",
   description: "Sending transaction",
   status: "pending",
 };
 
 export const confirmationStep: OperationStep = {
-  id: "confirmation",
+  phase: "confirmingTx",
   title: "Transaction Confirmation",
   description: "Waiting for transaction to be confirmed",
   status: "pending",
 };
 
-export const relayingStep: OperationStep = {
-  id: "relaying",
+export const sendingRequestStep: OperationStep = {
+  phase: "sendingRequest",
   title: "Cross-Chain Message",
   description: "Relaying message to destination chain",
   status: "pending",
 };
 
+export const receivingResponseStep: OperationStep = {
+  phase: "receivingResponse",
+  title: "Receive Response",
+  description: "Waiting for response from destination chain",
+  status: "pending",
+};
+
 export const completionStep: OperationStep = {
-  id: "completion",
+  phase: "verifyingCompletion",
   title: "Process Completion",
   description: "Verifying final balance update",
   status: "pending",
@@ -70,8 +76,7 @@ export type OperationProgress = {
     destinationChain?: string;
   };
   steps: OperationStep[];
-  currentStepIndex: number;
-  overallStatus: TxStatus | "relaying" | "verifying" | null;
+  overallStatus: OverallStatus;
 };
 
 interface OperationProgressProps {
@@ -92,6 +97,7 @@ export function OperationProgress({
     progress.chainInfo?.sourceChain && progress.chainInfo?.destinationChain
   );
   const hasError = progress.steps.some((step) => step.status === "error");
+  const success = progress.overallStatus.currentPhase === "verifyingCompletion" && progress.overallStatus.currentPhaseStatus === "success";
 
   // Calculate progress percentage based on steps
   useEffect(() => {
@@ -107,7 +113,7 @@ export function OperationProgress({
         (step) => step.status === "error",
       );
       setProgressValue((errorIndex / (totalSteps - 1)) * 100);
-    } else if (progress.overallStatus === "success") {
+    } else if (success) {
       setProgressValue(100);
     } else {
       // Calculate progress based on completed + half credit for processing
@@ -129,13 +135,26 @@ export function OperationProgress({
     errorStep?.errorMessage || "Transaction failed. You may try again.";
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(isOpen) => {
+        // Only allow closing if operation is completed (success/error) or if explicitly opening
+        if (!isOpen && (success || hasError)) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-md bg-[#13131a] border-[#222233] text-white">
         <DialogHeader>
           <DialogTitle className="text-center text-xl font-bold text-white">
             {progress.operation.charAt(0).toUpperCase() +
               progress.operation.slice(1)}{" "}
             Progress
+            {!success && !hasError && (
+              <div className="text-sm font-normal text-[#9999aa] mt-1">
+                (Keep window open)
+              </div>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -156,9 +175,9 @@ export function OperationProgress({
         <div className="relative h-2 w-full bg-[#222233] rounded-full overflow-hidden mb-6">
           <div
             className={`h-full transition-all duration-500 ease-out ${
-              progress.overallStatus === "error"
+              hasError
                 ? "bg-red-500"
-                : progress.overallStatus === "success"
+                : success
                   ? "bg-green-500"
                   : "bg-[#00e5ff]"
             }`}
@@ -166,26 +185,12 @@ export function OperationProgress({
           ></div>
         </div>
 
-        {/* Error summary - only show if there's an error */}
-        {hasError && (
-          <div className="mb-4 p-3 bg-[#2d0d0d]/30 border border-red-500/30 rounded-lg flex items-start">
-            <AlertCircle
-              className="text-red-500 mr-2 mt-0.5 flex-shrink-0"
-              size={16}
-            />
-            <div>
-              <p className="text-red-400 text-sm font-medium">
-                Transaction failed
-              </p>
-              <p className="text-[#9999aa] text-xs mt-1">{errorMessage}</p>
-            </div>
-          </div>
-        )}
+
 
         {/* Steps list with connecting lines */}
         <div className="space-y-0">
           {progress.steps.map((step, index) => (
-            <div key={step.id} className="relative">
+            <div key={step.phase} className="relative">
               {/* Step content */}
               <div
                 className={`flex items-start p-4 rounded-lg mb-1 ${
@@ -195,9 +200,7 @@ export function OperationProgress({
                       ? "bg-[#0d2d1d]/20 border border-green-500/20"
                       : step.status === "processing"
                         ? "bg-[#0d1d2d]/20 border border-[#00e5ff]/20"
-                        : index === progress.currentStepIndex
-                          ? "bg-[#1a1a24] border border-[#333344]"
-                          : ""
+                        : ""
                 }`}
               >
                 {/* Status icon */}
@@ -222,11 +225,6 @@ export function OperationProgress({
                       <Clock className="h-4 w-4 text-[#9999aa]" />
                     </div>
                   )}
-                  {step.status === "waiting" && (
-                    <div className="w-6 h-6 rounded-full bg-[#2d2d0d] flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-yellow-500" />
-                    </div>
-                  )}
                 </div>
 
                 {/* Step content */}
@@ -239,8 +237,6 @@ export function OperationProgress({
                           ? "text-red-500"
                           : step.status === "processing"
                             ? "text-[#00e5ff]"
-                            : step.status === "waiting"
-                              ? "text-yellow-500"
                               : "text-white"
                     }`}
                   >
@@ -291,8 +287,7 @@ export function OperationProgress({
         )}
 
         <DialogFooter className="flex justify-between sm:justify-between mt-6 pt-4 border-t border-[#222233]">
-          {progress.overallStatus === "success" ||
-          progress.overallStatus === "error" ? (
+          {success || hasError ? (
             <>
               <Button
                 variant="outline"
@@ -312,7 +307,11 @@ export function OperationProgress({
             </>
           ) : (
             <div className="w-full text-center text-sm text-[#9999aa] py-2">
-              Please keep this window open until the process completes
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse"></div>
+                <span>Please keep this window open until the process completes</span>
+                <div className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse"></div>
+              </div>
             </div>
           )}
         </DialogFooter>
