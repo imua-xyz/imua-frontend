@@ -265,6 +265,26 @@ export function UndelegateTab({
     },
   };
 
+  // Handle modal close - only reset on success
+  const handleModalClose = () => {
+    // Check if operation completed successfully by checking final step status
+    const isSuccess = operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success";
+    
+    if (isSuccess) {
+      // Reset to initial state
+      setCurrentStep("delegation");
+      setAmount("");
+      setSelectedDelegation(null);
+      setIsInstantUnbond(false);
+      // Reset steps back to pending (not empty)
+      setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+      setTxHash(undefined);
+    }
+    
+    // Always close modal
+    setShowProgress(false);
+  };
+
   if (delegationsLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -585,10 +605,7 @@ export function UndelegateTab({
       <OperationProgress
         progress={operationProgress}
         open={showProgress}
-        onClose={() => {
-          setShowProgress(false);
-          setTxHash(undefined);
-        }}
+        onClose={handleModalClose}
         onViewDetails={() => {
           if (token.network.txExplorerUrl && txHash) {
             window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");

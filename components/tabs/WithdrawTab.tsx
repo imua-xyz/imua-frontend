@@ -270,6 +270,26 @@ export function WithdrawTab({
     }
   };
 
+  // Handle modal close - only reset on success
+  const handleModalClose = () => {
+    // Check if operation completed successfully by checking final step status
+    const isSuccess = operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success";
+    
+    if (isSuccess) {
+      // Reset to initial state
+      setClaimAmount("");
+      setWithdrawAmount("");
+      setRecipientAddress("");
+      setActiveOperation(null);
+      // Reset steps back to pending (not empty)
+      setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+      setTxHash(undefined);
+    }
+    
+    // Always close modal
+    setShowProgress(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Token Info */}
@@ -680,12 +700,7 @@ export function WithdrawTab({
             },
           }}
           open={showProgress}
-          onClose={() => {
-            setShowProgress(false);
-            setOperationSteps([]);
-            setActiveOperation(null);
-            setTxHash(undefined);
-          }}
+          onClose={handleModalClose}
         />
       )}
     </div>

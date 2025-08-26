@@ -282,6 +282,25 @@ export function StakeTab({
     },
   };
 
+  // Handle modal close - only reset on success
+  const handleModalClose = () => {
+    // Check if operation completed successfully by checking final step status
+    const isSuccess = operationSteps.length > 0 && operationSteps[operationSteps.length - 1]?.status === "success";
+    
+    if (isSuccess) {
+      // Reset to initial state
+      setCurrentStep("amount");
+      setAmount("");
+      setSelectedOperator(null);
+      // Reset steps back to pending (not empty)
+      setOperationSteps(prev => prev.map(step => ({ ...step, status: "pending" })));
+      setTxHash(undefined);
+    }
+    
+    // Always close modal
+    setShowProgress(false);
+  };
+
   return (
     <div className="space-y-5">
       {/* Step indicator - more subtle */}
@@ -537,10 +556,7 @@ export function StakeTab({
       <OperationProgress
         progress={operationProgress}
         open={showProgress}
-        onClose={() => {
-          setShowProgress(false);
-          setTxHash(undefined);
-        }}
+        onClose={handleModalClose}
         onViewDetails={() => {
           if (token.network.txExplorerUrl && txHash) {
             window.open(`${token.network.txExplorerUrl}${txHash}`, "_blank");
