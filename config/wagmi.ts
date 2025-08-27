@@ -26,6 +26,25 @@ export const imua = {
   },
 } as const;
 
+export const hoodi = {
+  id: 560048,
+  name: "Hoodi",
+  network: "hoodi",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Eth",
+    symbol: "ETH",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://ethereum-hoodi-rpc.publicnode.com"],
+    },
+    public: {
+      http: ["https://ethereum-hoodi-rpc.publicnode.com"],
+    },
+  },
+} as const;
+
 // Create public clients for each chain
 export const publicClients = {
   [sepolia.id]: createPublicClient({
@@ -33,6 +52,10 @@ export const publicClients = {
     transport: viem_http(
       "https://eth-sepolia.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
     ),
+  }),
+  [hoodi.id]: createPublicClient({
+    chain: hoodi,
+    transport: viem_http("https://ethereum-hoodi-rpc.publicnode.com"),
   }),
   [mainnet.id]: createPublicClient({
     chain: mainnet,
@@ -53,11 +76,12 @@ const { connectors } = getDefaultWallets({
 
 // Create wagmi config
 export const config = createConfig({
-  chains: [sepolia, mainnet, imua],
+  chains: [sepolia, hoodi, mainnet, imua],
   transports: {
     [sepolia.id]: http(
       "https://eth-sepolia.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
     ),
+    [hoodi.id]: http("https://ethereum-hoodi-rpc.publicnode.com"),
     [mainnet.id]: http(
       "https://eth-mainnet.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
     ),
@@ -66,4 +90,4 @@ export const config = createConfig({
   connectors,
 });
 
-export type ValidEVMChain = "Sepolia" | "Mainnet" | "Imua";
+export type ValidEVMChain = "Sepolia" | "Hoodi" | "Mainnet" | "Imua";

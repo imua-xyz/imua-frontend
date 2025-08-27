@@ -1,4 +1,4 @@
-import { Network, EVMNetwork, sepolia, xrpl, imuaChain } from "./networks";
+import { Network, EVMNetwork, xrpl, imuaChain, hoodi } from "./networks";
 import { ConnectorBase, evmConnector, gemConnector } from "./connectors";
 import { imuaDenom } from "./rewards";
 
@@ -44,10 +44,10 @@ export interface EVMNativeToken extends NativeToken {
 
 export const exoETH: EVMLSTToken = {
   type: "lst",
-  network: sepolia,
+  network: hoodi,
   name: "Imua Ethereum",
   symbol: "imETH",
-  address: "0xF79F563571f7D8122611D0219A0d5449B5304F79",
+  address: "0x80E5bb3A04554E54b40Dd6e14ca0F97212d9428d",
   decimals: 18,
   iconUrl: "/imua-logo.avif",
   underlyingAsset: "ETH",
@@ -58,10 +58,10 @@ export const exoETH: EVMLSTToken = {
 
 export const wstETH: EVMLSTToken = {
   type: "lst",
-  network: sepolia,
+  network: hoodi,
   name: "Wrapped Staked Ether",
   symbol: "wstETH",
-  address: "0xB82381A3fBD3FaFA77B3a7bE693342618240067b",
+  address: "0x32118ebD4b82A84B0f13218dbA41f352CC7c2923",
   decimals: 18,
   iconUrl: "/wsteth-logo.svg",
   underlyingAsset: "ETH",

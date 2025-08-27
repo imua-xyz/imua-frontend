@@ -45,6 +45,19 @@ export const sepolia: EVMNetwork = {
   accountExplorerUrl: "https://sepolia.etherscan.io/address/",
 } as const;
 
+export const hoodi: EVMNetwork = {
+  chainName: "Hoodi",
+  evmChainID: 560048,
+  customChainIdByImua: 0,
+  portalContract: {
+    name: "ClientChainGateway",
+    address: "0xf21FB1667A8Aa3D3ea365D3D1D257f3E4fdd0651",
+    abi: ClientChainGatewayABI,
+  },
+  txExplorerUrl: "https://hoodi.etherscan.io/",
+  accountExplorerUrl: "https://hoodi.etherscan.io/address/",
+} as const;
+
 export const xrpl: XRPL = {
   chainName: "XRPL",
   customChainIdByImua: 2,
@@ -70,4 +83,8 @@ export const imuaChain: EVMNetwork = {
   accountExplorerUrl: "https://exoscan.org/address/",
 } as const;
 
-export type Network = typeof sepolia | typeof xrpl | typeof imuaChain;
+export type Network =
+  | typeof sepolia
+  | typeof hoodi
+  | typeof xrpl
+  | typeof imuaChain;

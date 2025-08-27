@@ -70,7 +70,7 @@ export function useXRPStaking(): StakingService {
       }
 
       try {
-        if (!boundImuaAddress) {
+        if (!boundImuaAddress || !bootstrapStatus?.isBootstrapped) {
           return {
             clientChainID: XRP_CHAIN_ID,
             stakerAddress: "0x0" as `0x${string}`,
@@ -131,12 +131,20 @@ export function useXRPStaking(): StakingService {
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
       const bootstrapped = bootstrapStatus?.isBootstrapped;
-      if ( bootstrapped === undefined) throw new Error("Bootstrap status not available");
+      if (bootstrapped === undefined)
+        throw new Error("Bootstrap status not available");
       if (!isGemWalletConnected || !isWagmiConnected || !xrpAddress)
         throw new Error("Gem wallet not connected");
       if (!vaultAddress || !amount) throw new Error("Invalid parameters");
-      if ((bootstrapped && operatorAddress) || (!bootstrapped && !operatorAddress))
-        throw new Error(bootstrapped ? "Operator address not supported for now" : "Operator address is required for now");
+      if (
+        (bootstrapped && operatorAddress) ||
+        (!bootstrapped && !operatorAddress)
+      )
+        throw new Error(
+          bootstrapped
+            ? "Operator address not supported for now"
+            : "Operator address is required for now",
+        );
       if (!evmAddress) throw new Error("EVM wallet not connected");
       if (boundImuaAddress && boundImuaAddress !== evmAddress)
         throw new Error("EVM wallet address does not match bound address");
@@ -163,11 +171,13 @@ export function useXRPStaking(): StakingService {
       }
 
       if (!memoAddress) throw new Error("Memo address not found");
-      
+
       // if it is not bootstrapped, we should encode the operator address after memo address into the memo data
       let memoData: string = "";
       if (!bootstrapped) {
-        memoData = Buffer.from(memoAddress + operatorAddress, "utf8").toString("hex");
+        memoData = Buffer.from(memoAddress + operatorAddress, "utf8").toString(
+          "hex",
+        );
       } else {
         memoData = Buffer.from(memoAddress, "utf8").toString("hex");
       }
@@ -425,6 +435,7 @@ export function useXRPStaking(): StakingService {
     walletBalance: walletBalance?.data,
     vaultAddress: vaultAddress,
     minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
-    isDepositThenDelegateDisabled: !bootstrapStatus?.isBootstrapped,
+    isDepositThenDelegateDisabled: bootstrapStatus?.isBootstrapped,
+    isOnlyDepositThenDelegateAllowed: !bootstrapStatus?.isBootstrapped,
   };
 }

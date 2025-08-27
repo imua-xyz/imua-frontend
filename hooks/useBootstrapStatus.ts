@@ -1,12 +1,12 @@
 // hooks/useBootstrapStatus.ts
 import { useQuery } from "@tanstack/react-query";
 import { usePortalContract } from "./usePortalContract";
-import { sepolia } from "@/types/networks";
+import { hoodi } from "@/types/networks";
 import { BootstrapStatus } from "@/types/bootstrap-status";
 
 export function useBootstrapStatus() {
   // Always use the sepolia network to get the bootstrap contract
-  const { contract } = usePortalContract(sepolia);
+  const { contract } = usePortalContract(hoodi);
 
   const { data } = useQuery({
     queryKey: ["bootstrapStatus"],
