@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Token } from "@/types/tokens";
 import { EVMNetwork } from "@/types/networks";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { bootstrapContractNetwork } from "@/types/networks";
 import Image from "next/image";
 
 interface WalletConnectionModalProps {
@@ -30,6 +32,7 @@ export function WalletConnectionModal({
   const walletConnector = useWalletConnectorContext();
   const { chain, isConnected: isEVMWalletConnected } = useAccount();
   const { switchChain, status: switchChainStatus } = useSwitchChain();
+  const { bootstrapStatus } = useBootstrapStatus();
 
   // Extract connection status from wallet connector
   const { isReady, issues, boundAddress } = walletConnector;
@@ -42,6 +45,15 @@ export function WalletConnectionModal({
 
   // Check if connected to Imua network when required
   const isImuaNetwork = chain?.id === imua.id;
+
+  // Check if connected to bootstrap network (for non-EVM tokens during bootstrap)
+  const isBootstrapNetwork = chain?.id === bootstrapContractNetwork.evmChainID;
+
+  // Determine if we're in bootstrap phase
+  const isBootstrapPhase = !bootstrapStatus?.isBootstrapped;
+
+  // For non-EVM tokens, determine which EVM network to connect to
+  const shouldConnectToBootstrap = !evmCompatible && isBootstrapPhase;
 
   // Handle native wallet connection
   const handleNativeConnect = async () => {
@@ -105,7 +117,9 @@ export function WalletConnectionModal({
 
             <h2 className="text-xl font-bold mb-4 text-white">
               {requireExtraConnectToImua
-                ? "Connect Required Wallets"
+                ? isBootstrapPhase
+                  ? "Connect Required Wallets (Bootstrap Phase)"
+                  : "Connect Required Wallets"
                 : `Connect ${token.network.chainName} Wallet`}
             </h2>
 
@@ -114,7 +128,9 @@ export function WalletConnectionModal({
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-white">
-                    Connection Progress
+                    {isBootstrapPhase
+                      ? "Bootstrap Phase Progress"
+                      : "Connection Progress"}
                   </span>
                   <span className="text-sm text-[#9999aa]">
                     {isReady
@@ -250,7 +266,7 @@ export function WalletConnectionModal({
               )}
             </div>
 
-            {/* Imua Network Connection Section (only if required) */}
+            {/* EVM Network Connection Section (only if required) */}
             {requireExtraConnectToImua && (
               <div
                 className={`p-4 border ${
@@ -264,27 +280,37 @@ export function WalletConnectionModal({
                   <h3 className="font-medium text-white flex items-center gap-2">
                     <Image
                       src="/imua-logo.avif"
-                      alt="Imua"
+                      alt={shouldConnectToBootstrap ? "Bootstrap" : "Imua"}
                       className="w-4 h-4"
                       width={16}
                       height={16}
                     />
-                    Imua Chain Wallet
+                    {shouldConnectToBootstrap
+                      ? "Bootstrap Network Wallet"
+                      : "Imua Chain Wallet"}
                   </h3>
 
                   {isEVMWalletConnected && (
                     <div
                       className={`text-xs px-2 py-0.5 rounded-full ${
-                        isImuaNetwork && !issues?.needsMatchingBoundAddress
+                        (shouldConnectToBootstrap
+                          ? isBootstrapNetwork
+                          : isImuaNetwork) && !issues?.needsMatchingBoundAddress
                           ? "bg-green-500/20 text-green-400"
                           : "bg-yellow-500/20 text-yellow-400"
                       }`}
                     >
-                      {isImuaNetwork
-                        ? issues?.needsMatchingBoundAddress
-                          ? "Wrong Address"
-                          : "Connected"
-                        : "Wrong Network"}
+                      {shouldConnectToBootstrap
+                        ? isBootstrapNetwork
+                          ? issues?.needsMatchingBoundAddress
+                            ? "Wrong Address"
+                            : "Connected"
+                          : "Wrong Network"
+                        : isImuaNetwork
+                          ? issues?.needsMatchingBoundAddress
+                            ? "Wrong Address"
+                            : "Connected"
+                          : "Wrong Network"}
                     </div>
                   )}
                 </div>
@@ -304,6 +330,41 @@ export function WalletConnectionModal({
                     </div>
                     <ConnectButton chainStatus="icon" accountStatus="address" />
                   </div>
+                ) : shouldConnectToBootstrap ? (
+                  !isBootstrapNetwork ? (
+                    <div className="text-center">
+                      <p className="mb-2 text-[#9999aa] text-sm">
+                        Please switch to the Bootstrap network
+                      </p>
+                      {switchChain ? (
+                        <Button
+                          onClick={() =>
+                            switchChain({
+                              chainId: bootstrapContractNetwork.evmChainID,
+                            })
+                          }
+                          disabled={switchChainStatus === "pending"}
+                          className="bg-[#00e5ff] text-black hover:bg-[#00c8df]"
+                        >
+                          {switchChainStatus === "pending"
+                            ? "Switching..."
+                            : `Switch to ${bootstrapContractNetwork.chainName}`}
+                        </Button>
+                      ) : (
+                        <p className="text-[#9999aa] text-sm">
+                          Please manually switch to the Bootstrap network in
+                          your wallet
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 text-green-400">
+                      <CheckCircle size={16} />
+                      <span className="text-sm">
+                        Connected to Bootstrap Network
+                      </span>
+                    </div>
+                  )
                 ) : !isImuaNetwork ? (
                   <div className="text-center">
                     <p className="mb-2 text-[#9999aa] text-sm">
@@ -359,16 +420,69 @@ export function WalletConnectionModal({
 
             {/* Connection explanation for multi-wallet scenarios */}
             {requireExtraConnectToImua && (
-              <div className="mt-4 p-3 border border-[rgba(255,255,255,0.1)] rounded-lg bg-[#1a1a24]">
-                <h4 className="font-medium text-white flex items-center gap-2 mb-2">
-                  <AlertCircle size={16} className="text-[#9999aa]" />
-                  Why two wallets?
-                </h4>
-                <p className="text-xs text-[#9999aa]">
-                  {token.symbol} staking requires both wallets: {token.symbol}{" "}
-                  Wallet for deposits and Ethereum Wallet on Imua Network for
-                  delegation and withdrawals.
-                </p>
+              <div className="mt-4 space-y-3">
+                <div className="p-3 border border-[rgba(255,255,255,0.1)] rounded-lg bg-[#1a1a24]">
+                  <h4 className="font-medium text-white flex items-center gap-2 mb-2">
+                    <AlertCircle size={16} className="text-[#9999aa]" />
+                    {isBootstrapPhase
+                      ? "Why two wallets during bootstrap?"
+                      : "Why two wallets?"}
+                  </h4>
+                  <p className="text-xs text-[#9999aa]">
+                    {isBootstrapPhase
+                      ? `${token.symbol} staking requires both wallets: ${token.symbol} Wallet for deposits and EVM Wallet on Bootstrap Network to specify your bound address in transaction memo.`
+                      : `${token.symbol} staking requires both wallets: ${token.symbol} Wallet for deposits and EVM Wallet on Imua Network for delegation and withdrawals.`}
+                  </p>
+                </div>
+
+                {/* Special emphasis for bootstrap phase future Imuachain connection */}
+                {isBootstrapPhase && (
+                  <div className="space-y-3">
+                    <div className="p-3 border border-[#00e5ff]/30 rounded-lg bg-gradient-to-r from-[#00e5ff]/5 to-[#00c8df]/5">
+                      <h4 className="font-medium text-[#00e5ff] flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 rounded-full bg-[#00e5ff] flex items-center justify-center">
+                          <span className="text-black text-xs font-bold">
+                            !
+                          </span>
+                        </div>
+                        Important: Future Imuachain Connection
+                      </h4>
+                      <p className="text-xs text-[#00e5ff]/90">
+                        <span className="font-medium text-[#00e5ff]">
+                          This exact same EVM wallet
+                        </span>{" "}
+                        will be permanently bound to your {token.symbol} address
+                        and{" "}
+                        <span className="font-medium text-[#00e5ff]">
+                          must be used to connect to Imuachain
+                        </span>{" "}
+                        for all future delegation, undelegation, and withdrawal
+                        operations.
+                      </p>
+                    </div>
+
+                    {/* Wallet type compatibility warning */}
+                    <div className="p-3 border border-amber-500/30 rounded-lg bg-gradient-to-r from-amber-500/5 to-orange-500/5">
+                      <h4 className="font-medium text-amber-400 flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                          <span className="text-black text-xs font-bold">
+                            ⚠
+                          </span>
+                        </div>
+                        Wallet Compatibility Notice
+                      </h4>
+                      <p className="text-xs text-amber-400/90">
+                        <span className="font-medium text-amber-400">
+                          Only EOA wallets are supported.
+                        </span>{" "}
+                        Contract wallets (multisig, account abstraction) may not
+                        work as they can have different control authorities
+                        across different networks. Please use a standard wallet
+                        like MetaMask, Coinbase Wallet, or similar.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </motion.div>

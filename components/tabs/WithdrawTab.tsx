@@ -7,6 +7,7 @@ import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
 import { ArrowRight, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import {
   OperationProgress,
   OperationStep,
@@ -17,6 +18,7 @@ import {
   completionStep,
 } from "@/components/ui/operation-progress";
 import Image from "next/image";
+import { getShortErrorMessage } from "@/lib/utils";
 
 // Utility function to format amounts with fixed decimal places for DISPLAY ONLY
 // Use this for UI elements that don't require precise values (badges, status messages)
@@ -46,6 +48,9 @@ export function WithdrawTab({
 }: WithdrawTabProps) {
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
 
   const decimals = stakingService.walletBalance?.decimals || 0;
   const maxClaimAmount = stakingService.stakerBalance?.claimable || BigInt(0);
@@ -109,26 +114,41 @@ export function WithdrawTab({
     }
   }, [isDirectWithdrawal, activeTab, maxWithdrawAmount]);
 
-  // Initialize operation steps based on operation type
+  // Initialize operation steps based on operation type and operation mode
   useEffect(() => {
     if (activeOperation === "claim") {
-      // Duplex mode: transaction, confirmation, relay, response, completion
-      const steps: OperationStep[] = [
-        { ...transactionStep, description: "Sending claim transaction" },
-        { ...confirmationStep },
-        {
-          ...sendingRequestStep,
-          description: "Sending claim request to Imuachain",
-        },
-        {
-          ...receivingResponseStep,
-          description: "Receiving approval from Imuachain",
-        },
-        { ...completionStep, description: "Claim completed" },
-      ];
-      setOperationSteps(steps);
+      // Check if this is a native chain operation (not cross-chain)
+      const isNativeChainOperation =
+        !bootstrapStatus?.isBootstrapped ||
+        !!token.connector?.requireExtraConnectToImua;
+
+      if (isNativeChainOperation) {
+        // Local mode: transaction, confirmation, completion
+        const steps: OperationStep[] = [
+          { ...transactionStep, description: "Sending claim transaction" },
+          { ...confirmationStep },
+          { ...completionStep, description: "Claim completed" },
+        ];
+        setOperationSteps(steps);
+      } else {
+        // Cross-chain mode: transaction, confirmation, relay, response, completion
+        const steps: OperationStep[] = [
+          { ...transactionStep, description: "Sending claim transaction" },
+          { ...confirmationStep },
+          {
+            ...sendingRequestStep,
+            description: "Sending claim request to Imuachain",
+          },
+          {
+            ...receivingResponseStep,
+            description: "Receiving approval from Imuachain",
+          },
+          { ...completionStep, description: "Claim completed" },
+        ];
+        setOperationSteps(steps);
+      }
     } else if (activeOperation === "withdraw") {
-      // Local mode: transaction, confirmation, completion
+      // Withdraw is always local (no cross-chain messaging)
       const steps: OperationStep[] = [
         { ...transactionStep, description: "Sending withdraw transaction" },
         { ...confirmationStep },
@@ -136,7 +156,11 @@ export function WithdrawTab({
       ];
       setOperationSteps(steps);
     }
-  }, [activeOperation]);
+  }, [
+    activeOperation,
+    bootstrapStatus?.isBootstrapped,
+    token.connector?.requireExtraConnectToImua,
+  ]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
@@ -221,10 +245,18 @@ export function WithdrawTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage =
-            error instanceof Error ? error.message : "Claim failed";
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -284,10 +316,18 @@ export function WithdrawTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage =
-            error instanceof Error ? error.message : "Withdrawal failed";
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -301,8 +341,11 @@ export function WithdrawTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setClaimAmount("");
       setWithdrawAmount("");
       setRecipientAddress("");
@@ -312,9 +355,15 @@ export function WithdrawTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 
@@ -738,12 +787,20 @@ export function WithdrawTab({
         <OperationProgress
           progress={{
             operation: activeOperation === "claim" ? "claim" : "withdraw",
-            chainInfo: {
-              sourceChain:
-                activeOperation === "claim" ? destinationChain : sourceChain,
-              destinationChain:
-                activeOperation === "claim" ? sourceChain : destinationChain,
-            },
+            chainInfo: (() => {
+              if (activeOperation === "claim") {
+                const isNativeChainOperation =
+                  !bootstrapStatus?.isBootstrapped ||
+                  !!token.connector?.requireExtraConnectToImua;
+                if (!isNativeChainOperation) {
+                  return {
+                    sourceChain: destinationChain,
+                    destinationChain: sourceChain,
+                  };
+                }
+              }
+              return undefined;
+            })(), // Only show chain info for cross-chain claim operations
             steps: operationSteps,
             overallStatus: {
               // Derive current phase from step statuses

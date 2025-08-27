@@ -1,5 +1,5 @@
 export interface OperatorInfo {
-  address: string;
+  address: string; // bech32 encoded address starting with "im1"
   commission: {
     commission_rates: {
       rate: string;

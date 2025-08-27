@@ -1,5 +1,5 @@
 // components/tabs/UndelegateTab.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
@@ -15,9 +15,11 @@ import {
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useDelegations } from "@/hooks/useDelegations";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { DelegationPerOperator } from "@/types/delegations";
 import { Info, ChevronDown } from "lucide-react";
 import { UNBOND_PERIOD } from "@/config/cosmos";
+import { getShortErrorMessage } from "@/lib/utils";
 
 interface UndelegateTabProps {
   sourceChain: string;
@@ -44,15 +46,35 @@ export function UndelegateTab({
   const { data: delegationsData, isLoading: delegationsLoading } =
     useDelegations(token);
 
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
+
   // State for delegation selection
   const [selectedDelegation, setSelectedDelegation] =
     useState<DelegationPerOperator | null>(null);
 
   // State for undelegation details
+  // During bootstrap phase, only instant unbonding is supported
   const [isInstantUnbond, setIsInstantUnbond] = useState(false);
 
-  // Check if this is a native chain operation
-  const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
+  // Update isInstantUnbond when bootstrapStatus changes
+  useEffect(() => {
+    if (bootstrapStatus !== undefined) {
+      setIsInstantUnbond(!bootstrapStatus.isBootstrapped);
+    }
+  }, [bootstrapStatus]);
+
+  // ✅ Safe approach: Derive the actual value used for operations
+  // This ensures bootstrap phase always uses instant unbonding regardless of state
+  const actualIsInstantUnbond = bootstrapStatus?.isBootstrapped
+    ? isInstantUnbond // Post-bootstrap: use user's choice
+    : true; // Bootstrap phase: always instant unbonding
+
+  // Check if this is a native chain operation (not cross-chain)
+  // This considers both bootstrap phase and token-specific requirements
+  const isNativeChainOperation =
+    !bootstrapStatus?.isBootstrapped ||
+    !!token.connector?.requireExtraConnectToImua;
 
   // Amount input with delegation constraint
   const maxAmount = selectedDelegation?.delegated || BigInt(0);
@@ -72,7 +94,7 @@ export function UndelegateTab({
   const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Initialize operation steps based on mode
+  // Initialize operation steps based on operation mode
   useState(() => {
     let steps: OperationStep[] = [];
 
@@ -84,7 +106,7 @@ export function UndelegateTab({
         { ...completionStep },
       ];
     } else {
-      // Simplex mode: transaction, confirmation, relay, completion (no approval needed)
+      // Cross-chain mode: transaction, confirmation, relay, completion
       steps = [
         { ...transactionStep, description: "Sending undelegate transaction" },
         { ...confirmationStep },
@@ -163,12 +185,12 @@ export function UndelegateTab({
         "undelegateFrom",
         selectedDelegation.operatorAddress,
         parsedAmount,
-        isInstantUnbond,
+        actualIsInstantUnbond,
       );
       const result = await stakingService.undelegateFrom(
         selectedDelegation.operatorAddress,
         parsedAmount,
-        isInstantUnbond,
+        actualIsInstantUnbond,
         {
           onPhaseChange: handlePhaseChange,
         },
@@ -215,9 +237,18 @@ export function UndelegateTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = "Operation failed";
+          updated[processingStepIndex].errorMessage =
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -243,9 +274,10 @@ export function UndelegateTab({
   };
 
   // Calculate final amount (considering instant unbonding penalty)
+  // During bootstrap phase, there's no penalty for instant unbonding
   const finalAmount =
-    isInstantUnbond && parsedAmount
-      ? (parsedAmount * BigInt(75)) / BigInt(100) // 25% penalty for instant
+    bootstrapStatus?.isBootstrapped && actualIsInstantUnbond && parsedAmount
+      ? (parsedAmount * BigInt(75)) / BigInt(100) // 25% penalty for instant (post-bootstrap only)
       : parsedAmount;
 
   // Get unbonding period display text
@@ -306,20 +338,30 @@ export function UndelegateTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setCurrentStep("delegation");
       setAmount("");
       setSelectedDelegation(null);
-      setIsInstantUnbond(false);
+      // ✅ Fix: Reset to correct initial value based on bootstrap status
+      setIsInstantUnbond(!bootstrapStatus?.isBootstrapped);
       // Reset steps back to pending (not empty)
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
       setOperationSteps((prev) =>
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 
@@ -499,52 +541,75 @@ export function UndelegateTab({
                 )}
               </div>
 
-              {/* Unbonding type selection - improved labels */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-white">
-                  Unbonding type
-                </label>
-                <div className="flex space-x-2">
-                  <button
-                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                      !isInstantUnbond
-                        ? "bg-[#4ade80] text-black"
-                        : "bg-[#222233] text-[#9999aa] hover:bg-[#333344]"
-                    }`}
-                    onClick={() => setIsInstantUnbond(false)}
-                  >
-                    Wait {getUnbondingPeriodText()} (No penalty)
-                  </button>
-                  <button
-                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                      isInstantUnbond
-                        ? "bg-[#fbbf24] text-black"
-                        : "bg-[#222233] text-[#9999aa] hover:bg-[#333344]"
-                    }`}
-                    onClick={() => setIsInstantUnbond(true)}
-                  >
-                    Instant (25% penalty)
-                  </button>
+              {/* Unbonding type selection - conditional based on bootstrap status */}
+              {bootstrapStatus?.isBootstrapped ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-white">
+                    Unbonding type
+                  </label>
+                  <div className="flex space-x-2">
+                    <button
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        !isInstantUnbond
+                          ? "bg-[#4ade80] text-black"
+                          : "bg-[#222233] text-[#9999aa] hover:bg-[#333344]"
+                      }`}
+                      onClick={() => setIsInstantUnbond(false)}
+                    >
+                      Wait {getUnbondingPeriodText()} (No penalty)
+                    </button>
+                    <button
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        isInstantUnbond
+                          ? "bg-[#fbbf24] text-black"
+                          : "bg-[#222233] text-[#9999aa] hover:bg-[#333344]"
+                      }`}
+                      onClick={() => setIsInstantUnbond(true)}
+                    >
+                      Instant (25% penalty)
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-white">
+                    Unbonding type
+                  </label>
+                  <div className="p-3 bg-[#0d2d1d] rounded-lg border border-[#4ade80]/20">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-[#4ade80] rounded-full"></div>
+                      <span className="text-[#4ade80] font-medium text-sm">
+                        Instant unbonding (No penalty)
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#86efac] mt-1">
+                      During bootstrap phase, only instant unbonding is
+                      supported with no penalty
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Final amount display for instant unbonding - similar to DelegateTab's estimated rewards */}
-            {isInstantUnbond && parsedAmount && parsedAmount > BigInt(0) && (
-              <div className="p-4 bg-[#0d2d1d] rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium text-[#fbbf24]">
-                    Final Amount (after penalty)
-                  </h4>
+            {/* Final amount display for instant unbonding - only show penalty info for post-bootstrap */}
+            {actualIsInstantUnbond &&
+              parsedAmount &&
+              parsedAmount > BigInt(0) &&
+              bootstrapStatus?.isBootstrapped && (
+                <div className="p-4 bg-[#0d2d1d] rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-medium text-[#fbbf24]">
+                      Final Amount (after penalty)
+                    </h4>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#86efac]">You will receive</span>
+                    <span className="text-[#fbbf24] font-medium">
+                      {formatUnits(finalAmount, decimals)} {token.symbol}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#86efac]">You will receive</span>
-                  <span className="text-[#fbbf24] font-medium">
-                    {formatUnits(finalAmount, decimals)} {token.symbol}
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
 
             {/* Fee information - same as DelegateTab */}
             <div className="flex items-center text-xs text-[#9999aa] px-1">

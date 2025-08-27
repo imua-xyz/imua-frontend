@@ -9,6 +9,51 @@ import {
 } from "@/types/delegations";
 import { getQueryStakerAddress } from "@/stores/allWalletsStore";
 import { useOperators } from "./useOperators";
+import { useBootstrapStatus } from "./useBootstrapStatus";
+import { useBootstrap } from "./useBootstrap";
+import { hoodi } from "@/types/networks";
+
+// Helper function to fetch delegations from Bootstrap contract for a user
+async function fetchBootstrapDelegations(
+  contract: any,
+  userAddress: string,
+  tokenAddress: string,
+  operators: any[],
+): Promise<Map<string, DelegationPerOperator>> {
+  const delegationsByOperator = new Map<string, DelegationPerOperator>();
+
+  if (operators && operators.length > 0) {
+    // Iterate over all operators to get user's delegations
+    await Promise.all(
+      operators.map(async (operator) => {
+        try {
+          // Get delegation amount for this user, validator, and token
+          const delegationAmount = (await contract.read.delegations([
+            userAddress as `0x${string}`,
+            operator.address,
+            tokenAddress as `0x${string}`,
+          ])) as bigint;
+
+          if (delegationAmount > BigInt(0)) {
+            delegationsByOperator.set(operator.address.toLowerCase(), {
+              operatorAddress: operator.address,
+              operatorName: operator.operator_meta_info,
+              delegated: delegationAmount,
+              unbonding: BigInt(0), // No unbonding during bootstrap phase
+            });
+          }
+        } catch (error) {
+          console.warn(
+            `Failed to fetch delegation for operator ${operator.address}:`,
+            error,
+          );
+        }
+      }),
+    );
+  }
+
+  return delegationsByOperator;
+}
 
 // If no staker address, returns { data: undefined, isLoading: false, error: null, ... }
 export function useDelegations(
@@ -16,40 +61,76 @@ export function useDelegations(
 ): UseQueryResult<DelegationsPerToken, Error> {
   const { data: operators } = useOperators();
   const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
+  const { bootstrapStatus } = useBootstrapStatus();
+  const bootstrap = useBootstrap(hoodi);
 
   const customChainId = token.network.customChainIdByImua;
 
   // Always call useQuery, but control execution with enabled option
   const query = useQuery({
-    queryKey: ["delegations", queryAddress, token.address, customChainId],
+    queryKey: [
+      "delegations",
+      queryAddress,
+      token.address,
+      customChainId,
+      bootstrapStatus?.isBootstrapped,
+    ],
     queryFn: async (): Promise<DelegationsPerToken> => {
       if (!queryAddress) {
         throw new Error("No staker address available");
       }
 
-      // Cosmos RPC: /imuachain/delegation/v1/delegations/{stakerId}/{assetId}
-      const stakerId = `${queryAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
-      const assetId = `${token.address.toLowerCase()}_0x${customChainId.toString(16)}`;
-      const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, assetId)}`;
-      const data = (await fetch(url).then((r) =>
-        r.json(),
-      )) as DelegationsResponse;
-      const infos = data.delegation_infos || [];
+      // Post-bootstrap: fetch from Imuachain (Cosmos API)
+      if (bootstrapStatus?.isBootstrapped) {
+        // Cosmos RPC: /imuachain/delegation/v1/delegations/{stakerId}/{assetId}
+        const stakerId = `${queryAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
+        const assetId = `${token.address.toLowerCase()}_0x${customChainId.toString(16)}`;
+        const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, assetId)}`;
+        const data = (await fetch(url).then((r) =>
+          r.json(),
+        )) as DelegationsResponse;
+        const infos = data.delegation_infos || [];
 
-      // Convert to Map for O(1) lookups by operator address
-      const delegationsByOperator = new Map<string, DelegationPerOperator>();
-      infos.forEach((item) => {
-        delegationsByOperator.set(item.operator.toLowerCase(), {
-          operatorAddress: item.operator,
-          operatorName: operators?.find(
-            (op) => op.address.toLowerCase() === item.operator.toLowerCase(),
-          )?.operator_meta_info,
-          delegated: BigInt(item.delegation_info.max_undelegatable_amount),
-          unbonding: BigInt(
-            item.delegation_info.delegation_amounts.wait_undelegation_amount,
-          ),
+        // Convert to Map for O(1) lookups by operator address
+        const delegationsByOperator = new Map<string, DelegationPerOperator>();
+        infos.forEach((item) => {
+          delegationsByOperator.set(item.operator.toLowerCase(), {
+            operatorAddress: item.operator,
+            operatorName: operators?.find(
+              (op) => op.address.toLowerCase() === item.operator.toLowerCase(),
+            )?.operator_meta_info,
+            delegated: BigInt(item.delegation_info.max_undelegatable_amount),
+            unbonding: BigInt(
+              item.delegation_info.delegation_amounts.wait_undelegation_amount,
+            ),
+          });
         });
-      });
+
+        return {
+          token,
+          userAddress: stakerAddress!,
+          delegationsByOperator,
+        };
+      }
+
+      // Bootstrap phase: read from Bootstrap contract or return empty for non-EVM
+      const delegationsByOperator = new Map<string, DelegationPerOperator>();
+
+      // For EVM networks (like Hoodi) with Bootstrap contract, read delegations
+      if (token.network.chainName === "Hoodi" && bootstrap.readonlyContract) {
+        const bootstrapDelegations = await fetchBootstrapDelegations(
+          bootstrap.readonlyContract,
+          queryAddress,
+          token.address,
+          operators || [],
+        );
+
+        // Copy delegations to the main map
+        for (const [operatorAddress, delegation] of bootstrapDelegations) {
+          delegationsByOperator.set(operatorAddress, delegation);
+        }
+      }
+      // For non-EVM networks (XRPL, Bitcoin), return empty delegations as workaround
 
       return {
         token,
@@ -77,6 +158,8 @@ export function useAllDelegations(): {
   error: Error | null;
 } {
   const { data: operators } = useOperators();
+  const { bootstrapStatus } = useBootstrapStatus();
+  const bootstrap = useBootstrap(hoodi);
 
   // Create queries for all tokens
   const queries = validTokens.map((token) => {
@@ -88,36 +171,70 @@ export function useAllDelegations(): {
         queryAddress,
         token.address,
         token.network.customChainIdByImua,
+        bootstrapStatus?.isBootstrapped,
       ],
       queryFn: async (): Promise<DelegationsPerToken> => {
         if (!queryAddress) {
           throw new Error("No staker address available");
         }
 
-        const customChainId = token.network.customChainIdByImua;
-        // Cosmos RPC: /imuachain/delegation/v1/delegations/{stakerId}/{assetId}
-        const stakerId = `${queryAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
-        const assetId = `${token.address.toLowerCase()}_0x${customChainId.toString(16)}`;
-        const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, assetId)}`;
-        const data = (await fetch(url).then((r) =>
-          r.json(),
-        )) as DelegationsResponse;
-        const infos = data.delegation_infos || [];
+        // Post-bootstrap: fetch from Imuachain (Cosmos API)
+        if (bootstrapStatus?.isBootstrapped) {
+          const customChainId = token.network.customChainIdByImua;
+          // Cosmos RPC: /imuachain/delegation/v1/delegations/{stakerId}/{assetId}
+          const stakerId = `${queryAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
+          const assetId = `${token.address.toLowerCase()}_0x${customChainId.toString(16)}`;
+          const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, assetId)}`;
+          const data = (await fetch(url).then((r) =>
+            r.json(),
+          )) as DelegationsResponse;
+          const infos = data.delegation_infos || [];
 
-        // Convert to Map for O(1) lookups by operator address
-        const delegationsByOperator = new Map<string, DelegationPerOperator>();
-        infos.forEach((item) => {
-          delegationsByOperator.set(item.operator.toLowerCase(), {
-            operatorAddress: item.operator,
-            operatorName: operators?.find(
-              (op) => op.address.toLowerCase() === item.operator.toLowerCase(),
-            )?.operator_meta_info,
-            delegated: BigInt(item.delegation_info.max_undelegatable_amount),
-            unbonding: BigInt(
-              item.delegation_info.delegation_amounts.wait_undelegation_amount,
-            ),
+          // Convert to Map for O(1) lookups by operator address
+          const delegationsByOperator = new Map<
+            string,
+            DelegationPerOperator
+          >();
+          infos.forEach((item) => {
+            delegationsByOperator.set(item.operator.toLowerCase(), {
+              operatorAddress: item.operator,
+              operatorName: operators?.find(
+                (op) =>
+                  op.address.toLowerCase() === item.operator.toLowerCase(),
+              )?.operator_meta_info,
+              delegated: BigInt(item.delegation_info.max_undelegatable_amount),
+              unbonding: BigInt(
+                item.delegation_info.delegation_amounts
+                  .wait_undelegation_amount,
+              ),
+            });
           });
-        });
+
+          return {
+            token,
+            userAddress: stakerAddress!,
+            delegationsByOperator,
+          };
+        }
+
+        // Bootstrap phase: read from Bootstrap contract or return empty for non-EVM
+        const delegationsByOperator = new Map<string, DelegationPerOperator>();
+
+        // For EVM networks (like Hoodi) with Bootstrap contract, read delegations
+        if (token.network.chainName === "Hoodi" && bootstrap.readonlyContract) {
+          const bootstrapDelegations = await fetchBootstrapDelegations(
+            bootstrap.readonlyContract,
+            queryAddress,
+            token.address,
+            operators || [],
+          );
+
+          // Copy delegations to the main map
+          for (const [operatorAddress, delegation] of bootstrapDelegations) {
+            delegationsByOperator.set(operatorAddress, delegation);
+          }
+        }
+        // For non-EVM networks (XRPL, Bitcoin), return empty delegations as workaround
 
         return {
           token,
