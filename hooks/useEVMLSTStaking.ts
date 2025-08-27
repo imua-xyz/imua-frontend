@@ -17,13 +17,12 @@ import { useERC20Token } from "./useERC20Token";
 import { useDelegations } from "./useDelegations";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
-  const { address: userAddress, chainId } = useAccount();
-  const { contract, publicClient, walletClient } = usePortalContract(
+  const { address: userAddress } = useAccount();
+  const { contract, publicClient } = usePortalContract(
     token.network,
   );
   const { vault, vaultAddress } = useEVMVault(token);
   const { contract: erc20Contract } = useERC20Token(token);
-  const queryClient = useQueryClient();
   const delegations = useDelegations(token);
 
   const balance = useBalance({
@@ -117,6 +116,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     symbol: balance?.data?.symbol || "",
   };
 
+  // Get quote for relaying a message to imua chain, and relaying fee is needed only after bootstrap
   const getQuote = useCallback(
     async (operation: OperationType): Promise<bigint> => {
       if (!contract) return BigInt(0);
@@ -129,9 +129,13 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         dissociate: 33,
       };
 
-      const message = "0x" + "00".repeat(lengths[operation]);
-      const fee = await contract.read.quote([message]);
-      return fee as bigint;
+      if (bootstrapStatus?.isBootstrapped) {
+        const message = "0x" + "00".repeat(lengths[operation]);
+        const fee = await contract.read.quote([message]);
+        return fee as bigint;
+      } else {
+        return BigInt(0);
+      }
     },
     [contract],
   );

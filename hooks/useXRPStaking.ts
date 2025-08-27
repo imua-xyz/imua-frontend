@@ -21,6 +21,7 @@ import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { useStakerBalances } from "./useStakerBalances";
 import { useAssetsPrecompile } from "./useAssetsPrecompile";
+import { useBootstrapStatus } from "./useBootstrapStatus";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -45,6 +46,7 @@ export function useXRPStaking(): StakingService {
   const setNetwork = useXrplStore((state) => state.setNetwork);
 
   const { getStakerBalanceByToken } = useAssetsPrecompile();
+  const { bootstrapStatus } = useBootstrapStatus();
 
   useEffect(() => {
     if (walletNetwork) {
@@ -128,11 +130,13 @@ export function useXRPStaking(): StakingService {
       operatorAddress?: string,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
+      const bootstrapped = bootstrapStatus?.isBootstrapped;
+      if ( bootstrapped === undefined) throw new Error("Bootstrap status not available");
       if (!isGemWalletConnected || !isWagmiConnected || !xrpAddress)
         throw new Error("Gem wallet not connected");
       if (!vaultAddress || !amount) throw new Error("Invalid parameters");
-      if (operatorAddress)
-        throw new Error("Operator address not supported for now");
+      if ((bootstrapped && operatorAddress) || (!bootstrapped && !operatorAddress))
+        throw new Error(bootstrapped ? "Operator address not supported for now" : "Operator address is required for now");
       if (!evmAddress) throw new Error("EVM wallet not connected");
       if (boundImuaAddress && boundImuaAddress !== evmAddress)
         throw new Error("EVM wallet address does not match bound address");
@@ -158,9 +162,15 @@ export function useXRPStaking(): StakingService {
         effectiveAddress = evmAddress as `0x${string}`;
       }
 
-      const memoData = memoAddress
-        ? Buffer.from(memoAddress, "utf8").toString("hex")
-        : "";
+      if (!memoAddress) throw new Error("Memo address not found");
+      
+      // if it is not bootstrapped, we should encode the operator address after memo address into the memo data
+      let memoData: string = "";
+      if (!bootstrapped) {
+        memoData = Buffer.from(memoAddress + operatorAddress, "utf8").toString("hex");
+      } else {
+        memoData = Buffer.from(memoAddress, "utf8").toString("hex");
+      }
 
       const txPayload = {
         transactionType: "Payment",
@@ -193,6 +203,13 @@ export function useXRPStaking(): StakingService {
       ) => {
         return balanceAfter === balanceBefore + amount;
       };
+      const onSuccess = (result: { hash: string; success: boolean }) => {
+        if (result.success) {
+          console.log("Stake succeeded, updating cached balances...");
+          stakerBalance.refetch();
+          walletBalance.refetch();
+        }
+      };
 
       const { hash, success, error } = await handleXrplTxWithStatus({
         spawnTx: spawnTx,
@@ -201,6 +218,7 @@ export function useXRPStaking(): StakingService {
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getStateSnapshot,
         onPhaseChange: options?.onPhaseChange,
+        onSuccess: onSuccess,
         utxoGateway: contract,
       });
 
@@ -221,7 +239,6 @@ export function useXRPStaking(): StakingService {
       xrplClient,
       boundImuaAddress,
       checkBoundAddress,
-      handleXrplTxWithStatus,
       sendTransaction,
     ],
   );
@@ -243,6 +260,8 @@ export function useXRPStaking(): StakingService {
       if (!operator || !amount) throw new Error("Invalid parameters");
       if (evmAddress && evmAddress !== boundImuaAddress)
         throw new Error("EVM wallet address does not match bound address");
+      if (!bootstrapStatus?.isBootstrapped)
+        throw new Error("Cannot delegate before bootstrap");
 
       const spawnTx = () =>
         contract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
@@ -260,6 +279,12 @@ export function useXRPStaking(): StakingService {
       ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
+      const onSuccess = (result: { hash: string; success: boolean }) => {
+        if (result.success) {
+          console.log("Delegate succeeded, updating cached balances...");
+          stakerBalance.refetch();
+        }
+      };
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -268,6 +293,7 @@ export function useXRPStaking(): StakingService {
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getStateSnapshot,
         onPhaseChange: options?.onPhaseChange,
+        onSuccess: onSuccess,
       });
     },
     [contract, handleEVMTxWithStatus, publicClient],
@@ -286,6 +312,8 @@ export function useXRPStaking(): StakingService {
       if (!operator || !amount) throw new Error("Invalid parameters");
       if (evmAddress && evmAddress !== boundImuaAddress)
         throw new Error("EVM wallet address does not match bound address");
+      if (!bootstrapStatus?.isBootstrapped)
+        throw new Error("Cannot undelegate before bootstrap");
 
       const spawnTx = () =>
         contract.write.undelegateFrom([
@@ -314,6 +342,13 @@ export function useXRPStaking(): StakingService {
           : BalanceAfter === balanceBefore + amount;
       };
 
+      const onSuccess = (result: { hash: string; success: boolean }) => {
+        if (result.success) {
+          console.log("Undelegate succeeded, updating cached balances...");
+          stakerBalance.refetch();
+        }
+      };
+
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: "local",
@@ -321,6 +356,7 @@ export function useXRPStaking(): StakingService {
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getStateSnapshot,
         onPhaseChange: options?.onPhaseChange,
+        onSuccess: onSuccess,
       });
     },
     [contract, handleEVMTxWithStatus, publicClient],
@@ -339,6 +375,8 @@ export function useXRPStaking(): StakingService {
       if (recipient) throw new Error("Recipient not supported for now");
       if (evmAddress && evmAddress !== boundImuaAddress)
         throw new Error("EVM wallet address does not match bound address");
+      if (!bootstrapStatus?.isBootstrapped)
+        throw new Error("Cannot withdraw before bootstrap");
 
       const spawnTx = () =>
         contract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
@@ -356,6 +394,12 @@ export function useXRPStaking(): StakingService {
       ) => {
         return balanceAfter === balanceBefore - amount;
       };
+      const onSuccess = (result: { hash: string; success: boolean }) => {
+        if (result.success) {
+          console.log("Withdraw succeeded, updating cached balances...");
+          stakerBalance.refetch();
+        }
+      };
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -364,6 +408,7 @@ export function useXRPStaking(): StakingService {
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getStateSnapshot,
         onPhaseChange: options?.onPhaseChange,
+        onSuccess: onSuccess,
       });
     },
     [contract, handleEVMTxWithStatus, publicClient],
@@ -380,6 +425,6 @@ export function useXRPStaking(): StakingService {
     walletBalance: walletBalance?.data,
     vaultAddress: vaultAddress,
     minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
-    isDepositThenDelegateDisabled: true,
+    isDepositThenDelegateDisabled: !bootstrapStatus?.isBootstrapped,
   };
 }

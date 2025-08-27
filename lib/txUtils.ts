@@ -189,6 +189,7 @@ export async function handleEVMTxWithStatus({
   verifyCompletion,
   onPhaseChange,
   approvingTx,
+  onSuccess,
 }: EVMTxOptions): Promise<{ hash: string; success: boolean; error?: string }> {
   if (!publicClient) throw new Error("Public client not found");
 
@@ -254,6 +255,7 @@ export async function handleEVMTxWithStatus({
           verifyCompletion,
           getStateSnapshot,
           onPhaseChange,
+          onSuccess,
         },
         snapshotBefore,
       );
@@ -266,6 +268,7 @@ export async function handleEVMTxWithStatus({
           verifyCompletion,
           getStateSnapshot,
           onPhaseChange,
+          onSuccess,
         },
         snapshotBefore,
       );
@@ -283,7 +286,7 @@ async function handleCrossChainOperation(
   mode: "simplex" | "duplex",
   options?: Pick<
     BaseTxOptions,
-    "getStateSnapshot" | "verifyCompletion" | "onPhaseChange"
+    "getStateSnapshot" | "verifyCompletion" | "onPhaseChange" | "onSuccess"
   >,
   snapshotBefore?: StateSnapshot,
 ): Promise<{ hash: string; success: boolean; error?: string }> {
@@ -325,7 +328,7 @@ async function handleXrplSimplexOperation(
   utxoGateway: UTXOGatewayContract,
   options?: Pick<
     BaseTxOptions,
-    "onPhaseChange" | "verifyCompletion" | "getStateSnapshot"
+    "onPhaseChange" | "verifyCompletion" | "getStateSnapshot" | "onSuccess"
   >,
 ): Promise<{ hash: string; success: boolean; error?: string }> {
   try {
@@ -455,6 +458,7 @@ export async function handleXrplTxWithStatus({
   getStateSnapshot,
   verifyCompletion,
   onPhaseChange,
+  onSuccess,
   utxoGateway,
 }: XrplTxOptions): Promise<{ hash: string; success: boolean; error?: string }> {
   try {
@@ -491,6 +495,7 @@ export async function handleXrplTxWithStatus({
               verifyCompletion,
               getStateSnapshot,
               onPhaseChange,
+              onSuccess,
             });
           } else if (mode === "simplex") {
             // Simplex mode: handle cross-chain relay to Imuachain
@@ -498,6 +503,7 @@ export async function handleXrplTxWithStatus({
               verifyCompletion,
               getStateSnapshot,
               onPhaseChange,
+              onSuccess,
             });
           } else {
             // Duplex mode not supported for XRPL
