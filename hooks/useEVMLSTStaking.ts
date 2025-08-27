@@ -18,9 +18,7 @@ import { useDelegations } from "./useDelegations";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress } = useAccount();
-  const { contract, publicClient } = usePortalContract(
-    token.network,
-  );
+  const { contract, publicClient } = usePortalContract(token.network);
   const { vault, vaultAddress } = useEVMVault(token);
   const { contract: erc20Contract } = useERC20Token(token);
   const delegations = useDelegations(token);
@@ -168,7 +166,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
         spawnTx: spawnTx,
-        mode: "simplex",
+        mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getBalanceSnapshot,
@@ -217,7 +215,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
-        mode: "simplex",
+        mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getBalanceSnapshot,
@@ -275,7 +273,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
-        mode: "simplex",
+        mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getBalanceSnapshot,
@@ -328,7 +326,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
         spawnTx: spawnTx,
-        mode: "simplex",
+        mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getBalanceSnapshot,
@@ -376,7 +374,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
-        mode: "duplex",
+        mode: bootstrapStatus?.isBootstrapped ? "duplex" : "local",
         publicClient: publicClient,
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getBalanceSnapshot,
