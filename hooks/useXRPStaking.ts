@@ -224,7 +224,7 @@ export function useXRPStaking(): StakingService {
 
       const { hash, success, error } = await handleXrplTxWithStatus({
         spawnTx: spawnTx,
-        mode: "simplex",
+        mode: bootstrapped ? "simplex" : "local",
         getTransactionStatus: getTransactionStatus,
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getStateSnapshot,
