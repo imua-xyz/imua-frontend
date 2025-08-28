@@ -5,17 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import VaultABI from "@/abi/Vault.abi.json";
 
 export function useEVMVault(token: EVMLSTToken) {
-  const { contract, publicClient } = usePortalContract(token.network);
+  const { readonlyContract, publicClient } = usePortalContract(token.network);
 
   // Optimized vault address caching - permanent once fetched
   const { data: vaultAddress } = useQuery({
     queryKey: ["vaultAddress", token.network.evmChainID, token.address],
     queryFn: async (): Promise<`0x${string}`> => {
-      if (!contract) throw new Error("Invalid Contract");
-      const vaultAddress = await contract.read.tokenToVault([token.address]);
+      if (!readonlyContract) throw new Error("Invalid Contract");
+      const vaultAddress = await readonlyContract.read.tokenToVault([
+        token.address,
+      ]);
       return vaultAddress as `0x${string}`;
     },
-    enabled: !!token && !!contract,
+    enabled: !!token && !!readonlyContract,
     staleTime: Infinity, // ✅ Never consider data stale - vault addresses are permanent
     gcTime: Infinity, // ✅ Never garbage collect - keep in memory permanently
     refetchOnMount: false, // ✅ Don't refetch on mount if already cached
