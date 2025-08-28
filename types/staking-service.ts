@@ -10,6 +10,7 @@ export interface StakingService {
   vaultAddress: string | undefined;
   minimumStakeAmount?: bigint;
   isDepositThenDelegateDisabled?: boolean;
+  isOnlyDepositThenDelegateAllowed?: boolean;
 
   // Core staking operations
   stake: (

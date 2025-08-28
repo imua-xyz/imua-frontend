@@ -49,6 +49,19 @@ export function StakeTab({
   const token = stakingService.token;
   const { operators } = useOperatorsContext();
 
+  // Check mode availability based on both props
+  const isDepositThenDelegateDisabled =
+    !!stakingService.isDepositThenDelegateDisabled;
+  const isOnlyDepositThenDelegateAllowed =
+    !!stakingService.isOnlyDepositThenDelegateAllowed;
+
+  // Determine which modes are available
+  const isStakeModeAvailable = !isDepositThenDelegateDisabled;
+  const isDepositModeAvailable = !isOnlyDepositThenDelegateAllowed;
+
+  // If only stake mode is allowed, force stake mode
+  const canSwitchModes = isStakeModeAvailable && isDepositModeAvailable;
+
   // Balance and amount state
   const balance = stakingService.walletBalance?.value || BigInt(0);
   const maxAmount = balance;
@@ -64,15 +77,20 @@ export function StakeTab({
     maxAmount: maxAmount,
   });
 
-  // Staking mode state
-  const [isStakeMode, setIsStakeMode] = useState(true);
+  // Staking mode state - force stake mode if it's the only allowed mode
+  const [isStakeMode, setIsStakeMode] = useState(
+    isOnlyDepositThenDelegateAllowed ? true : true,
+  );
+
+  // Force stake mode if it's the only allowed mode
+  useEffect(() => {
+    if (isOnlyDepositThenDelegateAllowed) {
+      setIsStakeMode(true);
+    }
+  }, [isOnlyDepositThenDelegateAllowed]);
   const [selectedOperator, setSelectedOperator] = useState<OperatorInfo | null>(
     null,
   );
-
-  // Check if deposit-then-delegate is disabled for this token
-  const isDepositThenDelegateDisabled =
-    !!stakingService.isDepositThenDelegateDisabled;
 
   // Operation progress state
   const [showProgress, setShowProgress] = useState(false);
@@ -167,7 +185,7 @@ export function StakeTab({
 
   // Handle continue button click
   const handleContinue = () => {
-    if (isStakeMode && !isDepositThenDelegateDisabled) {
+    if (isStakeMode && isStakeModeAvailable) {
       setShowOperatorModal(true);
     } else {
       setCurrentStep("review");
@@ -185,7 +203,7 @@ export function StakeTab({
     try {
       const result = await stakingService.stake(
         parsedAmount,
-        isStakeMode && !isDepositThenDelegateDisabled && selectedOperator
+        isStakeMode && isStakeModeAvailable && selectedOperator
           ? selectedOperator.address
           : undefined,
         {
@@ -248,7 +266,7 @@ export function StakeTab({
 
     if (currentStep === "amount") return "Continue";
 
-    if (isDepositThenDelegateDisabled) return "Deposit";
+    if (!isStakeModeAvailable) return "Deposit";
     return isStakeMode ? "Stake" : "Deposit";
   };
 
@@ -264,7 +282,10 @@ export function StakeTab({
 
   // Create operation progress data
   const operationProgress = {
-    operation: isStakeMode && selectedOperator ? "stake" : "deposit",
+    operation:
+      isStakeMode && isStakeModeAvailable && selectedOperator
+        ? "stake"
+        : "deposit",
     chainInfo: {
       sourceChain,
       destinationChain,
@@ -380,14 +401,15 @@ export function StakeTab({
             )}
           </div>
 
-          {/* Stake mode toggle - simplified */}
-          {!isDepositThenDelegateDisabled && (
+          {/* Stake mode toggle - only show if both modes are available */}
+          {canSwitchModes && (
             <div className="flex items-center justify-between p-3 bg-[#1a1a24] rounded-lg">
               <div className="flex items-center space-x-2">
                 <Switch
                   checked={isStakeMode}
                   onCheckedChange={(value) => setIsStakeMode(value)}
                   id="stake-mode"
+                  disabled={!canSwitchModes}
                 />
                 <Label
                   htmlFor="stake-mode"
@@ -475,7 +497,7 @@ export function StakeTab({
               </div>
 
               {/* Selected operator (if staking) */}
-              {isStakeMode && !isDepositThenDelegateDisabled && (
+              {isStakeMode && isStakeModeAvailable && (
                 <div className="flex justify-between items-center">
                   <span className="text-[#9999aa]">Operator</span>
                   <div className="flex items-center">
@@ -506,6 +528,7 @@ export function StakeTab({
 
             {/* Estimated rewards section - cleaner */}
             {isStakeMode &&
+              isStakeModeAvailable &&
               selectedOperator &&
               parsedAmount &&
               parsedAmount > BigInt(0) && (
@@ -548,9 +571,7 @@ export function StakeTab({
               className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
               disabled={
                 showProgress ||
-                (isStakeMode &&
-                  !isDepositThenDelegateDisabled &&
-                  !selectedOperator) ||
+                (isStakeMode && isStakeModeAvailable && !selectedOperator) ||
                 !parsedAmount ||
                 parsedAmount === BigInt(0)
               }
