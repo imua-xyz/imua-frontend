@@ -56,7 +56,8 @@ export function useXRPStaking(): StakingService {
 
   const getAccountInfo = useXrplStore((state) => state.getAccountInfo);
 
-  const { contract, publicClient } = usePortalContract(xrp.network);
+  const { readonlyContract, writeableContract, publicClient } =
+    usePortalContract(xrp.network);
   const { address: evmAddress, isConnected: isWagmiConnected } = useAccount();
 
   const [stakerBalanceResponse] = useStakerBalances([xrp]);
@@ -229,7 +230,7 @@ export function useXRPStaking(): StakingService {
         getStateSnapshot: getStateSnapshot,
         onPhaseChange: options?.onPhaseChange,
         onSuccess: onSuccess,
-        utxoGateway: contract,
+        utxoGateway: readonlyContract,
       });
 
       // If transaction and following checks were successful and we don't have a bound address yet, we should explicitly set the bound address
@@ -265,7 +266,7 @@ export function useXRPStaking(): StakingService {
       amount: bigint,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !boundImuaAddress)
+      if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
       if (evmAddress && evmAddress !== boundImuaAddress)
@@ -274,7 +275,7 @@ export function useXRPStaking(): StakingService {
         throw new Error("Cannot delegate before bootstrap");
 
       const spawnTx = () =>
-        contract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
+        writeableContract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
       const getStateSnapshot = async () => {
         const balance = await getStakerBalanceByToken(
           boundImuaAddress,
@@ -306,7 +307,7 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [contract, handleEVMTxWithStatus, publicClient],
+    [writeableContract, handleEVMTxWithStatus, publicClient],
   );
 
   // Undelegate XRP from an operator
@@ -317,7 +318,7 @@ export function useXRPStaking(): StakingService {
       instantUnbond: boolean,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !boundImuaAddress)
+      if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
       if (evmAddress && evmAddress !== boundImuaAddress)
@@ -326,7 +327,7 @@ export function useXRPStaking(): StakingService {
         throw new Error("Cannot undelegate before bootstrap");
 
       const spawnTx = () =>
-        contract.write.undelegateFrom([
+        writeableContract.write.undelegateFrom([
           XRP_TOKEN_ENUM,
           operator,
           amount,
@@ -369,7 +370,7 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [contract, handleEVMTxWithStatus, publicClient],
+    [writeableContract, handleEVMTxWithStatus, publicClient],
   );
 
   // Withdraw XRP from staking
@@ -379,7 +380,7 @@ export function useXRPStaking(): StakingService {
       recipient?: `0x${string}`,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !boundImuaAddress)
+      if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!amount) throw new Error("Invalid parameters");
       if (recipient) throw new Error("Recipient not supported for now");
@@ -389,7 +390,7 @@ export function useXRPStaking(): StakingService {
         throw new Error("Cannot withdraw before bootstrap");
 
       const spawnTx = () =>
-        contract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
+        writeableContract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
       const getStateSnapshot = async () => {
         const balance = await getStakerBalanceByToken(
           boundImuaAddress,
@@ -421,7 +422,7 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [contract, handleEVMTxWithStatus, publicClient],
+    [writeableContract, handleEVMTxWithStatus, publicClient],
   );
 
   return {

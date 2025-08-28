@@ -18,7 +18,8 @@ import { useDelegations } from "./useDelegations";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress } = useAccount();
-  const { contract, publicClient } = usePortalContract(token.network);
+  const { readonlyContract, writeableContract, publicClient } =
+    usePortalContract(token.network);
   const { vault, vaultAddress } = useEVMVault(token);
   const { contract: erc20Contract } = useERC20Token(token);
   const delegations = useDelegations(token);
@@ -80,14 +81,13 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
             stakerBalanceAfterBootstrap.data?.totalDeposited || BigInt(0),
         };
       } else {
-        const claimable = await contract?.read.withdrawableAmounts([
+        const claimable = await readonlyContract?.read.withdrawableAmounts([
           userAddress as `0x${string}`,
           token.address,
         ]);
-        const totalDeposited = await contract?.read.totalDepositAmounts([
-          userAddress as `0x${string}`,
-          token.address,
-        ]);
+        const totalDeposited = await readonlyContract?.read.totalDepositAmounts(
+          [userAddress as `0x${string}`, token.address],
+        );
         return {
           clientChainID: lzEndpointIdOrCustomChainId,
           stakerAddress: userAddress as `0x${string}`,
@@ -117,7 +117,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   // Get quote for relaying a message to imua chain, and relaying fee is needed only after bootstrap
   const getQuote = useCallback(
     async (operation: OperationType): Promise<bigint> => {
-      if (!contract) return BigInt(0);
+      if (!readonlyContract) return BigInt(0);
 
       const lengths = {
         asset: 97,
@@ -129,13 +129,13 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       if (bootstrapStatus?.isBootstrapped) {
         const message = "0x" + "00".repeat(lengths[operation]);
-        const fee = await contract.read.quote([message]);
+        const fee = await readonlyContract.read.quote([message]);
         return fee as bigint;
       } else {
         return BigInt(0);
       }
     },
-    [contract],
+    [readonlyContract],
   );
 
   const handleDeposit = useCallback(
@@ -144,10 +144,12 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       approvingTx?: () => Promise<`0x${string}`>,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !amount) throw new Error("Invalid parameters");
+      if (!writeableContract || !amount) throw new Error("Invalid parameters");
       const fee = await getQuote("asset");
       const spawnTx = () =>
-        contract.write.deposit([token.address, amount], { value: fee });
+        writeableContract.write.deposit([token.address, amount], {
+          value: fee,
+        });
       const getBalanceSnapshot = async () => {
         const balance = await getStakerBalanceByToken(
           userAddress as `0x${string}`,
@@ -182,7 +184,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [contract, token.address, getQuote],
+    [writeableContract, token.address, getQuote],
   );
 
   const handleDelegateTo = useCallback(
@@ -191,11 +193,11 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       amount: bigint,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !amount || !operator)
+      if (!writeableContract || !amount || !operator)
         throw new Error("Invalid parameters");
       const fee = await getQuote("delegation");
       const spawnTx = () =>
-        contract.write.delegateTo([operator, token.address, amount], {
+        writeableContract.write.delegateTo([operator, token.address, amount], {
           value: fee,
         });
       const getBalanceSnapshot = async () => {
@@ -231,7 +233,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [contract, token.address, getQuote],
+    [writeableContract, token.address, getQuote],
   );
 
   const handleUndelegateFrom = useCallback(
@@ -241,11 +243,11 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       instantUnbond: boolean,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !amount || !operator)
+      if (!writeableContract || !amount || !operator)
         throw new Error("Invalid parameters");
       const fee = await getQuote("undelegation");
       const spawnTx = () =>
-        contract.write.undelegateFrom(
+        writeableContract.write.undelegateFrom(
           [operator, token.address, amount, instantUnbond],
           {
             value: fee,
@@ -289,7 +291,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [contract, token.address, getQuote],
+    [writeableContract, token.address, getQuote],
   );
 
   const handleDepositAndDelegate = useCallback(
@@ -299,12 +301,12 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       approvingTx?: () => Promise<`0x${string}`>,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !amount || !operator)
+      if (!writeableContract || !amount || !operator)
         throw new Error("Invalid parameters");
       const fee = await getQuote("delegation");
 
       const spawnTx = () =>
-        contract.write.depositThenDelegateTo(
+        writeableContract.write.depositThenDelegateTo(
           [token.address, amount, operator],
           { value: fee },
         );
@@ -345,18 +347,21 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [contract, token.address, getQuote],
+    [writeableContract, token.address, getQuote],
   );
 
   const handleClaimPrincipal = useCallback(
     async (amount: bigint, options?: Pick<BaseTxOptions, "onPhaseChange">) => {
-      if (!contract || !amount) throw new Error("Invalid parameters");
+      if (!writeableContract || !amount) throw new Error("Invalid parameters");
       const fee = await getQuote("asset");
 
       const spawnTx = () =>
-        contract.write.claimPrincipalFromImuachain([token.address, amount], {
-          value: fee,
-        });
+        writeableContract.write.claimPrincipalFromImuachain(
+          [token.address, amount],
+          {
+            value: fee,
+          },
+        );
       const getBalanceSnapshot = async () => {
         const withdrawable = await vault?.read.getWithdrawableBalance([
           userAddress as `0x${string}`,
@@ -390,7 +395,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [contract, token.address, getQuote],
+    [writeableContract, token.address, getQuote],
   );
 
   const handleWithdrawPrincipal = useCallback(
@@ -399,11 +404,15 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       recipient?: `0x${string}`,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!contract || !amount || !recipient)
+      if (!writeableContract || !amount || !recipient)
         throw new Error("Invalid parameters");
 
       const spawnTx = () =>
-        contract.write.withdrawPrincipal([token.address, amount, recipient]);
+        writeableContract.write.withdrawPrincipal([
+          token.address,
+          amount,
+          recipient,
+        ]);
       const getBalanceSnapshot = async () => {
         const withdrawable = await vault?.read.getWithdrawableBalance([
           userAddress as `0x${string}`,
@@ -435,7 +444,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [contract, token.address],
+    [writeableContract, token.address],
   );
 
   const handleStakeWithApproval = useCallback(
@@ -444,13 +453,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       operatorAddress?: string,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (
-        !contract ||
-        !erc20Contract ||
-        !amount ||
-        !publicClient ||
-        !vaultAddress
-      )
+      if (!erc20Contract || !amount || !vaultAddress || !userAddress)
         throw new Error("Invalid parameters");
 
       try {
@@ -480,12 +483,11 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       }
     },
     [
-      contract,
-      publicClient,
-      token.address,
+      erc20Contract,
+      vaultAddress,
+      userAddress,
       handleDeposit,
       handleDepositAndDelegate,
-      vaultAddress,
     ],
   );
 

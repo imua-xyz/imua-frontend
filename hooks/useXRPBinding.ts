@@ -6,7 +6,7 @@ import { usePortalContract } from "@/hooks/usePortalContract";
 import { xrp } from "@/types/tokens";
 
 export function useXRPBinding() {
-  const { contract } = usePortalContract(xrp.network);
+  const { readonlyContract } = usePortalContract(xrp.network);
 
   // Get XRP wallet state
   const xrpAddress = useGemWalletStore((state) => state.userAddress);
@@ -19,15 +19,20 @@ export function useXRPBinding() {
 
   // Set up contract in binding client
   useEffect(() => {
-    if (contract) {
-      bindingClient.setContract(contract);
+    if (readonlyContract) {
+      bindingClient.setContract(readonlyContract);
     }
-  }, [contract]);
+  }, [readonlyContract]);
 
   // Check binding on connection changes
   useEffect(() => {
-    if (isConnected && xrpAddress && contract && boundAddress === undefined) {
+    if (
+      isConnected &&
+      xrpAddress &&
+      readonlyContract &&
+      boundAddress === undefined
+    ) {
       bindingClient.checkBinding(xrpAddress);
     }
-  }, [isConnected, xrpAddress, contract, boundAddress]);
+  }, [isConnected, xrpAddress, readonlyContract, boundAddress]);
 }

@@ -14,7 +14,17 @@ export function usePortalContract(network: EVMNetwork | XRPL) {
     chainId: evmChainID as keyof typeof publicClients,
   });
 
-  const contract =
+  // Create contract with public client only (for read operations)
+  const readonlyContract = publicClient
+    ? getContract({
+        address: network.portalContract.address as `0x${string}`,
+        abi: network.portalContract.abi,
+        client: publicClient,
+      })
+    : undefined;
+
+  // Create contract with both clients (for write operations)
+  const writeableContract =
     publicClient && walletClient
       ? getContract({
           address: network.portalContract.address as `0x${string}`,
@@ -27,7 +37,8 @@ export function usePortalContract(network: EVMNetwork | XRPL) {
       : undefined;
 
   return {
-    contract,
+    writeableContract, // Full contract for write operations
+    readonlyContract, // Public-only contract for read operations
     publicClient,
     walletClient,
   };
