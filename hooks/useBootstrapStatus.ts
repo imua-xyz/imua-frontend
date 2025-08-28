@@ -6,18 +6,18 @@ import { BootstrapStatus } from "@/types/bootstrap-status";
 
 export function useBootstrapStatus() {
   // Always use the sepolia network to get the bootstrap contract
-  const { contract } = usePortalContract(sepolia);
+  const { readonlyContract } = usePortalContract(sepolia);
 
   const { data } = useQuery({
     queryKey: ["bootstrapStatus"],
     queryFn: async (): Promise<BootstrapStatus> => {
-      if (!contract) throw new Error("Contract not available");
+      if (!readonlyContract) throw new Error("Contract not available");
 
       // Read the bootstrap status from the contract
       const [bootstrapped, spawnTime, offsetDuration] = await Promise.all([
-        contract.read.bootstrapped([]),
-        contract.read.spawnTime([]),
-        contract.read.offsetDuration([]),
+        readonlyContract.read.bootstrapped([]),
+        readonlyContract.read.spawnTime([]),
+        readonlyContract.read.offsetDuration([]),
       ]);
 
       // Convert BigInts to numbers for easier use
@@ -48,7 +48,7 @@ export function useBootstrapStatus() {
       };
     },
     refetchInterval: 60000, // Refetch every minute
-    enabled: !!contract,
+    enabled: !!readonlyContract, // Only depends on public client availability, not wallet connection
   });
 
   return {

@@ -300,66 +300,74 @@ export default function StakingPage() {
       <WalletConnectorProvider token={selectedToken}>
         <Header token={selectedToken} />
 
-        {/* Main content area - cleaner with more focus */}
-        {bootstrapStatus && (
-          <div className="max-w-xl mx-auto px-6 py-12">
+        {/* Main content area - always show, handle bootstrap status inside */}
+        <div className="max-w-xl mx-auto px-6 py-12">
+          {bootstrapStatus && (
             <BootstrapPhaseBanner bootstrapStatus={bootstrapStatus} />
+          )}
 
-            {!bootstrapStatus?.isLocked && (
-              <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl">
-                {/* Card header with token selector - simplified */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-[#222233]">
-                  <h2 className="text-xl font-bold text-white">Stake Assets</h2>
-                  <button
-                    onClick={() => setIsTokenSelectorOpen(true)}
-                    className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
-                  >
-                    <Image
-                      src={selectedToken.iconUrl}
-                      alt={selectedToken.symbol}
-                      className="w-5 h-5 mr-2"
-                      width={20}
-                      height={20}
+          {!bootstrapStatus?.isLocked && (
+            <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl">
+              {/* Card header with token selector - simplified */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-[#222233]">
+                <h2 className="text-xl font-bold text-white">Stake Assets</h2>
+                <button
+                  onClick={() => setIsTokenSelectorOpen(true)}
+                  className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
+                >
+                  <Image
+                    src={selectedToken.iconUrl}
+                    alt={selectedToken.symbol}
+                    className="w-5 h-5 mr-2"
+                    width={20}
+                    height={20}
+                  />
+                  <span className="font-medium">{selectedToken.symbol}</span>
+                  <ChevronDown size={16} className="ml-2 text-[#9999aa]" />
+                </button>
+              </div>
+
+              {/* Card body with staking content */}
+              <div className="p-6">
+                <StakingServiceProvider token={selectedToken}>
+                  <OperatorsProvider>
+                    <StakingContent
+                      selectedToken={selectedToken}
+                      bootstrapStatus={
+                        bootstrapStatus || {
+                          isBootstrapped: false,
+                          isLocked: false,
+                          spawnTime: 0,
+                          offsetDuration: 0,
+                          phase: "pre-lock",
+                        }
+                      }
                     />
-                    <span className="font-medium">{selectedToken.symbol}</span>
-                    <ChevronDown size={16} className="ml-2 text-[#9999aa]" />
-                  </button>
-                </div>
-
-                {/* Card body with staking content */}
-                <div className="p-6">
-                  <StakingServiceProvider token={selectedToken}>
-                    <OperatorsProvider>
-                      <StakingContent
-                        selectedToken={selectedToken}
-                        bootstrapStatus={bootstrapStatus}
-                      />
-                    </OperatorsProvider>
-                  </StakingServiceProvider>
-                </div>
+                  </OperatorsProvider>
+                </StakingServiceProvider>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Show additional message when locked */}
-            {bootstrapStatus?.isLocked && (
-              <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl mt-6 p-8 text-center">
-                <div className="flex flex-col items-center">
-                  <div className="w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-amber-950/20">
-                    <AlertCircle className="text-amber-400" size={32} />
-                  </div>
-                  <h3 className="text-white text-xl font-medium mb-3">
-                    Staking is Currently Disabled
-                  </h3>
-                  <p className="text-[#9999aa] max-w-md">
-                    During this bootstrap phase, staking operations are
-                    temporarily disabled. You&apos;ll be able to stake again
-                    once the network is fully operational.
-                  </p>
+          {/* Show additional message when locked */}
+          {bootstrapStatus?.isLocked && (
+            <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl mt-6 p-8 text-center">
+              <div className="flex flex-col items-center">
+                <div className="w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-amber-950/20">
+                  <AlertCircle className="text-amber-400" size={32} />
                 </div>
+                <h3 className="text-white text-xl font-medium mb-3">
+                  Staking is Currently Disabled
+                </h3>
+                <p className="text-[#9999aa] max-w-md">
+                  During this bootstrap phase, staking operations are
+                  temporarily disabled. You&apos;ll be able to stake again once
+                  the network is fully operational.
+                </p>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {/* Token Selector Modal */}
         <TokenSelectorModal
