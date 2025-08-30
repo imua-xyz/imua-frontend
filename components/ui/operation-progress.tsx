@@ -19,6 +19,8 @@ export type OperationStep = {
   errorMessage?: string;
   txHash?: string;
   explorerUrl?: string;
+  estimatedTime?: string;
+  explanation?: string;
 };
 
 export const approvalStep: OperationStep = {
@@ -40,6 +42,7 @@ export const confirmationStep: OperationStep = {
   title: "Transaction Confirmation",
   description: "Waiting for transaction to be confirmed",
   status: "pending",
+  estimatedTime: "10 sec",
 };
 
 export const sendingRequestStep: OperationStep = {
@@ -47,6 +50,9 @@ export const sendingRequestStep: OperationStep = {
   title: "Cross-Chain Message",
   description: "Relaying message to destination chain",
   status: "pending",
+  estimatedTime: "60 sec",
+  explanation:
+    "This step takes time to ensure security across multiple blockchains.",
 };
 
 export const receivingResponseStep: OperationStep = {
@@ -54,6 +60,9 @@ export const receivingResponseStep: OperationStep = {
   title: "Receive Response",
   description: "Waiting for response from destination chain",
   status: "pending",
+  estimatedTime: "60 sec",
+  explanation:
+    "This step takes time to ensure security across multiple blockchains.",
 };
 
 export const completionStep: OperationStep = {
@@ -61,6 +70,7 @@ export const completionStep: OperationStep = {
   title: "Process Completion",
   description: "Verifying final balance update",
   status: "pending",
+  estimatedTime: "3 sec",
 };
 
 export type OperationProgress = {
@@ -176,6 +186,22 @@ export function OperationProgress({
           ></div>
         </div>
 
+        {/* Simple step counter */}
+        {!hasError && !success && (
+          <div className="text-center mb-4">
+            <div className="text-sm text-[#9999aa] mb-2">
+              Step{" "}
+              {Math.max(
+                1,
+                progress.steps.findIndex(
+                  (step) => step.status === "processing",
+                ) + 1,
+              )}{" "}
+              of {progress.steps.length}
+            </div>
+          </div>
+        )}
+
         {/* Steps list with connecting lines */}
         <div className="space-y-0">
           {progress.steps.map((step, index) => (
@@ -185,10 +211,10 @@ export function OperationProgress({
                 className={`flex items-start p-4 rounded-lg mb-1 ${
                   step.status === "error"
                     ? "bg-[#2d0d0d]/20 border border-red-500/20"
-                    : step.status === "success"
-                      ? "bg-[#0d2d1d]/20 border border-green-500/20"
-                      : step.status === "processing"
-                        ? "bg-[#0d1d2d]/20 border border-[#00e5ff]/20"
+                    : step.status === "processing"
+                      ? "bg-[#0d1d2d]/20 border border-[#00e5ff]/20"
+                      : step.status === "success"
+                        ? "bg-[#0d2d1d]/20 border border-green-500/20"
                         : ""
                 }`}
               >
@@ -231,9 +257,23 @@ export function OperationProgress({
                   >
                     {step.title}
                   </h4>
-                  <p className="text-sm text-[#9999aa] mt-1">
-                    {step.description}
-                  </p>
+                  <div className="text-sm text-[#9999aa] mt-1">
+                    <p>
+                      {step.description}
+                      {step.estimatedTime && (
+                        <span className="text-xs text-[#666677] ml-2">
+                          (est. time {step.estimatedTime})
+                        </span>
+                      )}
+                    </p>
+                    {step.explanation &&
+                      step.status === "processing" &&
+                      step.phase === "sendingRequest" && (
+                        <p className="text-xs text-[#666677] mt-2 italic">
+                          {step.explanation}
+                        </p>
+                      )}
+                  </div>
 
                   {/* Error message if applicable */}
                   {step.status === "error" && step.errorMessage && (
@@ -303,6 +343,11 @@ export function OperationProgress({
                 </span>
                 <div className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse"></div>
               </div>
+              {isCrossChain && (
+                <div className="text-xs text-[#666677] mt-2">
+                  Cross-chain operations typically take 1-2 minutes
+                </div>
+              )}
             </div>
           )}
         </DialogFooter>
