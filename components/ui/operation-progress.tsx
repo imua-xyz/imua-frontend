@@ -61,6 +61,8 @@ export const receivingResponseStep: OperationStep = {
   description: "Waiting for response from destination chain",
   status: "pending",
   estimatedTime: "60 sec",
+  explanation:
+    "This step takes time to ensure security across multiple blockchains.",
 };
 
 export const completionStep: OperationStep = {

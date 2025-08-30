@@ -87,6 +87,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - `withdrawableAmounts[user][token]` → Claimable Balance
   - `depositsByToken[token]` → Token-level total deposits
 - **Contract Logic**:
+
   ```solidity
   function _deposit(address depositor, address token, uint256 amount) internal {
       IVault vault = _getVault(token);
@@ -157,6 +158,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - `delegationsByValidator[validator][token]` → Validator's total delegations
   - `withdrawableAmounts[user][token]` → Claimable Balance
 - **Contract Logic**:
+
   ```solidity
   function _delegateTo(address user, string calldata validator, address token, uint256 amount) internal {
       uint256 withdrawable = withdrawableAmounts[user][token];
@@ -234,6 +236,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - `withdrawableAmounts[user][token]` → Claimable Balance
   - `depositsByToken[token]` → Token-level total deposits
 - **Contract Logic**:
+
   ```solidity
   function _claim(address user, address token, uint256 amount) internal {
       uint256 deposited = totalDepositAmounts[user][token];
