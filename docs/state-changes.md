@@ -28,16 +28,19 @@ There is an important distinction between Imuachain's claimable balance and the 
 ## 1.2 Balance Relationship
 
 The relationship between these balances is:
+
 ```
 Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing penalties)
 ```
 
 **During Bootstrap Phase**:
+
 - No slashing occurs
 - No delayed unbonding (all undelegations are instant)
 - `Total Deposited = Claimable + Delegated` (Pending Undelegated is always 0)
 
 **After Bootstrap Phase**:
+
 - Slashing may occur during delayed unbonding
 - Delayed unbonding creates Pending Undelegated balance
 - `Total Deposited = Claimable + Delegated + Pending Undelegated + Slashing Penalties`
@@ -45,6 +48,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
 ## 1.3 Bootstrap Phase vs Post-Bootstrap Phase
 
 **Bootstrap Phase** (Before Imuachain Launch):
+
 - All operations are **local** (no cross-chain messaging)
 - Bootstrap contract acts as the ledger recording all staking positions
 - Operations use `beforeLocked` modifier to enforce timeline restrictions
@@ -57,6 +61,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - `Pending Undelegated` is always 0 (no delayed unbonding)
 
 **Post-Bootstrap Phase** (After Imuachain Launch):
+
 - Operations involve cross-chain messaging via LayerZero
 - Imuachain coordinates all staking operations
 - Full unbonding support (instant and delayed)
@@ -71,6 +76,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
 ### 2.1 Deposit
 
 #### Bootstrap Phase
+
 - **Action**: User sends tokens to Bootstrap contract without delegating
 - **State Change**:
   - ↑ Total Deposited
@@ -80,17 +86,17 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - `totalDepositAmounts[user][token]` → Total Deposited
   - `withdrawableAmounts[user][token]` → Claimable Balance
   - `depositsByToken[token]` → Token-level total deposits
-- **Contract Logic**: 
+- **Contract Logic**:
   ```solidity
   function _deposit(address depositor, address token, uint256 amount) internal {
       IVault vault = _getVault(token);
       vault.deposit(depositor, amount);
-      
+
       if (!isDepositor[depositor]) {
           isDepositor[depositor] = true;
           depositors.push(depositor);
       }
-      
+
       totalDepositAmounts[depositor][token] += amount;
       withdrawableAmounts[depositor][token] += amount;
       depositsByToken[token] += amount;
@@ -98,6 +104,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   ```
 
 #### Post-Bootstrap Phase
+
 - **Action**: User sends tokens to ClientChainGateway contract
 - **State Change**: Same as bootstrap phase, but with cross-chain messaging to Imuachain
 - **User Experience**: Tokens are locked in vault contracts but not generating yield
@@ -105,6 +112,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
 ### 2.2 Stake (Deposit + Delegate)
 
 #### Bootstrap Phase
+
 - **Action**: User deposits tokens AND delegates to an operator in one operation
 - **State Change on Success**:
   - ↑ Total Deposited
@@ -121,7 +129,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - `withdrawableAmounts[user][token]` → Claimable Balance
   - `delegations[user][validator][token]` → Specific delegation to this validator
   - `delegationsByValidator[validator][token]` → Validator's total delegations
-- **Contract Logic**: 
+- **Contract Logic**:
   ```solidity
   function depositThenDelegateTo(address token, uint256 amount, string calldata validator)
       external payable beforeLocked whenNotPaused {
@@ -131,12 +139,14 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   ```
 
 #### Post-Bootstrap Phase
+
 - **State Change**: Same as bootstrap phase, but with cross-chain messaging to Imuachain
 - **User Experience**: Tokens begin generating yield immediately
 
 ### 2.3 Delegate
 
 #### Bootstrap Phase
+
 - **Action**: User delegates tokens from claimable balance to an operator
 - **State Change**:
   - ↑ Delegated Balance
@@ -153,7 +163,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
       if (withdrawable < amount) {
           revert Errors.BootstrapInsufficientWithdrawableBalance();
       }
-      
+
       if (delegations[user][validator][token] == 0) {
           stakerToTokenToValidators[user][token].push(validator);
       }
@@ -164,12 +174,14 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   ```
 
 #### Post-Bootstrap Phase
+
 - **State Change**: Same as bootstrap phase, but with cross-chain messaging to Imuachain
 - **User Experience**: Previously deposited tokens begin generating yield
 
 ### 2.4 Undelegate
 
 #### Bootstrap Phase
+
 - **Action**: User requests to undelegate tokens from an operator
 - **State Change**:
   - ↓ Delegated Balance
@@ -180,6 +192,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - `delegationsByValidator[validator][token]` → Validator's total delegations
   - `withdrawableAmounts[user][token]` → Claimable Balance
 - **Contract Logic**:
+
   ```solidity
   function undelegateFrom(string calldata validator, address token, uint256 amount, bool instantUnbond)
       external payable beforeLocked whenNotPaused {
@@ -188,13 +201,13 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
       }
       _undelegateFrom(msg.sender, validator, token, amount);
     }
-  
+
   function _undelegateFrom(address user, string calldata validator, address token, uint256 amount) internal {
       uint256 delegated = delegations[user][validator][token];
       if (delegated < amount) {
           revert Errors.BootstrapInsufficientDelegatedBalance();
       }
-      
+
       delegations[user][validator][token] -= amount;
       delegationsByValidator[validator][token] -= amount;
       withdrawableAmounts[user][token] += amount; // Immediate return
@@ -202,6 +215,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   ```
 
 #### Post-Bootstrap Phase
+
 - **State Change Options**:
   - **Instant Unbonding**: Same as bootstrap phase
   - **Delayed Unbonding**: Tokens go through unbonding period before becoming claimable
@@ -209,6 +223,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
 ### 2.5 Claim Principal
 
 #### Bootstrap Phase
+
 - **Action**: User requests to unlock tokens from Bootstrap contract custody
 - **State Change**:
   - ↓ Total Deposited
@@ -229,22 +244,24 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
       if (withdrawable < amount) {
           revert Errors.BootstrapInsufficientWithdrawableBalance();
       }
-      
+
       totalDepositAmounts[user][token] -= amount;
       withdrawableAmounts[user][token] -= amount;
       depositsByToken[token] -= amount;
-      
+
       vault.unlockPrincipal(user, amount);
   }
   ```
 
 #### Post-Bootstrap Phase
+
 - **State Change**: Same as bootstrap phase, but with cross-chain messaging to Imuachain
 - **User Experience**: Tokens no longer tracked by Imuachain (can't be delegated)
 
 ### 2.6 Withdraw
 
 #### Bootstrap Phase
+
 - **Action**: User withdraws unlocked tokens from vault contracts to their wallet
 - **State Change**:
   - ↓ Client Chain Withdrawable Balance (in vault contracts)
@@ -262,6 +279,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   ```
 
 #### Post-Bootstrap Phase
+
 - **State Change**: Same as bootstrap phase
 - **User Experience**: Tokens transferred from vault contracts to user's wallet
 
@@ -270,6 +288,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
 ### 3.1 Native ETH Staking
 
 #### Create Capsule
+
 - **Action**: User creates an ImuaCapsule for beacon chain staking
 - **State Change**:
   - ↑ `ownerToCapsule[msg.sender]` (capsule address)
@@ -285,11 +304,13 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   ```
 
 #### Stake ETH
+
 - **Action**: User stakes 32 ETH to beacon chain via capsule
 - **State Change**: No immediate state change (beacon chain operation)
 - **Contract Logic**: Calls `ETH_POS.deposit` with capsule withdrawal credentials
 
 #### Verify Native Stake
+
 - **Action**: User verifies beacon chain deposit proof
 - **State Change**:
   - ↑ `totalDepositAmounts[user][VIRTUAL_NST_ADDRESS]` (native stake amount)
@@ -300,6 +321,7 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
 ### 3.2 Validator Registration
 
 #### Register Validator
+
 - **Action**: Validator registers with commission settings and consensus key
 - **State Change**:
   - ↑ `ethToImAddress[msg.sender]` (Ethereum to Imua address mapping)
@@ -309,12 +331,14 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
   - ↑ `validatorNameInUse[name]` (name uniqueness tracking)
 
 #### Update Commission Rate
+
 - **Action**: Validator updates commission rate (allowed only once)
 - **State Change**:
   - ↑ `validators[validatorAddress].commission.rate` (new rate)
   - ↑ `commissionEdited[validatorAddress]` (mark as edited)
 
 #### Replace Consensus Key
+
 - **Action**: Validator replaces consensus public key
 - **State Change**:
   - ↓ `consensusPublicKeyInUse[oldKey]` (mark old key as unused)
@@ -327,36 +351,41 @@ Total Deposited = Claimable + Delegated + Pending Undelegated + (Any slashing pe
 
 The Bootstrap contract uses different state variable names that map to the standard balance concepts:
 
-| Bootstrap Contract Variable | Standard Balance Concept | Description |
-|----------------------------|-------------------------|-------------|
-| `totalDepositAmounts[user][token]` | **Total Deposited** | Cumulative deposits minus claims, represents historical net position |
-| `withdrawableAmounts[user][token]` | **Claimable Balance** | Tokens available for delegation or claim operations (Bootstrap tracking) |
-| `totalDepositAmounts - withdrawableAmounts` | **Delegated Balance** | Total tokens delegated across all validators for a token |
-| `delegations[user][validator][token]` | **Specific Delegation** | Tokens delegated to a specific validator |
-| `depositsByToken[token]` | Token-level total | Total deposits across all users for a specific token |
+| Bootstrap Contract Variable                 | Standard Balance Concept | Description                                                              |
+| ------------------------------------------- | ------------------------ | ------------------------------------------------------------------------ |
+| `totalDepositAmounts[user][token]`          | **Total Deposited**      | Cumulative deposits minus claims, represents historical net position     |
+| `withdrawableAmounts[user][token]`          | **Claimable Balance**    | Tokens available for delegation or claim operations (Bootstrap tracking) |
+| `totalDepositAmounts - withdrawableAmounts` | **Delegated Balance**    | Total tokens delegated across all validators for a token                 |
+| `delegations[user][validator][token]`       | **Specific Delegation**  | Tokens delegated to a specific validator                                 |
+| `depositsByToken[token]`                    | Token-level total        | Total deposits across all users for a specific token                     |
 
-**Important Distinction**: 
+**Important Distinction**:
+
 - **Bootstrap.withdrawableAmounts**: Tracks claimable balance for delegation/claim operations (like Imuachain's claimable balance)
 - **Client Chain Vault Withdrawable Balance**: Always means the same thing - unlocked tokens in vault contracts that can be withdrawn to user wallets (regardless of bootstrap phase)
 
 ### 4.2 Balance Relationship During Bootstrap
 
 During the bootstrap phase, the relationship is simplified:
+
 ```
 Total Deposited = Claimable + Delegated
 ```
 
 **Calculating Delegated Balance**:
+
 - **Individual Delegation**: `delegations[user][validator][token]` (specific validator)
 - **Total Delegated**: `totalDepositAmounts[user][token] - withdrawableAmounts[user][token]`
 - **Why this works**: No slashing or pending undelegated during bootstrap
 
 **Why no Pending Undelegated?**
+
 - All undelegations are instant during bootstrap
 - No delayed unbonding period exists
 - Tokens immediately return to Claimable Balance
 
 **Why no slashing?**
+
 - No delayed unbonding means no slashing penalties
 - All operations are local and immediate
 - No cross-chain coordination delays
@@ -364,11 +393,12 @@ Total Deposited = Claimable + Delegated
 ### 4.3 State Variable Access
 
 The Bootstrap contract provides these key state variables for balance queries:
+
 ```solidity
 // User's total deposited amount for a token
 totalDepositAmounts[user][token]
 
-// User's claimable (withdrawable) amount for a token  
+// User's claimable (withdrawable) amount for a token
 withdrawableAmounts[user][token]
 
 // User's delegation to a specific validator for a token
@@ -386,20 +416,23 @@ totalDepositAmounts[user][token] - withdrawableAmounts[user][token]
 The withdrawal process involves two distinct steps and two different types of withdrawable balances:
 
 #### Step 1: Claim (Bootstrap → Vault)
+
 - **Action**: User requests to unlock tokens from Bootstrap contract custody
-- **State Change**: 
+- **State Change**:
   - ↓ Bootstrap Claimable Balance (`withdrawableAmounts`)
   - ↑ Client Chain Vault Withdrawable Balance
 - **Purpose**: Transfer tokens from Bootstrap tracking to vault contract custody
 
 #### Step 2: Withdraw (Vault → Wallet)
+
 - **Action**: User withdraws unlocked tokens from vault contracts to their wallet
 - **State Change**:
   - ↓ Client Chain Vault Withdrawable Balance
   - ↑ User Wallet Balance
 - **Purpose**: Transfer tokens from vault contract to user's wallet
 
-**Key Insight**: 
+**Key Insight**:
+
 - **Bootstrap.withdrawableAmounts** = Imuachain's claimable balance concept
 - **Vault Withdrawable Balance** = Client chain's unlocked token balance (same concept regardless of bootstrap phase)
 - These are separate tracking systems that work together for the complete withdrawal flow
@@ -407,18 +440,21 @@ The withdrawal process involves two distinct steps and two different types of wi
 ## 5. Bootstrap Phase Constraints
 
 ### 5.1 Timeline Restrictions
+
 - **`beforeLocked` modifier**: All operations restricted before lock period
 - **Lock Period**: `block.timestamp >= spawnTime - offsetDuration`
 - **Spawn Time**: When Imuachain will be launched
 - **Offset Duration**: Lock period before spawn time
 
 ### 5.2 Operation Restrictions
+
 - **No cross-chain messaging**: All operations are local
 - **Validator registration only**: New validators can only register during bootstrap
 - **Commission editing limits**: Validators can only edit commission rates once
 - **Instant unbonding only**: No delayed unbonding support during bootstrap
 
 ### 5.3 State Tracking
+
 - **Bootstrap contract acts as ledger**: Records all staking positions
 - **Vault integration**: Manages actual token custody
 - **Genesis data preparation**: All data collected for Imuachain launch
@@ -441,6 +477,7 @@ The withdrawal process involves two distinct steps and two different types of wi
 ## 7. State Flow Visualization
 
 ### 7.1 Bootstrap Phase Flow
+
 ```
 User Wallet ──(Deposit)──> Bootstrap Contract ──(Delegate)──> Delegated State
                                 │                                    │
@@ -514,12 +551,14 @@ User Wallet <──(Withdraw)──── Unlocked <──(Claim)──── Cl
 ## 10. Technical Implementation Differences
 
 ### 10.1 Bootstrap Contract
+
 - **Storage**: Maintains all staking state locally
 - **Vault Integration**: Direct interaction with vault contracts
 - **No Cross-Chain**: Pure local operations
 - **Genesis Preparation**: Data collection for Imuachain launch
 
 ### 10.2 ClientChainGateway
+
 - **Storage**: Inherits all bootstrap state
 - **Cross-Chain Messaging**: LayerZero integration
 - **Imuachain Coordination**: All operations coordinated with Imuachain

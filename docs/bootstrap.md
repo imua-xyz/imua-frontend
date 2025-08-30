@@ -9,6 +9,7 @@ The Imua Protocol bootstrap is a critical phase that occurs before Imuachain's l
 ### Core Concept
 
 Before Imuachain is spawned, the protocol operates in "bootstrap mode" where:
+
 - **Validators register** on client chains (primarily Ethereum)
 - **Users deposit and delegate** assets to registered validators
 - **All operations are local** (no cross-chain messaging)
@@ -21,7 +22,7 @@ The bootstrap process collects assets from multiple blockchain ecosystems:
 
 1. **Ethereum/EVM Chains**: Bootstrap contract with full smart contract functionality
 2. **Bitcoin**: Direct transfers to vault addresses with encoded delegation data
-3. **XRPL**: Direct transfers to vault addresses with encoded delegation data  
+3. **XRPL**: Direct transfers to vault addresses with encoded delegation data
 
 ## Bootstrap Contract (Ethereum)
 
@@ -37,6 +38,7 @@ The `Bootstrap` contract serves as the primary coordination point for the bootst
 ### Key Functions
 
 #### Validator Management
+
 ```solidity
 function registerValidator(
     string calldata validatorAddress,
@@ -50,6 +52,7 @@ function updateRate(uint256 newRate) external
 ```
 
 #### Staking Operations
+
 ```solidity
 function deposit(address token, uint256 amount) external
 function depositThenDelegateTo(address token, uint256 amount, string calldata validator) external
@@ -58,6 +61,7 @@ function undelegateFrom(string calldata validator, address token, uint256 amount
 ```
 
 #### Native ETH Staking
+
 ```solidity
 function createImuaCapsule() external returns (address)
 function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable
@@ -105,11 +109,10 @@ Vault Address: [XRPL address]
 Memo: [Encoded Imua address + validator address]
 ```
 
-
-
 ### Data Encoding Format
 
 The delegation data typically includes:
+
 - **Imua Address**: The user's Imuachain address (Bech32 format)
 - **Validator Address**: The validator's Imuachain address
 
@@ -134,7 +137,7 @@ function markBootstrapped() public onlyCalledFromThis whenNotPaused {
         emit BootstrapNotTimeYet();
         return;
     }
-    
+
     try ICustomProxyAdmin(customProxyAdmin).changeImplementation(
         ITransparentUpgradeableProxy(address(this)),
         clientChainGatewayLogic,
@@ -171,15 +174,15 @@ const { data: bootstrapStatus } = useQuery({
       contract.read.spawnTime([]),
       contract.read.offsetDuration([]),
     ]);
-    
+
     return {
       isBootstrapped: bootstrapped,
       isLocked: block.timestamp >= spawnTime - offsetDuration,
       spawnTime,
       offsetDuration,
-      phase: bootstrapped ? "post-bootstrap" : "bootstrap"
+      phase: bootstrapped ? "post-bootstrap" : "bootstrap",
     };
-  }
+  },
 });
 ```
 
@@ -192,7 +195,7 @@ During bootstrap phase, query the Bootstrap contract for staking positions:
 const stakingPositions = await Promise.all([
   contract.read.totalDepositAmounts([userAddress, tokenAddress]),
   contract.read.withdrawableAmounts([userAddress, tokenAddress]),
-  contract.read.delegations([userAddress, validatorAddress, tokenAddress])
+  contract.read.delegations([userAddress, validatorAddress, tokenAddress]),
 ]);
 ```
 
