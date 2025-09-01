@@ -2,6 +2,9 @@ import ClientChainGatewayABI from "@/abi/ClientChainGateway.abi.json";
 import UTXOGatewayABI from "@/abi/UTXOGateway.abi.json";
 import deployedContracts from "@/deployedContracts.json";
 import { ValidEVMChain } from "@/config/wagmi";
+import BootstrapABI from "@/abi/Bootstrap.abi.json";
+
+export type ContractType = "ClientChainGateway" | "UTXOGateway" | "Bootstrap";
 
 export interface NetworkBase {
   chainName: string;
@@ -14,9 +17,10 @@ export interface EVMNetwork extends NetworkBase {
   chainName: ValidEVMChain;
   evmChainID: number;
   portalContract: {
-    name: string;
+    type: ContractType;
     address: `0x${string}`;
     abi: any;
+    bootstrapABI?: any;
   };
 }
 
@@ -24,7 +28,7 @@ export interface XRPL extends NetworkBase {
   chainName: "XRPL";
   customChainIdByImua: 2;
   portalContract: {
-    name: "UTXOGateway";
+    type: ContractType;
     address: `0x${string}`;
     abi: any;
   };
@@ -37,7 +41,7 @@ export const sepolia: EVMNetwork = {
   evmChainID: 11155111,
   customChainIdByImua: 40161,
   portalContract: {
-    name: "ClientChainGateway",
+    type: "ClientChainGateway",
     address: deployedContracts.clientChain.bootstrap as `0x${string}`,
     abi: ClientChainGatewayABI,
   },
@@ -48,11 +52,12 @@ export const sepolia: EVMNetwork = {
 export const hoodi: EVMNetwork = {
   chainName: "Hoodi",
   evmChainID: 560048,
-  customChainIdByImua: 0,
+  customChainIdByImua: 999,
   portalContract: {
-    name: "ClientChainGateway",
+    type: "ClientChainGateway",
     address: "0xf21FB1667A8Aa3D3ea365D3D1D257f3E4fdd0651",
     abi: ClientChainGatewayABI,
+    bootstrapABI: BootstrapABI,
   },
   txExplorerUrl: "https://hoodi.etherscan.io/",
   accountExplorerUrl: "https://hoodi.etherscan.io/address/",
@@ -62,7 +67,7 @@ export const xrpl: XRPL = {
   chainName: "XRPL",
   customChainIdByImua: 2,
   portalContract: {
-    name: "UTXOGateway",
+    type: "UTXOGateway",
     address: deployedContracts.imuachain.utxoGateway as `0x${string}`,
     abi: UTXOGatewayABI,
   },
@@ -75,7 +80,7 @@ export const imuaChain: EVMNetwork = {
   evmChainID: 233,
   customChainIdByImua: 40259,
   portalContract: {
-    name: "",
+    type: "Bootstrap",
     address: "0x0",
     abi: "",
   },
@@ -88,3 +93,5 @@ export type Network =
   | typeof hoodi
   | typeof xrpl
   | typeof imuaChain;
+
+export const bootstrapContractNetwork = hoodi;

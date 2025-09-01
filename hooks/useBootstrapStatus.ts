@@ -1,23 +1,60 @@
 // hooks/useBootstrapStatus.ts
 import { useQuery } from "@tanstack/react-query";
-import { usePortalContract } from "./usePortalContract";
-import { hoodi } from "@/types/networks";
+import { bootstrapContractNetwork } from "@/types/networks";
 import { BootstrapStatus } from "@/types/bootstrap-status";
+import { getPublicClient } from "@wagmi/core";
+import { config, publicClients } from "@/config/wagmi";
+import { getContract } from "viem";
+
+const BOOTSTRAP_STATUS_ABI = [
+  {
+    inputs: [],
+    name: "bootstrapped",
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "spawnTime",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "offsetDuration",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 export function useBootstrapStatus() {
-  // Always use the sepolia network to get the bootstrap contract
-  const { readonlyContract } = usePortalContract(hoodi);
+  // Use hoodi network but create minimal contract instance
+  const evmChainID = bootstrapContractNetwork.evmChainID;
+  const publicClient = getPublicClient(config, {
+    chainId: evmChainID as keyof typeof publicClients,
+  });
+  const bootstrapStatusContract = publicClient
+    ? getContract({
+        address: bootstrapContractNetwork.portalContract
+          .address as `0x${string}`,
+        abi: BOOTSTRAP_STATUS_ABI,
+        client: publicClient,
+      })
+    : undefined;
 
   const { data } = useQuery({
     queryKey: ["bootstrapStatus"],
     queryFn: async (): Promise<BootstrapStatus> => {
-      if (!readonlyContract) throw new Error("Contract not available");
+      if (!bootstrapStatusContract) throw new Error("Contract not available");
 
       // Read the bootstrap status from the contract
       const [bootstrapped, spawnTime, offsetDuration] = await Promise.all([
-        readonlyContract.read.bootstrapped([]),
-        readonlyContract.read.spawnTime([]),
-        readonlyContract.read.offsetDuration([]),
+        bootstrapStatusContract.read.bootstrapped(),
+        bootstrapStatusContract.read.spawnTime(),
+        bootstrapStatusContract.read.offsetDuration(),
       ]);
 
       // Convert BigInts to numbers for easier use
@@ -48,7 +85,7 @@ export function useBootstrapStatus() {
       };
     },
     refetchInterval: 60000, // Refetch every minute
-    enabled: !!readonlyContract, // Only depends on public client availability, not wallet connection
+    enabled: !!bootstrapStatusContract, // Only depends on public client availability, not wallet connection
   });
 
   return {

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useDelegations } from "@/hooks/useDelegations";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { DelegationPerOperator } from "@/types/delegations";
 import { Info, ChevronDown } from "lucide-react";
 import { UNBOND_PERIOD } from "@/config/cosmos";
@@ -51,8 +52,14 @@ export function UndelegateTab({
   // State for undelegation details
   const [isInstantUnbond, setIsInstantUnbond] = useState(false);
 
-  // Check if this is a native chain operation
-  const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
+
+  // Check if this is a native chain operation (not cross-chain)
+  // This considers both bootstrap phase and token-specific requirements
+  const isNativeChainOperation =
+    !bootstrapStatus?.isBootstrapped ||
+    !!token.connector?.requireExtraConnectToImua;
 
   // Amount input with delegation constraint
   const maxAmount = selectedDelegation?.delegated || BigInt(0);
@@ -72,7 +79,7 @@ export function UndelegateTab({
   const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Initialize operation steps based on mode
+  // Initialize operation steps based on operation mode
   useState(() => {
     let steps: OperationStep[] = [];
 
@@ -84,7 +91,7 @@ export function UndelegateTab({
         { ...completionStep },
       ];
     } else {
-      // Simplex mode: transaction, confirmation, relay, completion (no approval needed)
+      // Cross-chain mode: transaction, confirmation, relay, completion
       steps = [
         { ...transactionStep, description: "Sending undelegate transaction" },
         { ...confirmationStep },

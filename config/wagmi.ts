@@ -37,10 +37,14 @@ export const hoodi = {
   },
   rpcUrls: {
     default: {
-      http: ["https://ethereum-hoodi-rpc.publicnode.com"],
+      http: [
+        "https://eth-hoodi.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
+      ],
     },
     public: {
-      http: ["https://ethereum-hoodi-rpc.publicnode.com"],
+      http: [
+        "https://eth-hoodi.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
+      ],
     },
   },
 } as const;
@@ -55,7 +59,9 @@ export const publicClients = {
   }),
   [hoodi.id]: createPublicClient({
     chain: hoodi,
-    transport: viem_http("https://ethereum-hoodi-rpc.publicnode.com"),
+    transport: viem_http(
+      "https://eth-hoodi.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
+    ),
   }),
   [mainnet.id]: createPublicClient({
     chain: mainnet,
@@ -81,7 +87,9 @@ export const config = createConfig({
     [sepolia.id]: http(
       "https://eth-sepolia.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
     ),
-    [hoodi.id]: http("https://ethereum-hoodi-rpc.publicnode.com"),
+    [hoodi.id]: http(
+      "https://eth-hoodi.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
+    ),
     [mainnet.id]: http(
       "https://eth-mainnet.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
     ),

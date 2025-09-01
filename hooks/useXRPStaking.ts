@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { BaseTxOptions, StakerBalance, WalletBalance } from "@/types/staking";
@@ -62,49 +62,20 @@ export function useXRPStaking(): StakingService {
 
   const [stakerBalanceResponse] = useStakerBalances([xrp]);
 
-  // Fetch staking position
-  const stakerBalance = useQuery({
-    queryKey: ["stakerBalanceForXRP", xrpAddress],
-    queryFn: async (): Promise<StakerBalance> => {
-      if (!xrpAddress) {
-        throw new Error("Required dependencies not available");
-      }
-
-      try {
-        if (!boundImuaAddress || !bootstrapStatus?.isBootstrapped) {
-          return {
-            clientChainID: XRP_CHAIN_ID,
-            stakerAddress: "0x0" as `0x${string}`,
-            tokenID: XRP_TOKEN_ADDRESS,
-            totalBalance: BigInt(0),
-            withdrawable: BigInt(0),
-            delegated: BigInt(0),
-            pendingUndelegated: BigInt(0),
-            totalDeposited: BigInt(0),
-          };
-        }
-
-        if (!stakerBalanceResponse.data)
-          throw new Error("Failed to fetch staker balance");
-
-        return {
-          clientChainID: stakerBalanceResponse.data.clientChainID,
-          stakerAddress: stakerBalanceResponse.data.stakerAddress,
-          tokenID: stakerBalanceResponse.data.tokenID,
-          totalBalance: stakerBalanceResponse.data.balance,
-          withdrawable: stakerBalanceResponse.data.withdrawable || BigInt(0),
-          delegated: stakerBalanceResponse.data.delegated,
-          pendingUndelegated: stakerBalanceResponse.data.pendingUndelegated,
-          totalDeposited: stakerBalanceResponse.data.totalDeposited,
-        };
-      } catch (error) {
-        console.error("Error fetching staking position:", error);
-        throw error; // Let React Query handle the error
-      }
-    },
-    refetchInterval: 3000,
-    enabled: !!xrpAddress,
-  });
+  const stakerBalance = useMemo<StakerBalance | undefined>(() => {
+    const s = stakerBalanceResponse.data;
+    if (!s) return undefined;
+    return {
+      clientChainID: s.clientChainID,
+      stakerAddress: s.stakerAddress,
+      tokenID: s.tokenID,
+      totalBalance: s.balance,
+      withdrawable: s.withdrawable,
+      delegated: s.delegated,
+      pendingUndelegated: s.pendingUndelegated,
+      totalDeposited: s.totalDeposited,
+    };
+  }, [stakerBalanceResponse.data]);
 
   const walletBalance = useQuery({
     queryKey: ["walletBalance", xrpAddress],
@@ -201,23 +172,19 @@ export function useXRPStaking(): StakingService {
 
       const spawnTx = () => sendTransaction(txPayload);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          effectiveAddress as `0x${string}`,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
-        return balance?.totalDeposited || BigInt(0);
+        await stakerBalanceResponse.refetch();
+        return stakerBalanceResponse.data?.totalDeposited || BigInt(0);
       };
       const verifyCompletion = async (
         balanceBefore: bigint,
         balanceAfter: bigint,
       ) => {
-        return balanceAfter === balanceBefore + amount;
+        return bootstrapped ? balanceAfter === balanceBefore + amount : true;
       };
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
           console.log("Stake succeeded, updating cached balances...");
-          stakerBalance.refetch();
+          stakerBalanceResponse.refetch();
           walletBalance.refetch();
         }
       };
@@ -277,12 +244,8 @@ export function useXRPStaking(): StakingService {
       const spawnTx = () =>
         writeableContract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          boundImuaAddress,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
-        return balance?.delegated || BigInt(0);
+        await stakerBalanceResponse.refetch();
+        return stakerBalanceResponse.data?.delegated || BigInt(0);
       };
       const verifyCompletion = async (
         delegatedBefore: bigint,
@@ -293,7 +256,7 @@ export function useXRPStaking(): StakingService {
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
           console.log("Delegate succeeded, updating cached balances...");
-          stakerBalance.refetch();
+          stakerBalanceResponse.refetch();
         }
       };
 
@@ -334,14 +297,10 @@ export function useXRPStaking(): StakingService {
           instantUnbond,
         ]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          boundImuaAddress,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
+        await stakerBalanceResponse.refetch();
         return instantUnbond
-          ? balance?.withdrawable
-          : balance?.pendingUndelegated || BigInt(0);
+          ? stakerBalanceResponse.data?.withdrawable
+          : stakerBalanceResponse.data?.pendingUndelegated || BigInt(0);
       };
 
       const verifyCompletion = async (
@@ -356,7 +315,7 @@ export function useXRPStaking(): StakingService {
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
           console.log("Undelegate succeeded, updating cached balances...");
-          stakerBalance.refetch();
+          stakerBalanceResponse.refetch();
         }
       };
 
@@ -392,12 +351,8 @@ export function useXRPStaking(): StakingService {
       const spawnTx = () =>
         writeableContract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          boundImuaAddress,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
-        return balance?.withdrawable || BigInt(0);
+        await stakerBalanceResponse.refetch();
+        return stakerBalanceResponse.data?.withdrawable || BigInt(0);
       };
       const verifyCompletion = async (
         balanceBefore: bigint,
@@ -408,7 +363,7 @@ export function useXRPStaking(): StakingService {
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
           console.log("Withdraw succeeded, updating cached balances...");
-          stakerBalance.refetch();
+          stakerBalanceResponse.refetch();
         }
       };
 
@@ -432,7 +387,7 @@ export function useXRPStaking(): StakingService {
     undelegateFrom: undelegateXrp,
     withdrawPrincipal: withdrawXrp,
     getQuote,
-    stakerBalance: stakerBalance?.data,
+    stakerBalance: stakerBalance,
     walletBalance: walletBalance?.data,
     vaultAddress: vaultAddress,
     minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),

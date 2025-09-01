@@ -7,6 +7,7 @@ import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
 import { ArrowRight, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import {
   OperationProgress,
   OperationStep,
@@ -46,6 +47,9 @@ export function WithdrawTab({
 }: WithdrawTabProps) {
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
 
   const decimals = stakingService.walletBalance?.decimals || 0;
   const maxClaimAmount = stakingService.stakerBalance?.claimable || BigInt(0);
@@ -109,26 +113,41 @@ export function WithdrawTab({
     }
   }, [isDirectWithdrawal, activeTab, maxWithdrawAmount]);
 
-  // Initialize operation steps based on operation type
+  // Initialize operation steps based on operation type and operation mode
   useEffect(() => {
     if (activeOperation === "claim") {
-      // Duplex mode: transaction, confirmation, relay, response, completion
-      const steps: OperationStep[] = [
-        { ...transactionStep, description: "Sending claim transaction" },
-        { ...confirmationStep },
-        {
-          ...sendingRequestStep,
-          description: "Sending claim request to Imuachain",
-        },
-        {
-          ...receivingResponseStep,
-          description: "Receiving approval from Imuachain",
-        },
-        { ...completionStep, description: "Claim completed" },
-      ];
-      setOperationSteps(steps);
+      // Check if this is a native chain operation (not cross-chain)
+      const isNativeChainOperation =
+        !bootstrapStatus?.isBootstrapped ||
+        !!token.connector?.requireExtraConnectToImua;
+
+      if (isNativeChainOperation) {
+        // Local mode: transaction, confirmation, completion
+        const steps: OperationStep[] = [
+          { ...transactionStep, description: "Sending claim transaction" },
+          { ...confirmationStep },
+          { ...completionStep, description: "Claim completed" },
+        ];
+        setOperationSteps(steps);
+      } else {
+        // Cross-chain mode: transaction, confirmation, relay, response, completion
+        const steps: OperationStep[] = [
+          { ...transactionStep, description: "Sending claim transaction" },
+          { ...confirmationStep },
+          {
+            ...sendingRequestStep,
+            description: "Sending claim request to Imuachain",
+          },
+          {
+            ...receivingResponseStep,
+            description: "Receiving approval from Imuachain",
+          },
+          { ...completionStep, description: "Claim completed" },
+        ];
+        setOperationSteps(steps);
+      }
     } else if (activeOperation === "withdraw") {
-      // Local mode: transaction, confirmation, completion
+      // Withdraw is always local (no cross-chain messaging)
       const steps: OperationStep[] = [
         { ...transactionStep, description: "Sending withdraw transaction" },
         { ...confirmationStep },
@@ -136,7 +155,11 @@ export function WithdrawTab({
       ];
       setOperationSteps(steps);
     }
-  }, [activeOperation]);
+  }, [
+    activeOperation,
+    bootstrapStatus?.isBootstrapped,
+    token.connector?.requireExtraConnectToImua,
+  ]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
@@ -738,12 +761,20 @@ export function WithdrawTab({
         <OperationProgress
           progress={{
             operation: activeOperation === "claim" ? "claim" : "withdraw",
-            chainInfo: {
-              sourceChain:
-                activeOperation === "claim" ? destinationChain : sourceChain,
-              destinationChain:
-                activeOperation === "claim" ? sourceChain : destinationChain,
-            },
+            chainInfo: (() => {
+              if (activeOperation === "claim") {
+                const isNativeChainOperation =
+                  !bootstrapStatus?.isBootstrapped ||
+                  !!token.connector?.requireExtraConnectToImua;
+                if (!isNativeChainOperation) {
+                  return {
+                    sourceChain: destinationChain,
+                    destinationChain: sourceChain,
+                  };
+                }
+              }
+              return undefined;
+            })(), // Only show chain info for cross-chain claim operations
             steps: operationSteps,
             overallStatus: {
               // Derive current phase from step statuses

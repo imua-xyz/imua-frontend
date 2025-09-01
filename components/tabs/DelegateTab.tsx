@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
 
@@ -39,8 +40,14 @@ export function DelegateTab({
   const token = stakingService.token;
   const { operators } = useOperatorsContext();
 
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
+
   // Check if this is a native chain operation (not cross-chain)
-  const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
+  // This considers both bootstrap phase and token-specific requirements
+  const isNativeChainOperation =
+    !bootstrapStatus?.isBootstrapped ||
+    !!token.connector?.requireExtraConnectToImua;
 
   // Balance and amount state
   const maxAmount = stakingService.stakerBalance?.claimable || BigInt(0);
@@ -64,7 +71,7 @@ export function DelegateTab({
   const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Determine operation mode and initialize steps
+  // Initialize operation steps based on operation mode
   useEffect(() => {
     let steps: OperationStep[] = [];
 
@@ -76,7 +83,7 @@ export function DelegateTab({
         { ...completionStep },
       ];
     } else {
-      // Simplex mode: transaction, confirmation, relay, completion (no approval needed)
+      // Cross-chain mode: transaction, confirmation, relay, completion
       steps = [
         { ...transactionStep, description: "Sending delegate transaction" },
         { ...confirmationStep },
@@ -89,7 +96,7 @@ export function DelegateTab({
     }
 
     setOperationSteps(steps);
-  }, [isNativeChainOperation, destinationChain]);
+  }, [destinationChain, isNativeChainOperation]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
 import {
@@ -47,6 +48,15 @@ export function StakeTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
+
+  // Check if this is a native chain operation (not cross-chain)
+  // This considers both bootstrap phase and token-specific requirements
+  const isNativeChainOperation =
+    !bootstrapStatus?.isBootstrapped ||
+    !!token.connector?.requireExtraConnectToImua;
   const { operators } = useOperatorsContext();
 
   // Check mode availability based on both props
@@ -97,22 +107,37 @@ export function StakeTab({
   const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Initialize operation steps using predefined steps
+  // Initialize operation steps based on operation mode
   useEffect(() => {
-    const steps: OperationStep[] = [
-      { ...approvalStep },
-      { ...transactionStep },
-      { ...confirmationStep },
-      { ...sendingRequestStep },
-      { ...completionStep },
-    ];
+    let steps: OperationStep[] = [];
 
-    // Update descriptions for better context
-    steps[1].description = "Sending stake transaction";
-    steps[3].description = `Relaying message to ${destinationChain}`;
+    if (isNativeChainOperation) {
+      // Local mode: approval, transaction, confirmation, completion
+      steps = [
+        { ...approvalStep },
+        { ...transactionStep },
+        { ...confirmationStep },
+        { ...completionStep },
+      ];
+      // Update descriptions for local context
+      steps[1].description = "Sending stake transaction";
+      steps[2].description = "Waiting for transaction confirmation";
+    } else {
+      // Cross-chain mode: approval, transaction, confirmation, relay, completion
+      steps = [
+        { ...approvalStep },
+        { ...transactionStep },
+        { ...confirmationStep },
+        { ...sendingRequestStep },
+        { ...completionStep },
+      ];
+      // Update descriptions for cross-chain context
+      steps[1].description = "Sending stake transaction";
+      steps[3].description = `Relaying message to ${destinationChain}`;
+    }
 
     setOperationSteps(steps);
-  }, [destinationChain]);
+  }, [destinationChain, isNativeChainOperation]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
@@ -286,10 +311,12 @@ export function StakeTab({
       isStakeMode && isStakeModeAvailable && selectedOperator
         ? "stake"
         : "deposit",
-    chainInfo: {
-      sourceChain,
-      destinationChain,
-    },
+    chainInfo: isNativeChainOperation
+      ? undefined
+      : {
+          sourceChain,
+          destinationChain,
+        },
     steps: operationSteps,
     overallStatus: {
       // Derive current phase from step statuses
@@ -550,7 +577,7 @@ export function StakeTab({
                 </div>
               )}
 
-            {/* Fee information - more subtle */}
+            {/* Fee information */}
             <div className="flex items-center text-xs text-[#9999aa] px-1">
               <Info size={12} className="mr-1 flex-shrink-0" />
               <span>No additional fees for this transaction</span>
