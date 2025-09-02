@@ -59,7 +59,7 @@ export const hoodi: EVMNetwork = {
     abi: ClientChainGatewayABI,
     bootstrapABI: BootstrapABI,
   },
-  txExplorerUrl: "https://hoodi.etherscan.io/",
+  txExplorerUrl: "https://hoodi.etherscan.io/tx/",
   accountExplorerUrl: "https://hoodi.etherscan.io/address/",
 } as const;
 
