@@ -197,6 +197,12 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     ) => {
       if (!writeableContract || !amount || !operator)
         throw new Error("Invalid parameters");
+      if (!bootstrapStatus?.isBootstrapped && !instantUnbond) {
+        throw new Error(
+          "Only instant undelegation is supported before bootstrap",
+        );
+      }
+
       const fee = await getQuote("undelegation");
       const spawnTx = () =>
         writeableContract.write.undelegateFrom(
