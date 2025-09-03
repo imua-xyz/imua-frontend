@@ -1,5 +1,5 @@
 // components/tabs/UndelegateTab.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
@@ -54,9 +54,20 @@ export function UndelegateTab({
 
   // State for undelegation details
   // During bootstrap phase, only instant unbonding is supported
-  const [isInstantUnbond, setIsInstantUnbond] = useState(
-    !bootstrapStatus?.isBootstrapped,
-  );
+  const [isInstantUnbond, setIsInstantUnbond] = useState(false);
+
+  // Update isInstantUnbond when bootstrapStatus changes
+  useEffect(() => {
+    if (bootstrapStatus !== undefined) {
+      setIsInstantUnbond(!bootstrapStatus.isBootstrapped);
+    }
+  }, [bootstrapStatus]);
+
+  // ✅ Safe approach: Derive the actual value used for operations
+  // This ensures bootstrap phase always uses instant unbonding regardless of state
+  const actualIsInstantUnbond = bootstrapStatus?.isBootstrapped
+    ? isInstantUnbond // Post-bootstrap: use user's choice
+    : true; // Bootstrap phase: always instant unbonding
 
   // Check if this is a native chain operation (not cross-chain)
   // This considers both bootstrap phase and token-specific requirements
@@ -173,12 +184,12 @@ export function UndelegateTab({
         "undelegateFrom",
         selectedDelegation.operatorAddress,
         parsedAmount,
-        isInstantUnbond,
+        actualIsInstantUnbond,
       );
       const result = await stakingService.undelegateFrom(
         selectedDelegation.operatorAddress,
         parsedAmount,
-        isInstantUnbond,
+        actualIsInstantUnbond,
         {
           onPhaseChange: handlePhaseChange,
         },
@@ -255,7 +266,7 @@ export function UndelegateTab({
   // Calculate final amount (considering instant unbonding penalty)
   // During bootstrap phase, there's no penalty for instant unbonding
   const finalAmount =
-    bootstrapStatus?.isBootstrapped && isInstantUnbond && parsedAmount
+    bootstrapStatus?.isBootstrapped && actualIsInstantUnbond && parsedAmount
       ? (parsedAmount * BigInt(75)) / BigInt(100) // 25% penalty for instant (post-bootstrap only)
       : parsedAmount;
 
@@ -322,7 +333,8 @@ export function UndelegateTab({
       setCurrentStep("delegation");
       setAmount("");
       setSelectedDelegation(null);
-      setIsInstantUnbond(false);
+      // ✅ Fix: Reset to correct initial value based on bootstrap status
+      setIsInstantUnbond(!bootstrapStatus?.isBootstrapped);
       // Reset steps back to pending (not empty)
       setOperationSteps((prev) =>
         prev.map((step) => ({ ...step, status: "pending" })),
@@ -561,7 +573,7 @@ export function UndelegateTab({
             </div>
 
             {/* Final amount display for instant unbonding - only show penalty info for post-bootstrap */}
-            {isInstantUnbond &&
+            {actualIsInstantUnbond &&
               parsedAmount &&
               parsedAmount > BigInt(0) &&
               bootstrapStatus?.isBootstrapped && (
