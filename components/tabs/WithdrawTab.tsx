@@ -18,6 +18,7 @@ import {
   completionStep,
 } from "@/components/ui/operation-progress";
 import Image from "next/image";
+import { getShortErrorMessage } from "@/lib/utils";
 
 // Utility function to format amounts with fixed decimal places for DISPLAY ONLY
 // Use this for UI elements that don't require precise values (badges, status messages)
@@ -244,10 +245,18 @@ export function WithdrawTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage =
-            error instanceof Error ? error.message : "Claim failed";
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -307,10 +316,18 @@ export function WithdrawTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage =
-            error instanceof Error ? error.message : "Withdrawal failed";
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -324,8 +341,11 @@ export function WithdrawTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setClaimAmount("");
       setWithdrawAmount("");
       setRecipientAddress("");
@@ -335,9 +355,15 @@ export function WithdrawTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 

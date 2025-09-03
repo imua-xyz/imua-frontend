@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HelpCircle } from "lucide-react";
+import { getShortErrorMessage } from "@/lib/utils";
 
 interface StakeTabProps {
   sourceChain: string;
@@ -276,9 +277,18 @@ export function StakeTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = "Operation failed";
+          updated[processingStepIndex].errorMessage =
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -352,8 +362,11 @@ export function StakeTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setCurrentStep("amount");
       setAmount("");
       setSelectedOperator(null);
@@ -362,9 +375,15 @@ export function StakeTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 

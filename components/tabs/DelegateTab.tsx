@@ -19,6 +19,7 @@ import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
+import { getShortErrorMessage } from "@/lib/utils";
 
 interface DelegateTabProps {
   sourceChain: string;
@@ -234,9 +235,18 @@ export function DelegateTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = "Operation failed";
+          updated[processingStepIndex].errorMessage =
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -305,8 +315,11 @@ export function DelegateTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setCurrentStep("amount");
       setAmount("");
       setSelectedOperator(null);
@@ -315,9 +328,15 @@ export function DelegateTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 

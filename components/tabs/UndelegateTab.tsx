@@ -19,6 +19,7 @@ import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { DelegationPerOperator } from "@/types/delegations";
 import { Info, ChevronDown } from "lucide-react";
 import { UNBOND_PERIOD } from "@/config/cosmos";
+import { getShortErrorMessage } from "@/lib/utils";
 
 interface UndelegateTabProps {
   sourceChain: string;
@@ -236,9 +237,18 @@ export function UndelegateTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = "Operation failed";
+          updated[processingStepIndex].errorMessage =
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -328,8 +338,11 @@ export function UndelegateTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setCurrentStep("delegation");
       setAmount("");
       setSelectedDelegation(null);
@@ -340,9 +353,15 @@ export function UndelegateTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 
