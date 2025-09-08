@@ -5,11 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { useGemWalletStore } from "@/stores/gemWalletClient";
 import { useBindingStore } from "@/stores/bindingClient";
-import { imuaChain } from "@/types/networks";
+import { imuaChain, bootstrapContractNetwork } from "@/types/networks";
 import { useXrplStore } from "@/stores/xrplClient";
 import { XRPWalletConnector } from "@/types/wallet-connector";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 
 export function useXRPWalletConnector(): XRPWalletConnector {
+  const { bootstrapStatus } = useBootstrapStatus();
   const isGemWalletConnected = useGemWalletStore(
     (state) => state.isWalletConnected,
   );
@@ -40,14 +42,22 @@ export function useXRPWalletConnector(): XRPWalletConnector {
     isConnected: isWagmiConnected,
     chainId: evmChainId,
   } = useAccount();
+
+  // Determine if we're in bootstrap phase
+  const isBootstrapPhase = !bootstrapStatus?.isBootstrapped;
+
+  // Determine which EVM network we need to connect to
+  const targetEVMChainId = isBootstrapPhase
+    ? bootstrapContractNetwork.evmChainID
+    : imuaChain.evmChainID;
+
   const issues = useMemo(() => {
     return {
       needsConnectToNative: !isGemWalletConnected,
-      needsConnectToImua:
-        !isWagmiConnected || evmChainId !== imuaChain.evmChainID,
+      needsConnectToImua: !isWagmiConnected || evmChainId !== targetEVMChainId,
       needsMatchingBoundAddress: boundImuaAddress
         ? boundImuaAddress !== evmAddress
-        : !!evmAddress,
+        : false, // If no bound address exists, any EVM wallet is acceptable
       others:
         walletNetwork && walletNetwork.network !== "Testnet"
           ? ["Please connect to the XRP Testnet to use this service."]
@@ -57,6 +67,7 @@ export function useXRPWalletConnector(): XRPWalletConnector {
     isGemWalletConnected,
     isWagmiConnected,
     evmChainId,
+    targetEVMChainId,
     boundImuaAddress,
     evmAddress,
     walletNetwork,
@@ -94,7 +105,7 @@ export function useXRPWalletConnector(): XRPWalletConnector {
   return {
     isReady: isReady,
     isNativeWalletConnected: isGemWalletConnected,
-    isImuaConnected: isWagmiConnected && evmChainId === imuaChain.evmChainID,
+    isImuaConnected: isWagmiConnected && evmChainId === targetEVMChainId,
     nativeWalletAddress: xrpAddress as `0x${string}`,
     nativeCurrencyBalance: nativeCurrencyBalance,
     boundAddress: boundImuaAddress || "",

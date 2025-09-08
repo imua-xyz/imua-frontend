@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { XRP_CHAIN_ID } from "@/config/xrp";
 import { useGemWalletStore } from "./gemWalletClient";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 
 // Utility to handle document focus checks
 const isDocumentFocused = () =>
@@ -33,8 +34,9 @@ const createBindingClient = () => {
   // Check binding for a specific address
   const checkBinding = async (
     xrpAddress: string,
+    isBootstrapPhase?: boolean,
   ): Promise<`0x${string}` | null> => {
-    if (!xrpAddress || !utxoGateway) return null;
+    if (!xrpAddress) return null;
 
     const state = store.getState();
     const currentCheckingState = state.isCheckingBinding[xrpAddress] || false;
@@ -50,6 +52,40 @@ const createBindingClient = () => {
     });
 
     try {
+      // Determine if we're in bootstrap phase
+      const isBootstrap = isBootstrapPhase ?? !utxoGateway;
+
+      if (isBootstrap) {
+        // During bootstrap phase, we can't query UTXOGateway contract
+        // TODO: Replace with indexer service call when available
+        // For now, return null (no bound address exists yet - user hasn't made first deposit)
+        console.log(
+          "Bootstrap phase: No bound address exists yet - any EVM wallet can be used for first deposit",
+        );
+
+        store.setState((state) => ({
+          boundAddresses: {
+            ...state.boundAddresses,
+            [xrpAddress]: null,
+          },
+          isCheckingBinding: {
+            ...state.isCheckingBinding,
+            [xrpAddress]: false,
+          },
+          bindingErrors: {
+            ...state.bindingErrors,
+            [xrpAddress]: null,
+          },
+        }));
+
+        return null;
+      }
+
+      // Post-bootstrap phase: query UTXOGateway contract
+      if (!utxoGateway) {
+        throw new Error("UTXOGateway contract not available");
+      }
+
       // Convert XRP address to bytes format
       const xrpAddressBytes =
         "0x" + Buffer.from(xrpAddress, "utf8").toString("hex");
@@ -104,8 +140,8 @@ const createBindingClient = () => {
 
   // Start polling for bindings
   const startPolling = () => {
-    // Don't start if already polling or no contract
-    if (bindingPollInterval || !utxoGateway) return;
+    // Don't start if already polling
+    if (bindingPollInterval) return;
 
     // Start binding poll
     bindingPollInterval = setInterval(() => {
@@ -126,6 +162,11 @@ const createBindingClient = () => {
 
       // Only check if we don't have a binding yet and not already checking
       if (boundAddress === undefined && !isChecking) {
+        // During bootstrap phase, we can't query bindings, so skip polling
+        if (!utxoGateway) {
+          console.log("Bootstrap phase: Skipping binding check in polling");
+          return;
+        }
         checkBinding(xrpAddress);
       }
     }, 30000);
@@ -149,8 +190,11 @@ const createBindingClient = () => {
         bindingErrors: {},
 
         // Actions
-        checkBinding: async (xrpAddress: string) => {
-          return await checkBinding(xrpAddress);
+        checkBinding: async (
+          xrpAddress: string,
+          isBootstrapPhase?: boolean,
+        ) => {
+          return await checkBinding(xrpAddress, isBootstrapPhase);
         },
 
         setBinding: (xrpAddress: string, evmAddress: `0x${string}` | null) => {
@@ -203,8 +247,8 @@ const createBindingClient = () => {
     if (!state.isWalletConnected) {
       // Wallet disconnected, stop polling
       stopPolling();
-    } else if (utxoGateway) {
-      // Wallet connected and we have a contract, start polling
+    } else {
+      // Wallet connected, start polling (will handle bootstrap phase internally)
       startPolling();
     }
   });
@@ -236,7 +280,10 @@ interface BindingState {
   bindingErrors: Record<string, string | null>;
 
   // Actions
-  checkBinding: (xrpAddress: string) => Promise<`0x${string}` | null>;
+  checkBinding: (
+    xrpAddress: string,
+    isBootstrapPhase?: boolean,
+  ) => Promise<`0x${string}` | null>;
   setBinding: (xrpAddress: string, evmAddress: `0x${string}` | null) => void;
   clearBinding: (xrpAddress: string) => void;
   clearAllBindings: () => void;
