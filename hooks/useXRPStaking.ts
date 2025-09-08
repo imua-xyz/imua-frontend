@@ -147,11 +147,22 @@ export function useXRPStaking(): StakingService {
       // if it is not bootstrapped, we should encode the operator address after memo address into the memo data
       let memoData: string = "";
       if (!bootstrapped) {
-        memoData = Buffer.from(memoAddress + operatorAddress, "utf8").toString(
-          "hex",
-        );
+        if (!operatorAddress)
+          throw new Error("Operator address is required for bootstrap phase");
+        // Remove 0x prefix from EVM address before encoding, and operator address is bech32 encoded starting with im
+        const cleanMemoAddress = memoAddress.startsWith("0x")
+          ? memoAddress.slice(2)
+          : memoAddress;
+        memoData = Buffer.from(
+          cleanMemoAddress + operatorAddress,
+          "utf8",
+        ).toString("hex");
       } else {
-        memoData = Buffer.from(memoAddress, "utf8").toString("hex");
+        // Remove 0x prefix from EVM address before encoding
+        const cleanMemoAddress = memoAddress.startsWith("0x")
+          ? memoAddress.slice(2)
+          : memoAddress;
+        memoData = Buffer.from(cleanMemoAddress, "utf8").toString("hex");
       }
 
       const txPayload = {
