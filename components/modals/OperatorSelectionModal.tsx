@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import {
   Select,
   SelectContent,
@@ -260,12 +261,13 @@ export function OperatorSelectionModal({
           </Button>
 
           {selectedOperator && (
-            <Button
+            <ActionButton
               onClick={() => onSelect(selectedOperator)}
-              className="bg-[#00e5ff] text-black hover:bg-[#00c8df]"
+              variant="primary"
+              size="md"
             >
               Confirm Selection
-            </Button>
+            </ActionButton>
           )}
         </div>
       </DialogContent>

@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { ActionButton } from "@/components/ui/action-button";
 import { validTokens, Token } from "@/types/tokens";
 import { StakingServiceProvider } from "@/components/providers/StakingServiceProvider";
 import { OperatorsProvider } from "@/components/providers/OperatorsProvider";
@@ -54,13 +55,13 @@ function StakingContent({
   }, []);
 
   const walletConnector = useWalletConnectorContext();
-  const isWalletConnected = walletConnector.isReady;
+  const isWalletConnected = walletConnector.isReadyForStaking;
 
   // Determine available tabs based on bootstrap status and connector type
   const availableTabs = useMemo(() => {
     const isBootstrapped = bootstrapStatus?.isBootstrapped || false;
     const requiresExtraConnect =
-      selectedToken.connector?.requireExtraConnectToImua || false;
+      selectedToken.network.connector?.requireExtraConnectToImua || false;
 
     // Default tabs for all scenarios
     const tabs = [{ id: "stake", label: "Stake" }];
@@ -75,7 +76,7 @@ function StakingContent({
     }
 
     return tabs;
-  }, [bootstrapStatus, selectedToken.connector]);
+  }, [bootstrapStatus, selectedToken.network.connector]);
 
   // Reset to stake tab if current tab becomes unavailable
   useEffect(() => {
@@ -104,13 +105,15 @@ function StakingContent({
             </p>
           </div>
 
-          <button
+          <ActionButton
             onClick={handleConnectWallet}
-            className="group relative bg-gradient-to-r from-[#00e5ff] to-[#00c8df] hover:from-[#00c8df] hover:to-[#00aabf] text-black font-medium text-base py-3.5 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-[#00e5ff]/20 flex items-center gap-3 overflow-hidden"
+            variant="primary"
+            size="lg"
+            className="flex items-center gap-3"
           >
-            <span className="relative z-10">Connect Wallet</span>
+            Connect Wallet
             <svg
-              className="w-5 h-5 relative z-10 transition-transform group-hover:translate-x-1"
+              className="w-5 h-5 transition-transform group-hover:translate-x-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -123,8 +126,7 @@ function StakingContent({
                 d="M14 5l7 7m0 0l-7 7m7-7H3"
               />
             </svg>
-            <div className="absolute inset-0 bg-white/10 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-          </button>
+          </ActionButton>
 
           <div className="flex items-center gap-2 text-xs text-[#9999aa] mt-2">
             <svg
@@ -246,6 +248,7 @@ function StakingContent({
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
         onSuccess={() => setIsWalletModalOpen(false)}
+        onReopen={() => setIsWalletModalOpen(true)}
       />
     </>
   );

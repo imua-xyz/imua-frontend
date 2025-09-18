@@ -4,7 +4,6 @@ import { OperatorsContext } from "@/contexts/OperatorsContext";
 
 export function OperatorsProvider({ children }: { children: ReactNode }) {
   const { data, isLoading, error } = useOperators();
-  console.log("operators", data);
 
   return (
     <OperatorsContext.Provider

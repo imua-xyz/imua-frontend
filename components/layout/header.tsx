@@ -20,7 +20,7 @@ export function Header({ token }: { token: Token | null }) {
   };
 
   return (
-    <header className="border-b bg-black text-white">
+    <header className="border-b border-[#21212f] bg-black text-white backdrop-blur-sm">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-8">
           <Link href="/" className="flex items-center">
@@ -38,7 +38,7 @@ export function Header({ token }: { token: Token | null }) {
           <nav className="flex items-center space-x-6">
             <Link
               href="/dashboard"
-              className={`text-sm font-medium transition-colors ${
+              className={`text-sm font-medium transition-colors duration-200 ${
                 isActive("/dashboard")
                   ? "text-[#00e5ff]"
                   : "text-[#9999aa] hover:text-white"
@@ -48,7 +48,7 @@ export function Header({ token }: { token: Token | null }) {
             </Link>
             <Link
               href="/staking"
-              className={`text-sm font-medium transition-colors ${
+              className={`text-sm font-medium transition-colors duration-200 ${
                 isActive("/staking")
                   ? "text-[#00e5ff]"
                   : "text-[#9999aa] hover:text-white"
@@ -63,7 +63,7 @@ export function Header({ token }: { token: Token | null }) {
         {mounted && token ? (
           <MultiWalletStatus token={token} />
         ) : (
-          <div className="w-[280px] h-[40px]" />
+          <div className="w-[320px] h-[40px]" />
         )}
       </div>
     </header>

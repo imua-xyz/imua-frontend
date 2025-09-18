@@ -1,61 +1,70 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
+import { useAppKitProvider, useAppKitAccount } from "@reown/appkit/react";
+import type { BitcoinConnector } from "@reown/appkit-adapter-bitcoin";
+import * as bitcoin from "bitcoinjs-lib";
 import { BaseTxOptions, StakerBalance } from "@/types/staking";
-import {
-  XRP_TOKEN_ENUM,
-  XRP_VAULT_ADDRESS,
-  XRP_STAKING_DESTINATION_TAG,
-} from "@/config/xrp";
-import { MINIMUM_STAKE_AMOUNT_DROPS } from "@/config/xrp";
 import { StakingService } from "@/types/staking-service";
-import { xrp } from "@/types/tokens";
-import { useGemWalletStore } from "@/stores/gemWalletClient";
+import { tbtc } from "@/types/tokens";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
+import { ESPLORA_API_URL } from "@/config/bitcoin";
 import { usePortalContract } from "./usePortalContract";
-import { useXrplStore } from "@/stores/xrplClient";
-import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
+import {
+  handleEVMTxWithStatus,
+  handleBitcoinTxWithStatus,
+} from "@/lib/txUtils";
 import { useStakerBalances } from "./useStakerBalances";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useBootstrapStatus } from "./useBootstrapStatus";
+import { useBitcoinPSBTBuilder } from "./useBitcoinPSBTBuilder";
+import {
+  BTC_VAULT_ADDRESS,
+  MINIMUM_STAKE_AMOUNT_SATS,
+  BTC_TOKEN_ENUM,
+} from "@/config/bitcoin";
+import axios from "axios";
 
-export function useXRPStaking(): StakingService {
-  const vaultAddress = XRP_VAULT_ADDRESS;
-  const isGemWalletConnected = useGemWalletStore(
-    (state) => state.isWalletConnected,
-  );
-  const xrpAddress = useGemWalletStore((state) => state.userAddress);
-  const walletNetwork = useGemWalletStore((state) => state.walletNetwork);
-
-  const sendTransaction = useGemWalletStore((state) => state.sendTransaction);
-  const getTransactionStatus = useXrplStore(
-    (state) => state.getTransactionStatus,
-  );
-
-  const setBoundAddress = useAllWalletsStore((state) => state.setBinding);
-  const boundImuaAddress = useAllWalletsStore(
-    (state) => state.wallets[xrp.network.customChainIdByImua]?.boundImuaAddress,
-  );
-
-  const xrplClient = useXrplStore((state) => state.client);
-  const setNetwork = useXrplStore((state) => state.setNetwork);
-
-  const { bootstrapStatus } = useBootstrapStatus();
-
-  useEffect(() => {
-    if (walletNetwork) {
-      setNetwork(walletNetwork);
-    }
-  }, [walletNetwork, setNetwork]);
-
-  const getAccountInfo = useXrplStore((state) => state.getAccountInfo);
-
-  const { readonlyContract, writeableContract, publicClient } =
-    usePortalContract(xrp.network);
+export function useBitcoinStaking(): StakingService {
+  const vaultAddress = BTC_VAULT_ADDRESS;
   const { address: evmAddress, isConnected: isWagmiConnected } = useAccount();
 
-  const [stakerBalanceResponse] = useStakerBalances([xrp]);
+  // AppKit hooks for Bitcoin wallet interaction
+  const { walletProvider } = useAppKitProvider<BitcoinConnector>("bip122");
+  const { address: bitcoinAddress, isConnected: isBitcoinConnected } =
+    useAppKitAccount({ namespace: "bip122" });
+
+  const boundImuaAddress = useAllWalletsStore(
+    (state) =>
+      state.wallets[tbtc.network.customChainIdByImua]?.boundImuaAddress,
+  );
+  const setBoundAddress = useAllWalletsStore((state) => state.setBinding);
+
+  // Get account addresses for UTXO management
+  const [accountAddresses, setAccountAddresses] = useState<any[]>([]);
+  const paymentAddress = accountAddresses.find(
+    (addr) => addr.purpose === "payment",
+  );
+
+  // PSBT builder for Bitcoin transactions
+  const psbtBuilder = useBitcoinPSBTBuilder(paymentAddress?.address);
+
+  // Fetch account addresses when wallet provider is available
+  useEffect(() => {
+    if (walletProvider) {
+      walletProvider
+        .getAccountAddresses()
+        .then(setAccountAddresses)
+        .catch(console.error);
+    }
+  }, [walletProvider]);
+
+  const { bootstrapStatus } = useBootstrapStatus();
+  const { readonlyContract, writeableContract, publicClient } =
+    usePortalContract(tbtc.network);
+
+  // Get staker balance for Bitcoin
+  const [stakerBalanceResponse] = useStakerBalances([tbtc]);
 
   const stakerBalance = useMemo<StakerBalance | undefined>(() => {
     const s = stakerBalanceResponse.data;
@@ -72,8 +81,8 @@ export function useXRPStaking(): StakingService {
     };
   }, [stakerBalanceResponse.data]);
 
-  // Stake XRP
-  const stakeXrp = useCallback(
+  // Stake Bitcoin (similar to XRP staking)
+  const stakeBitcoin = useCallback(
     async (
       amount: bigint,
       operatorAddress?: string,
@@ -82,8 +91,8 @@ export function useXRPStaking(): StakingService {
       const bootstrapped = bootstrapStatus?.isBootstrapped;
       if (bootstrapped === undefined)
         throw new Error("Bootstrap status not available");
-      if (!isGemWalletConnected || !isWagmiConnected || !xrpAddress)
-        throw new Error("Gem wallet not connected");
+      if (!isBitcoinConnected || !isWagmiConnected || !bitcoinAddress)
+        throw new Error("Bitcoin wallet not connected");
       if (!vaultAddress || !amount) throw new Error("Invalid parameters");
       if (
         (bootstrapped && operatorAddress) ||
@@ -98,99 +107,141 @@ export function useXRPStaking(): StakingService {
       if (boundImuaAddress && boundImuaAddress !== evmAddress)
         throw new Error("EVM wallet address does not match bound address");
 
-      // Get account info using the xrplClient
-      const accountInfo = await getAccountInfo(xrpAddress);
-      if (!accountInfo.success) throw new Error("Failed to fetch account info");
+      if (!walletProvider) {
+        throw new Error("Bitcoin wallet provider not available");
+      }
 
-      // Determine which address to use for memo data
-      // 1. If boundImuaAddress exists, use that
-      // 2. If not and evmAddress exists, use the connected EVM wallet address
-      // 3. Otherwise, leave it empty
-      let memoAddress = "";
+      // Determine which address to use for op_return data
+      let opReturnAddress = "";
       let effectiveAddress: `0x${string}` | null = null;
 
       if (boundImuaAddress) {
         // Use the already bound address (priority)
-        memoAddress = boundImuaAddress;
+        opReturnAddress = boundImuaAddress;
         effectiveAddress = boundImuaAddress as `0x${string}`;
       } else if (evmAddress) {
         // Fallback to connected EVM wallet address
-        memoAddress = evmAddress;
+        opReturnAddress = evmAddress;
         effectiveAddress = evmAddress as `0x${string}`;
       }
 
-      if (!memoAddress) throw new Error("Memo address not found");
+      if (!opReturnAddress) throw new Error("Op return address not found");
 
-      // if it is not bootstrapped, we should encode the operator address after memo address into the memo data
-      let memoData: string = "";
+      // Encode memo data similar to XRP staking
+      let opReturnData: string;
       if (!bootstrapped) {
         if (!operatorAddress)
           throw new Error("Operator address is required for bootstrap phase");
-        // Remove 0x prefix from EVM address before encoding, and operator address is bech32 encoded starting with im
-        const cleanMemoAddress = memoAddress.startsWith("0x")
-          ? memoAddress.slice(2)
-          : memoAddress;
-        memoData = Buffer.from(
-          cleanMemoAddress + operatorAddress,
-          "utf8",
-        ).toString("hex");
+
+        // Remove 0x prefix from EVM address and convert to bytes
+        const cleanOpReturnAddress = opReturnAddress.startsWith("0x")
+          ? opReturnAddress.slice(2)
+          : opReturnAddress;
+        const evmAddressBytes = Buffer.from(cleanOpReturnAddress, "hex");
+        const operatorBytes = Buffer.from(operatorAddress, "utf8");
+
+        opReturnData = Buffer.concat([evmAddressBytes, operatorBytes]).toString(
+          "hex",
+        );
+
+        // Truncate if too long (Bitcoin OP_RETURN limit is 80 bytes)
+        if (Buffer.from(opReturnData, "hex").length > 80) {
+          throw new Error(
+            `OP_RETURN data too long (${opReturnData.length} bytes), exceeds 80 bytes`,
+          );
+        }
       } else {
-        // Remove 0x prefix from EVM address before encoding
-        const cleanMemoAddress = memoAddress.startsWith("0x")
-          ? memoAddress.slice(2)
-          : memoAddress;
-        memoData = Buffer.from(cleanMemoAddress, "utf8").toString("hex");
+        // Remove 0x prefix from EVM address and convert to bytes
+        const cleanOpReturnAddress = opReturnAddress.startsWith("0x")
+          ? opReturnAddress.slice(2)
+          : opReturnAddress;
+        opReturnData = Buffer.from(cleanOpReturnAddress, "hex").toString("hex");
+
+        // Truncate if too long (Bitcoin OP_RETURN limit is 80 bytes)
+        if (Buffer.from(opReturnData, "hex").length > 80) {
+          throw new Error(
+            `OP_RETURN data too long (${opReturnData.length} bytes), exceeds 80 bytes`,
+          );
+        }
       }
 
-      const txPayload = {
-        transactionType: "Payment",
-        account: xrpAddress,
-        destination: vaultAddress,
-        amount: String(amount),
-        destinationTag: XRP_STAKING_DESTINATION_TAG,
-        memos: [
-          {
-            memo: {
-              memoType: "4465736372697074696F6E",
-              memoData: memoData,
-            },
-          },
-        ],
+      if (!opReturnData) {
+        throw new Error("OP_RETURN data not successfully built");
+      }
+
+      const spawnTx = async () => {
+        try {
+          if (!paymentAddress) {
+            throw new Error("No payment address found in wallet");
+          }
+
+          if (!psbtBuilder.canBuild) {
+            throw new Error("PSBT builder not ready");
+          }
+
+          // Build PSBT using the dedicated hook
+          const { psbt } = await psbtBuilder.buildPSBT({
+            vaultAddress,
+            amount,
+            opReturnData: opReturnData,
+          });
+
+          // Sign the PSBT using the wallet provider and broadcast
+          const result = await walletProvider.signPSBT({
+            psbt: psbt,
+            signInputs: [], // Let the wallet sign all inputs
+            broadcast: true,
+          });
+
+          if (!result.txid) {
+            throw new Error("Transaction ID not found");
+          }
+          const txid = result.txid;
+          console.log("Bitcoin stake transaction broadcasted:", txid);
+
+          return txid;
+        } catch (error) {
+          console.error("Bitcoin PSBT transaction failed:", error);
+          throw error;
+        }
       };
 
-      const spawnTx = () => sendTransaction(txPayload);
       const getStateSnapshot = async () => {
         await stakerBalanceResponse.refetch();
         return stakerBalanceResponse.data?.totalDeposited || BigInt(0);
       };
+
       const verifyCompletion = async (
         balanceBefore: bigint,
         balanceAfter: bigint,
       ) => {
         return bootstrapped ? balanceAfter === balanceBefore + amount : true;
       };
+
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
-          console.log("Stake succeeded, updating cached balances...");
+          console.log("Bitcoin stake succeeded, updating cached balances...");
           stakerBalanceResponse.refetch();
+          // UTXOs will be refetched automatically by the PSBT builder hook
         }
       };
 
-      const { hash, success, error } = await handleXrplTxWithStatus({
+      const { hash, success, error } = await handleBitcoinTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapped ? "simplex" : "local",
-        getTransactionStatus: getTransactionStatus,
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getStateSnapshot,
-        onPhaseChange: options?.onPhaseChange,
+        onPhaseChange: options?.onPhaseChange
+          ? (phase: string) => options.onPhaseChange?.(phase as any)
+          : undefined,
         onSuccess: onSuccess,
-        utxoGateway: readonlyContract,
+        utxoGateway: readonlyContract as any,
       });
 
       // If transaction and following checks were successful and we don't have a bound address yet, we should explicitly set the bound address
       if (success && !boundImuaAddress && effectiveAddress) {
         // Given even the completion verification has been successful, we should explicitly set the bound address
-        setBoundAddress(xrp.network.customChainIdByImua, {
+        setBoundAddress(tbtc.network.customChainIdByImua, {
           boundImuaAddress: effectiveAddress as string,
           isCheckingBinding: false,
           bindingError: null,
@@ -200,24 +251,23 @@ export function useXRPStaking(): StakingService {
       return { hash, success, error };
     },
     [
-      vaultAddress,
-      isGemWalletConnected,
+      bootstrapStatus,
+      isBitcoinConnected,
       isWagmiConnected,
-      xrpAddress,
+      bitcoinAddress,
       evmAddress,
-      xrplClient,
       boundImuaAddress,
-      sendTransaction,
+      walletProvider,
+      setBoundAddress,
+      stakerBalanceResponse,
+      readonlyContract,
+      paymentAddress,
+      psbtBuilder,
     ],
   );
 
-  // Get relaying fee
-  const getQuote = useCallback(async (): Promise<bigint> => {
-    return BigInt(0);
-  }, []);
-
-  // Delegate XRP to an operator
-  const delegateXrp = useCallback(
+  // Delegate Bitcoin to an operator
+  const delegateBitcoin = useCallback(
     async (
       operator: string,
       amount: bigint,
@@ -232,7 +282,7 @@ export function useXRPStaking(): StakingService {
         throw new Error("Cannot delegate before bootstrap");
 
       const spawnTx = () =>
-        writeableContract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
+        writeableContract.write.delegateTo([BTC_TOKEN_ENUM, operator, amount]);
       const getStateSnapshot = async () => {
         await stakerBalanceResponse.refetch();
         return stakerBalanceResponse.data?.delegated || BigInt(0);
@@ -245,7 +295,9 @@ export function useXRPStaking(): StakingService {
       };
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
-          console.log("Delegate succeeded, updating cached balances...");
+          console.log(
+            "Bitcoin delegate succeeded, updating cached balances...",
+          );
           stakerBalanceResponse.refetch();
         }
       };
@@ -260,11 +312,18 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      boundImuaAddress,
+      evmAddress,
+      bootstrapStatus,
+      stakerBalanceResponse,
+      publicClient,
+    ],
   );
 
-  // Undelegate XRP from an operator
-  const undelegateXrp = useCallback(
+  // Undelegate Bitcoin from an operator
+  const undelegateBitcoin = useCallback(
     async (
       operator: string,
       amount: bigint,
@@ -281,7 +340,7 @@ export function useXRPStaking(): StakingService {
 
       const spawnTx = () =>
         writeableContract.write.undelegateFrom([
-          XRP_TOKEN_ENUM,
+          BTC_TOKEN_ENUM,
           operator,
           amount,
           instantUnbond,
@@ -295,16 +354,18 @@ export function useXRPStaking(): StakingService {
 
       const verifyCompletion = async (
         balanceBefore: bigint,
-        BalanceAfter: bigint,
+        balanceAfter: bigint,
       ) => {
         return instantUnbond
-          ? BalanceAfter > balanceBefore
-          : BalanceAfter === balanceBefore + amount;
+          ? balanceAfter > balanceBefore
+          : balanceAfter === balanceBefore + amount;
       };
 
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
-          console.log("Undelegate succeeded, updating cached balances...");
+          console.log(
+            "Bitcoin undelegate succeeded, updating cached balances...",
+          );
           stakerBalanceResponse.refetch();
         }
       };
@@ -319,11 +380,18 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      boundImuaAddress,
+      evmAddress,
+      bootstrapStatus,
+      stakerBalanceResponse,
+      publicClient,
+    ],
   );
 
-  // Withdraw XRP from staking
-  const withdrawXrp = useCallback(
+  // Withdraw Bitcoin from staking
+  const withdrawBitcoin = useCallback(
     async (
       amount: bigint,
       recipient?: `0x${string}`,
@@ -339,7 +407,7 @@ export function useXRPStaking(): StakingService {
         throw new Error("Cannot withdraw before bootstrap");
 
       const spawnTx = () =>
-        writeableContract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
+        writeableContract.write.withdrawPrincipal([BTC_TOKEN_ENUM, amount]);
       const getStateSnapshot = async () => {
         await stakerBalanceResponse.refetch();
         return stakerBalanceResponse.data?.withdrawable || BigInt(0);
@@ -352,7 +420,9 @@ export function useXRPStaking(): StakingService {
       };
       const onSuccess = (result: { hash: string; success: boolean }) => {
         if (result.success) {
-          console.log("Withdraw succeeded, updating cached balances...");
+          console.log(
+            "Bitcoin withdraw succeeded, updating cached balances...",
+          );
           stakerBalanceResponse.refetch();
         }
       };
@@ -367,19 +437,31 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      boundImuaAddress,
+      evmAddress,
+      bootstrapStatus,
+      stakerBalanceResponse,
+      publicClient,
+    ],
   );
 
+  // Get relaying fee (Bitcoin doesn't have relaying fees like EVM)
+  const getQuote = useCallback(async (): Promise<bigint> => {
+    return BigInt(0);
+  }, []);
+
   return {
-    token: xrp,
-    stake: stakeXrp,
-    delegateTo: delegateXrp,
-    undelegateFrom: undelegateXrp,
-    withdrawPrincipal: withdrawXrp,
+    token: tbtc,
+    stake: stakeBitcoin,
+    delegateTo: delegateBitcoin,
+    undelegateFrom: undelegateBitcoin,
+    withdrawPrincipal: withdrawBitcoin,
     getQuote,
     stakerBalance: stakerBalance,
     vaultAddress: vaultAddress,
-    minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
+    minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_SATS),
     isDepositThenDelegateDisabled: bootstrapStatus?.isBootstrapped,
     isOnlyDepositThenDelegateAllowed: !bootstrapStatus?.isBootstrapped,
   };

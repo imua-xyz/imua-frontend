@@ -1,6 +1,7 @@
 // components/new-staking/tabs/WithdrawTab.tsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -8,6 +9,7 @@ import { formatUnits } from "viem";
 import { ArrowRight, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import {
   OperationProgress,
   OperationStep,
@@ -48,11 +50,12 @@ export function WithdrawTab({
 }: WithdrawTabProps) {
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+  const walletConnector = useWalletConnectorContext();
 
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
 
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const decimals = walletConnector.nativeWallet.balance.decimals;
   const maxClaimAmount = stakingService.stakerBalance?.claimable || BigInt(0);
   const maxWithdrawAmount =
     stakingService.stakerBalance?.withdrawable || BigInt(0);
@@ -120,7 +123,7 @@ export function WithdrawTab({
       // Check if this is a native chain operation (not cross-chain)
       const isNativeChainOperation =
         !bootstrapStatus?.isBootstrapped ||
-        !!token.connector?.requireExtraConnectToImua;
+        !!token.network.connector?.requireExtraConnectToImua;
 
       if (isNativeChainOperation) {
         // Local mode: transaction, confirmation, completion
@@ -159,7 +162,7 @@ export function WithdrawTab({
   }, [
     activeOperation,
     bootstrapStatus?.isBootstrapped,
-    token.connector?.requireExtraConnectToImua,
+    token.network.connector?.requireExtraConnectToImua,
   ]);
 
   // Handle phase changes from txUtils
@@ -272,7 +275,7 @@ export function WithdrawTab({
       const result = await stakingService.withdrawPrincipal!(
         parsedWithdrawAmount,
         (recipientAddress as `0x${string}`) ||
-          stakingService.walletBalance?.stakerAddress,
+          walletConnector.nativeWallet.address,
         {
           onPhaseChange: handlePhaseChange,
         },
@@ -541,8 +544,12 @@ export function WithdrawTab({
                 )}
               </div>
 
-              <Button
-                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              <ActionButton
+                className="w-full"
+                variant="primary"
+                size="lg"
+                loading={showProgress && activeOperation === "claim"}
+                loadingText="Processing..."
                 disabled={
                   showProgress ||
                   !!claimAmountError ||
@@ -552,10 +559,8 @@ export function WithdrawTab({
                 }
                 onClick={handleClaimOperation}
               >
-                {showProgress && activeOperation === "claim"
-                  ? "Processing..."
-                  : "Claim Tokens"}
-              </Button>
+                Claim Tokens
+              </ActionButton>
             </div>
           </div>
         )}
@@ -660,8 +665,12 @@ export function WithdrawTab({
               </p>
             </div>
 
-            <Button
-              className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+            <ActionButton
+              className="w-full"
+              variant="primary"
+              size="lg"
+              loading={showProgress && activeOperation === "withdraw"}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !!withdrawAmountError ||
@@ -671,10 +680,8 @@ export function WithdrawTab({
               }
               onClick={handleWithdrawOperation}
             >
-              {showProgress && activeOperation === "withdraw"
-                ? "Processing..."
-                : "Withdraw Tokens"}
-            </Button>
+              Withdraw Tokens
+            </ActionButton>
           </div>
         </div>
       )}
@@ -739,8 +746,12 @@ export function WithdrawTab({
                 </p>
               </div>
 
-              <Button
-                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              <ActionButton
+                className="w-full"
+                variant="primary"
+                size="lg"
+                loading={showProgress && activeOperation === "withdraw"}
+                loadingText="Processing..."
                 disabled={
                   showProgress ||
                   !!withdrawAmountError ||
@@ -750,10 +761,8 @@ export function WithdrawTab({
                 }
                 onClick={handleWithdrawOperation}
               >
-                {showProgress && activeOperation === "withdraw"
-                  ? "Processing..."
-                  : "Withdraw Tokens"}
-              </Button>
+                Withdraw Tokens
+              </ActionButton>
             </div>
           </div>
         )}
@@ -772,12 +781,13 @@ export function WithdrawTab({
               Claim tokens first to unlock them for withdrawal.
             </p>
             {canClaimPrincipal && maxClaimAmount > BigInt(0) && (
-              <Button
+              <ActionButton
                 onClick={() => setActiveTab("claim")}
-                className="bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+                variant="primary"
+                size="sm"
               >
                 Go to Claim
-              </Button>
+              </ActionButton>
             )}
           </div>
         )}
@@ -791,7 +801,7 @@ export function WithdrawTab({
               if (activeOperation === "claim") {
                 const isNativeChainOperation =
                   !bootstrapStatus?.isBootstrapped ||
-                  !!token.connector?.requireExtraConnectToImua;
+                  !!token.network.connector?.requireExtraConnectToImua;
                 if (!isNativeChainOperation) {
                   return {
                     sourceChain: destinationChain,

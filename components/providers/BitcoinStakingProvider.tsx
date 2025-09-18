@@ -1,14 +1,15 @@
-// components/new-staking/providers/XRPStakingProvider.tsx
+import { useBitcoinStaking } from "@/hooks/useBitcoinStaking";
 import { ReactNode } from "react";
-import { useXRPStaking } from "@/hooks/useXRPStaking";
 import { StakingServiceContext } from "@/contexts/StakingServiceContext";
 
-interface XRPStakingProviderProps {
+interface BitcoinStakingProviderProps {
   children: ReactNode;
 }
 
-export function XRPStakingProvider({ children }: XRPStakingProviderProps) {
-  const service = useXRPStaking();
+export function BitcoinStakingProvider({
+  children,
+}: BitcoinStakingProviderProps) {
+  const service = useBitcoinStaking();
 
   return (
     <StakingServiceContext.Provider value={service}>

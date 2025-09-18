@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, AlertCircle, ChevronDown } from "lucide-react";
+import { ActionButton } from "@/components/ui/action-button";
 import { WalletDetailsModal } from "./WalletDetailsModal";
 import { Token } from "@/types/tokens";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
@@ -14,16 +15,12 @@ import Image from "next/image";
 
 export function MultiWalletStatus({ token }: { token: Token }) {
   const {
-    isReady,
-    isNativeWalletConnected,
-    nativeWalletAddress,
-    nativeCurrencyBalance,
-    isImuaConnected,
-    boundAddress,
+    isReadyForStaking,
+    nativeWallet,
+    bindingEVMWallet,
     issues,
-    connectNative,
     disconnectNative,
-    checkNativeInstallation,
+    disconnectBindingEVM,
   } = useWalletConnectorContext();
   const { disconnect } = useDisconnect();
 
@@ -38,39 +35,40 @@ export function MultiWalletStatus({ token }: { token: Token }) {
     explorerUrl?: string;
     onDisconnect: () => Promise<void> | void;
   } | null>(null);
-  const [isNativeWalletInstalled, setIsNativeWalletInstalled] = useState(true);
 
   // Check if we need to show both native and Imua wallets
-  const requiresExtraConnectToImua = token.connector.requireExtraConnectToImua;
-  const hasCustomConnector = !!token.connector.customConnector;
+  const requiresExtraConnectToImua =
+    token.network.connector.requireExtraConnectToImua;
 
   // Get custom connector info if available
-  const connectorName = token.connector.customConnector?.name || "EVM Wallet";
+  const connectorName =
+    token.network.connector.customConnector?.name || "EVM Wallet";
   const connectorIcon =
-    token.connector.customConnector?.iconUrl || "/eth-logo.svg";
+    token.network.connector.customConnector?.iconUrl || "/eth-logo.svg";
 
   // Function to open the modal for a specific wallet type
   const openWalletDetails = (isNativeWallet: boolean) => {
     if (isNativeWallet) {
       // Native wallet details
       setActiveWalletInfo({
-        address: nativeWalletAddress || "",
-        name: token.connector.customConnector?.name || "EVM" + " Wallet",
-        iconUrl: token.connector.customConnector?.iconUrl || "/eth-logo.svg",
-        balance: nativeCurrencyBalance
+        address: nativeWallet.address || "",
+        name: token.network.connector.customConnector?.name || "EVM Wallet",
+        iconUrl:
+          token.network.connector.customConnector?.iconUrl || "/eth-logo.svg",
+        balance: nativeWallet.balance
           ? {
               formatted:
                 formatBalance(
-                  nativeCurrencyBalance.value,
-                  nativeCurrencyBalance.decimals,
+                  nativeWallet.balance.value,
+                  nativeWallet.balance.decimals,
                 ) +
                 " " +
-                nativeCurrencyBalance.symbol,
+                nativeWallet.balance.symbol,
             }
           : undefined,
         explorerUrl: token.network.accountExplorerUrl,
         onDisconnect: async () => {
-          if (token.connector.evmCompatible) {
+          if (token.network.connector.evmCompatible) {
             await disconnect();
           } else if (disconnectNative) {
             await disconnectNative();
@@ -78,14 +76,29 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         },
       });
     } else {
-      // Imua wallet details
+      // EVM wallet details
       setActiveWalletInfo({
-        address: boundAddress || "",
-        name: "Imua Chain Wallet",
+        address: bindingEVMWallet?.address || "",
+        name: "EVM Wallet",
         iconUrl: "/eth-logo.svg",
+        balance: bindingEVMWallet?.balance
+          ? {
+              formatted:
+                formatBalance(
+                  bindingEVMWallet.balance.value,
+                  bindingEVMWallet.balance.decimals,
+                ) +
+                " " +
+                bindingEVMWallet.balance.symbol,
+            }
+          : undefined,
         explorerUrl: imuaChain.accountExplorerUrl,
-        onDisconnect: () => {
-          disconnect();
+        onDisconnect: async () => {
+          if (disconnectBindingEVM) {
+            await disconnectBindingEVM();
+          } else {
+            disconnect();
+          }
         },
       });
     }
@@ -93,18 +106,6 @@ export function MultiWalletStatus({ token }: { token: Token }) {
     setModalOpen(true);
     setDetailsOpen(false); // Close the dropdown
   };
-
-  // Check if native wallet is installed
-  useEffect(() => {
-    const checkInstallation = async () => {
-      if (checkNativeInstallation) {
-        const installed = await checkNativeInstallation();
-        setIsNativeWalletInstalled(installed);
-      }
-    };
-
-    checkInstallation();
-  }, [checkNativeInstallation]);
 
   useEffect(() => {
     setMounted(true);
@@ -117,7 +118,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
       {/* Compact Status Display */}
       <button
         onClick={() => setDetailsOpen(!detailsOpen)}
-        className="bg-[#15151c] hover:bg-[#1a1a24] text-white rounded-lg px-4 py-2 flex items-center gap-2 border border-[#21212f]"
+        className="bg-[#15151c] hover:bg-[#1a1a24] text-white rounded-lg px-4 py-2 flex items-center gap-2 border border-[#21212f] transition-colors duration-200 hover:border-[#00e5ff]/30"
       >
         {/* Native Wallet Status */}
         <div className="flex items-center gap-2">
@@ -131,19 +132,19 @@ export function MultiWalletStatus({ token }: { token: Token }) {
             />
           </div>
           <span className="text-sm">
-            {isNativeWalletConnected
-              ? `${nativeWalletAddress?.substring(0, 6)}...${nativeWalletAddress?.substring(nativeWalletAddress.length - 4)}`
+            {nativeWallet.connected
+              ? `${nativeWallet.address?.substring(0, 6)}...${nativeWallet.address?.substring(nativeWallet.address.length - 4)}`
               : "Not Connected"}
           </span>
 
           {/* Show balance if connected */}
-          {isNativeWalletConnected && nativeCurrencyBalance && (
+          {nativeWallet.connected && nativeWallet.balance && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-[#292936]">
               {formatBalance(
-                nativeCurrencyBalance.value,
-                nativeCurrencyBalance.decimals,
+                nativeWallet.balance.value,
+                nativeWallet.balance.decimals,
               )}{" "}
-              {nativeCurrencyBalance.symbol}
+              {nativeWallet.balance.symbol}
             </span>
           )}
         </div>
@@ -163,12 +164,12 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                 />
               </div>
               <span className="text-sm">
-                {isImuaConnected
-                  ? `${boundAddress?.substring(0, 6)}...${boundAddress?.substring(boundAddress.length - 4)}`
+                {bindingEVMWallet?.connected
+                  ? `${bindingEVMWallet.address?.substring(0, 6)}...${bindingEVMWallet.address?.substring(bindingEVMWallet.address.length - 4)}`
                   : "Not Connected"}
               </span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-[#292936]">
-                Imua
+                EVM
               </span>
             </div>
           </>
@@ -177,9 +178,9 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         {/* Connection Status Indicator */}
         {requiresExtraConnectToImua && (
           <div className="ml-1">
-            {isReady ? (
+            {isReadyForStaking ? (
               <CheckCircle className="w-4 h-4 text-green-400" />
-            ) : isNativeWalletConnected && isImuaConnected ? (
+            ) : nativeWallet.connected && bindingEVMWallet?.connected ? (
               <AlertCircle className="w-4 h-4 text-yellow-400" />
             ) : (
               <AlertCircle className="w-4 h-4 text-gray-400" />
@@ -197,7 +198,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="absolute right-0 mt-2 w-80 bg-[#15151c] rounded-lg shadow-lg border border-[#21212f] z-50"
+            className="absolute right-0 mt-2 w-80 bg-[#15151c] rounded-lg shadow-xl border border-[#21212f] z-50 backdrop-blur-sm"
           >
             <div className="p-4 space-y-4">
               {/* Native Wallet Section */}
@@ -216,132 +217,151 @@ export function MultiWalletStatus({ token }: { token: Token }) {
 
                   <div
                     className={`text-xs px-2 py-0.5 rounded-full ${
-                      isNativeWalletConnected
+                      nativeWallet.connected
                         ? "bg-green-500/20 text-green-400"
                         : "bg-red-500/20 text-red-400"
                     }`}
                   >
-                    {isNativeWalletConnected ? "Connected" : "Not Connected"}
+                    {nativeWallet.connected ? "Connected" : "Not Connected"}
                   </div>
                 </div>
 
-                {isNativeWalletConnected ? (
+                {nativeWallet.connected ? (
                   <div className="space-y-2">
                     <div
-                      className="text-sm text-[#9999aa] bg-[#1a1a24] p-2 rounded flex items-center justify-between cursor-pointer hover:bg-[#21212f]"
+                      className="text-sm text-[#9999aa] bg-[#1a1a24] p-2 rounded flex items-center justify-between cursor-pointer hover:bg-[#21212f] transition-colors"
                       onClick={() => openWalletDetails(true)}
                     >
                       <span>
-                        {nativeWalletAddress?.substring(0, 12)}...
-                        {nativeWalletAddress?.substring(
-                          nativeWalletAddress.length - 8,
+                        {nativeWallet.address?.substring(0, 12)}...
+                        {nativeWallet.address?.substring(
+                          nativeWallet.address.length - 8,
                         )}
                       </span>
-                      <span className="text-xs">View Details</span>
+                      <span className="text-xs text-[#00e5ff]">
+                        View Details
+                      </span>
                     </div>
 
                     {/* Show balance */}
-                    {nativeCurrencyBalance && (
+                    {nativeWallet.balance && (
                       <div className="text-sm text-[#9999aa] bg-[#1a1a24] p-2 rounded flex items-center justify-between">
                         <span>Balance</span>
-                        <span>
+                        <span className="font-medium">
                           {formatBalance(
-                            nativeCurrencyBalance.value,
-                            nativeCurrencyBalance.decimals,
+                            nativeWallet.balance.value,
+                            nativeWallet.balance.decimals,
                           )}{" "}
-                          {nativeCurrencyBalance.symbol}
+                          {nativeWallet.balance.symbol}
                         </span>
                       </div>
                     )}
                   </div>
-                ) : !isNativeWalletInstalled && hasCustomConnector ? (
+                ) : issues?.needsInstallNative ? (
                   <div className="flex flex-col items-center space-y-2">
                     <span className="text-xs text-[#9999aa]">
                       {connectorName} is not installed
                     </span>
-                    <a
-                      href={token.connector.installUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm bg-[#00e5ff] text-black font-medium px-3 py-1.5 rounded"
+                    <ActionButton
+                      onClick={() =>
+                        window.open(
+                          token.network.connector.installUrl,
+                          "_blank",
+                        )
+                      }
+                      variant="primary"
+                      size="sm"
                     >
                       Install {connectorName}
-                    </a>
+                    </ActionButton>
                   </div>
                 ) : (
                   <div className="flex justify-center">
-                    {hasCustomConnector ? (
-                      <button
-                        onClick={() => connectNative && connectNative()}
-                        className="text-sm bg-[#00e5ff] text-black font-medium px-3 py-1.5 rounded"
-                      >
-                        Connect
-                      </button>
-                    ) : (
-                      <ConnectButton.Custom>
-                        {({ openConnectModal }) => (
-                          <button
-                            onClick={openConnectModal}
-                            className="text-sm bg-[#00e5ff] text-black font-medium px-3 py-1.5 rounded"
-                          >
-                            Connect
-                          </button>
-                        )}
-                      </ConnectButton.Custom>
-                    )}
+                    <ConnectButton.Custom>
+                      {({ openConnectModal }) => (
+                        <ActionButton
+                          onClick={openConnectModal}
+                          variant="primary"
+                          size="sm"
+                        >
+                          Connect
+                        </ActionButton>
+                      )}
+                    </ConnectButton.Custom>
                   </div>
                 )}
               </div>
 
-              {/* Imua Wallet Section (if required) */}
+              {/* EVM Wallet Section (if required) */}
               {requiresExtraConnectToImua && (
                 <div className="space-y-2 pt-3 border-t border-[#21212f]">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium text-white flex items-center gap-2">
                       <Image
                         src="/eth-logo.svg"
-                        alt="Imua"
+                        alt="EVM"
                         className="w-4 h-4"
                         width={16}
                         height={16}
                       />
-                      Imua Chain Wallet
+                      EVM Wallet
                     </h3>
 
                     <div
                       className={`text-xs px-2 py-0.5 rounded-full ${
-                        isImuaConnected
+                        bindingEVMWallet?.connected
                           ? "bg-green-500/20 text-green-400"
                           : "bg-red-500/20 text-red-400"
                       }`}
                     >
-                      {isImuaConnected ? "Connected" : "Not Connected"}
+                      {bindingEVMWallet?.connected
+                        ? "Connected"
+                        : "Not Connected"}
                     </div>
                   </div>
 
-                  {isImuaConnected ? (
+                  {bindingEVMWallet?.connected ? (
                     <div className="space-y-2">
                       <div
-                        className="text-sm text-[#9999aa] bg-[#1a1a24] p-2 rounded flex items-center justify-between cursor-pointer hover:bg-[#21212f]"
+                        className="text-sm text-[#9999aa] bg-[#1a1a24] p-2 rounded flex items-center justify-between cursor-pointer hover:bg-[#21212f] transition-colors"
                         onClick={() => openWalletDetails(false)}
                       >
                         <span>
-                          {boundAddress?.substring(0, 12)}...
-                          {boundAddress?.substring(boundAddress.length - 8)}
+                          {bindingEVMWallet.address?.substring(0, 12)}...
+                          {bindingEVMWallet.address?.substring(
+                            bindingEVMWallet.address.length - 8,
+                          )}
                         </span>
-                        <span className="text-xs">View Details</span>
+                        <span className="text-xs text-[#00e5ff]">
+                          View Details
+                        </span>
                       </div>
+
+                      {/* Show balance */}
+                      {bindingEVMWallet.balance && (
+                        <div className="text-sm text-[#9999aa] bg-[#1a1a24] p-2 rounded flex items-center justify-between">
+                          <span>Balance</span>
+                          <span className="font-medium">
+                            {formatBalance(
+                              bindingEVMWallet.balance.value,
+                              bindingEVMWallet.balance.decimals,
+                            )}{" "}
+                            {bindingEVMWallet.balance.symbol}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex justify-center">
                       <ConnectButton.Custom>
                         {({ openConnectModal }) => (
-                          <button
+                          <ActionButton
                             onClick={openConnectModal}
-                            className="text-sm bg-[#00e5ff] text-black font-medium px-3 py-1.5 rounded"
+                            variant="primary"
+                            size="sm"
                           >
                             Connect
-                          </button>
+                          </ActionButton>
                         )}
                       </ConnectButton.Custom>
                     </div>
@@ -349,18 +369,18 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                 </div>
               )}
 
-              {/* Wallet Status Summary (for non-EVM wallets) */}
+              {/* Wallet Status Summary (for dual-wallet scenarios) */}
               {requiresExtraConnectToImua &&
-                isNativeWalletConnected &&
-                isImuaConnected && (
+                nativeWallet.connected &&
+                bindingEVMWallet?.connected && (
                   <div
                     className={`p-3 rounded text-sm ${
-                      isReady
+                      isReadyForStaking
                         ? "bg-green-500/10 text-green-400 border border-green-500/20"
                         : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
                     }`}
                   >
-                    {isReady ? (
+                    {isReadyForStaking ? (
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-4 h-4" />
                         <span>Wallets are paired successfully</span>
@@ -369,7 +389,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                       <div className="flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
                         <span>
-                          {issues?.needsMatchingBoundAddress
+                          {issues?.needsMatchingAddress
                             ? "Wallets need to be paired. Make a deposit to link wallets."
                             : issues?.others?.[0] ||
                               "Connection issue detected"}

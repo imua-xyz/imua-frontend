@@ -20,6 +20,7 @@ import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal
 import { Header } from "@/components/layout/header";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -305,12 +306,13 @@ export default function DashboardPage() {
               <p className="text-[#9999aa] text-sm mt-2 mb-4">
                 Please try refreshing the page
               </p>
-              <Button
+              <ActionButton
                 onClick={() => window.location.reload()}
-                className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+                variant="primary"
+                size="md"
               >
                 Refresh Dashboard
-              </Button>
+              </ActionButton>
             </div>
           )}
 
@@ -319,12 +321,13 @@ export default function DashboardPage() {
               {/* Quick Actions */}
               <div className="mb-6">
                 <div className="flex flex-wrap gap-3">
-                  <Button
-                    className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+                  <ActionButton
+                    variant="primary"
+                    size="md"
                     onClick={() => (window.location.href = "/staking")}
                   >
                     Start Staking
-                  </Button>
+                  </ActionButton>
                   <Button
                     variant="outline"
                     className="border-[#00e5ff] text-[#00e5ff] hover:bg-[#00e5ff] hover:text-black"
@@ -669,13 +672,15 @@ export default function DashboardPage() {
                                 view positions
                               </p>
                             </div>
-                            <Button
+                            <ActionButton
                               onClick={() => openWalletConnectionModal(token)}
-                              className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black flex items-center gap-2"
+                              variant="primary"
+                              size="sm"
+                              className="flex items-center gap-2"
                             >
                               <Wallet size={16} />
                               Connect
-                            </Button>
+                            </ActionButton>
                           </div>
                         </div>
                       </Card>
@@ -712,14 +717,15 @@ export default function DashboardPage() {
                                 No staking positions found
                               </p>
                             </div>
-                            <Button
+                            <ActionButton
                               onClick={() =>
                                 (window.location.href = "/staking")
                               }
-                              className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+                              variant="primary"
+                              size="md"
                             >
                               Start Staking
-                            </Button>
+                            </ActionButton>
                           </div>
                         </div>
                       </Card>
@@ -1110,6 +1116,7 @@ export default function DashboardPage() {
               setWalletModalToken(null);
               setProviderToken(validTokens[0]); // Reset to default token
             }}
+            onReopen={() => setIsWalletModalOpen(true)}
           />
         )}
       </WalletConnectorProvider>

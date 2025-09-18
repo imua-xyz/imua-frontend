@@ -4,10 +4,13 @@ import { getContract } from "viem";
 import { getPublicClient } from "@wagmi/core";
 import { config } from "@/config/wagmi";
 import { imuaChain } from "@/types/networks";
-import { EVMNetwork, XRPL } from "@/types/networks";
+import { Network } from "@/types/networks";
 
-export function usePortalContract(network: EVMNetwork | XRPL) {
-  const evmChainID = (network as EVMNetwork).evmChainID || imuaChain.evmChainID;
+export function usePortalContract(network: Network) {
+  const evmChainID =
+    "evmChainId" in network
+      ? (network.evmChainId as number)
+      : imuaChain.evmChainID;
 
   const { data: walletClient } = useWalletClient({ chainId: evmChainID });
   const publicClient = getPublicClient(config, {

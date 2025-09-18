@@ -1,6 +1,7 @@
 // components/tabs/UndelegateTab.tsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -16,6 +17,7 @@ import {
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useDelegations } from "@/hooks/useDelegations";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { DelegationPerOperator } from "@/types/delegations";
 import { Info, ChevronDown } from "lucide-react";
 import { UNBOND_PERIOD } from "@/config/cosmos";
@@ -41,6 +43,7 @@ export function UndelegateTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+  const walletConnector = useWalletConnectorContext();
 
   // Get delegations for this token
   const { data: delegationsData, isLoading: delegationsLoading } =
@@ -74,11 +77,11 @@ export function UndelegateTab({
   // This considers both bootstrap phase and token-specific requirements
   const isNativeChainOperation =
     !bootstrapStatus?.isBootstrapped ||
-    !!token.connector?.requireExtraConnectToImua;
+    !!token.network.connector?.requireExtraConnectToImua;
 
   // Amount input with delegation constraint
   const maxAmount = selectedDelegation?.delegated || BigInt(0);
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const decimals = walletConnector.nativeWallet.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -464,13 +467,15 @@ export function UndelegateTab({
           </div>
 
           {/* Continue button - same as DelegateTab */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={!selectedDelegation}
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -628,8 +633,12 @@ export function UndelegateTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !selectedDelegation ||
@@ -642,7 +651,7 @@ export function UndelegateTab({
               onClick={handleUndelegate}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}

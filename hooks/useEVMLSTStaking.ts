@@ -27,7 +27,6 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     address: userAddress,
     token: token.address,
   });
-  const lzEndpointIdOrCustomChainId = token.network.customChainIdByImua;
   const { bootstrapStatus } = useBootstrapStatus();
 
   const [stakerBalanceFromHook] = useStakerBalances([token]);
@@ -64,15 +63,6 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       totalDeposited: s.totalDeposited,
     };
   }, [stakerBalanceFromHook.data, withdrawableAmountFromVault.data]);
-
-  const walletBalance = {
-    customClientChainID: lzEndpointIdOrCustomChainId || 0,
-    stakerAddress: userAddress as `0x${string}`,
-    tokenID: token.address,
-    value: balance?.data?.value || BigInt(0),
-    decimals: balance?.data?.decimals || 0,
-    symbol: balance?.data?.symbol || "",
-  };
 
   // Get quote for relaying a message to imua chain, and relaying fee is needed only after bootstrap
   const getQuote = useCallback(
@@ -443,7 +433,6 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   return {
     token: token,
     stakerBalance: stakerBalance,
-    walletBalance: walletBalance,
     vaultAddress: vaultAddress || undefined,
 
     deposit: handleDeposit,

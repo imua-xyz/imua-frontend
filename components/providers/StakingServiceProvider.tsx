@@ -1,8 +1,9 @@
 // components/new-staking/providers/StakingServiceProvider.tsx
 import { ReactNode } from "react";
-import { Token, exoETH, wstETH, xrp } from "@/types/tokens";
+import { Token, exoETH, wstETH, xrp, btc, tbtc } from "@/types/tokens";
 import { EVMLSTStakingProvider } from "./EVMLSTStakingProvider";
 import { XRPStakingProvider } from "./XRPStakingProvider";
+import { BitcoinStakingProvider } from "./BitcoinStakingProvider";
 
 interface StakingServiceProviderProps {
   token: Token;
@@ -22,6 +23,10 @@ export function StakingServiceProvider({
 
   if (token === xrp) {
     return <XRPStakingProvider>{children}</XRPStakingProvider>;
+  }
+
+  if (token === btc || token === tbtc) {
+    return <BitcoinStakingProvider>{children}</BitcoinStakingProvider>;
   }
 
   // Fallback for unsupported tokens

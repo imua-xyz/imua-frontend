@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -17,6 +18,7 @@ import {
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
 import { getShortErrorMessage } from "@/lib/utils";
@@ -40,6 +42,7 @@ export function DelegateTab({
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
   const { operators } = useOperatorsContext();
+  const walletConnector = useWalletConnectorContext();
 
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
@@ -48,11 +51,11 @@ export function DelegateTab({
   // This considers both bootstrap phase and token-specific requirements
   const isNativeChainOperation =
     !bootstrapStatus?.isBootstrapped ||
-    !!token.connector?.requireExtraConnectToImua;
+    !!token.network.connector?.requireExtraConnectToImua;
 
   // Balance and amount state
   const maxAmount = stakingService.stakerBalance?.claimable || BigInt(0);
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const decimals = walletConnector.nativeWallet.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -408,8 +411,10 @@ export function DelegateTab({
           </div>
 
           {/* Continue button - now only requires valid amount */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={
               !!amountError ||
               !amount ||
@@ -419,7 +424,7 @@ export function DelegateTab({
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -510,8 +515,12 @@ export function DelegateTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !selectedOperator ||
@@ -521,7 +530,7 @@ export function DelegateTab({
               onClick={handleOperation}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}

@@ -28,7 +28,7 @@ function getUniqueStakerIds(): Array<{
     const wallet = wallets[token.network.customChainIdByImua];
     if (wallet) {
       let stakerAddress: string | undefined = undefined;
-      if (token.connector.requireExtraConnectToImua) {
+      if (token.network.connector.requireExtraConnectToImua) {
         if (wallet.boundImuaAddress) {
           stakerAddress = wallet.boundImuaAddress;
         } else if (wallet.address) {

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -20,6 +21,7 @@ import {
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
 import {
@@ -49,6 +51,7 @@ export function StakeTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+  const walletConnector = useWalletConnectorContext();
 
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
@@ -57,7 +60,7 @@ export function StakeTab({
   // This considers both bootstrap phase and token-specific requirements
   const isNativeChainOperation =
     !bootstrapStatus?.isBootstrapped ||
-    !!token.connector?.requireExtraConnectToImua;
+    !!token.network.connector?.requireExtraConnectToImua;
   const { operators } = useOperatorsContext();
 
   // Check mode availability based on both props
@@ -74,9 +77,9 @@ export function StakeTab({
   const canSwitchModes = isStakeModeAvailable && isDepositModeAvailable;
 
   // Balance and amount state
-  const balance = stakingService.walletBalance?.value || BigInt(0);
+  const balance = walletConnector.nativeWallet.balance.value;
   const maxAmount = balance;
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const decimals = walletConnector.nativeWallet.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -497,8 +500,10 @@ export function StakeTab({
           )}
 
           {/* Continue button */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={
               !!amountError ||
               !amount ||
@@ -508,7 +513,7 @@ export function StakeTab({
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -613,8 +618,12 @@ export function StakeTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 (isStakeMode && isStakeModeAvailable && !selectedOperator) ||
@@ -624,7 +633,7 @@ export function StakeTab({
               onClick={handleOperation}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}

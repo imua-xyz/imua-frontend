@@ -6,7 +6,6 @@ export interface StakingService {
   // core data
   token: Token;
   stakerBalance: StakerBalance | undefined;
-  walletBalance: WalletBalance | undefined;
   vaultAddress: string | undefined;
   minimumStakeAmount?: bigint;
   isDepositThenDelegateDisabled?: boolean;
