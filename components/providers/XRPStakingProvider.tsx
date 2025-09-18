@@ -2,14 +2,12 @@
 import { ReactNode } from "react";
 import { useXRPStaking } from "@/hooks/useXRPStaking";
 import { StakingServiceContext } from "@/contexts/StakingServiceContext";
-import { useXRPBinding } from "@/hooks/useXRPBinding";
 
 interface XRPStakingProviderProps {
   children: ReactNode;
 }
 
 export function XRPStakingProvider({ children }: XRPStakingProviderProps) {
-  useXRPBinding();
   const service = useXRPStaking();
 
   return (

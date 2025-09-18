@@ -4,10 +4,17 @@ import { publicClients } from "@/config/wagmi";
 import { getContract } from "viem";
 import { getPublicClient } from "@wagmi/core";
 import { config } from "@/config/wagmi";
-import { XRPL, imuaChain } from "@/types/networks";
+import {
+  XRPL,
+  BitcoinNetwork,
+  BitcoinTestnetNetwork,
+  imuaChain,
+} from "@/types/networks";
 import { useBootstrapStatus } from "./useBootstrapStatus";
 
-export function useUTXOGateway(network: XRPL) {
+export function useUTXOGateway(
+  network: XRPL | BitcoinNetwork | BitcoinTestnetNetwork,
+) {
   // For XRPL, we use the imuaChain network for contract interactions
   const { data: walletClient } = useWalletClient({
     chainId: imuaChain.evmChainID,

@@ -1,13 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { BaseTxOptions, StakerBalance, WalletBalance } from "@/types/staking";
+import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import {
-  XRP_CHAIN_ID,
   XRP_TOKEN_ENUM,
-  XRP_TOKEN_ADDRESS,
   XRP_VAULT_ADDRESS,
   XRP_STAKING_DESTINATION_TAG,
 } from "@/config/xrp";
@@ -15,13 +12,14 @@ import { MINIMUM_STAKE_AMOUNT_DROPS } from "@/config/xrp";
 import { StakingService } from "@/types/staking-service";
 import { xrp } from "@/types/tokens";
 import { useGemWalletStore } from "@/stores/gemWalletClient";
-import { useBindingStore } from "@/stores/bindingClient";
+import { useAllWalletsStore } from "@/stores/allWalletsStore";
 import { usePortalContract } from "./usePortalContract";
 import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { useStakerBalances } from "./useStakerBalances";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useBootstrapStatus } from "./useBootstrapStatus";
+import { useAddressBinding } from "./useAddressBinding";
+import { useTokenBalance } from "./useTokenBalance";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -36,17 +34,25 @@ export function useXRPStaking(): StakingService {
     (state) => state.getTransactionStatus,
   );
 
-  const checkBoundAddress = useBindingStore((state) => state.checkBinding);
-  const setBoundAddress = useBindingStore((state) => state.setBinding);
-  const boundImuaAddress = useBindingStore(
-    (state) => state.boundAddresses[xrpAddress ?? ""],
+  const setBoundAddress = useAllWalletsStore((state) => state.setBinding);
+  const setProvisionalBinding = useAllWalletsStore(
+    (state) => state.setProvisionalBinding,
+  );
+  const boundImuaAddress = useAllWalletsStore(
+    (state) => state.wallets[xrp.network.customChainIdByImua]?.boundImuaAddress,
   );
 
   const xrplClient = useXrplStore((state) => state.client);
   const setNetwork = useXrplStore((state) => state.setNetwork);
 
-  const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { bootstrapStatus } = useBootstrapStatus();
+
+  // Unified binding hook (auto-switches between GraphQL and contract)
+  const xrpBindingQuery = useAddressBinding(
+    "XRP",
+    xrpAddress || "",
+    xrp.network.customChainIdByImua,
+  );
 
   useEffect(() => {
     if (walletNetwork) {
@@ -62,38 +68,41 @@ export function useXRPStaking(): StakingService {
 
   const [stakerBalanceResponse] = useStakerBalances([xrp]);
 
-  const stakerBalance = useMemo<StakerBalance | undefined>(() => {
-    const s = stakerBalanceResponse.data;
-    if (!s) return undefined;
-    return {
-      clientChainID: s.clientChainID,
-      stakerAddress: s.stakerAddress,
-      tokenID: s.tokenID,
-      totalBalance: s.balance,
-      withdrawable: s.withdrawable,
-      delegated: s.delegated,
-      pendingUndelegated: s.pendingUndelegated,
-      totalDeposited: s.totalDeposited,
-    };
-  }, [stakerBalanceResponse.data]);
-
-  const walletBalance = useQuery({
-    queryKey: ["walletBalance", xrpAddress],
-    queryFn: async (): Promise<WalletBalance | undefined> => {
-      if (!xrpAddress) throw new Error("Required dependencies not available");
-      const accountInfo = await getAccountInfo(xrpAddress);
-      if (!accountInfo.success) throw new Error("Failed to fetch account info");
-      return {
-        customClientChainID: XRP_CHAIN_ID,
-        stakerAddress: xrpAddress,
-        tokenID: XRP_TOKEN_ADDRESS,
-        value: accountInfo.data?.balance || BigInt(0),
-        decimals: 6,
-        symbol: "XRP",
-      };
-    },
-    enabled: !!xrpAddress && !!getAccountInfo,
+  // Fetch XRP token balance using the unified hook
+  const tokenBalanceQuery = useTokenBalance({
+    token: xrp,
+    address: xrpAddress,
+    refetchInterval: 30000, // 30 seconds
   });
+
+  const stakerBalance = useMemo<StakerBalance>(() => {
+    const s = stakerBalanceResponse.data;
+    return {
+      clientChainID: xrp.network.customChainIdByImua,
+      stakerAddress: xrpAddress || "",
+      tokenID: xrp.address,
+      totalBalance: s?.balance || BigInt(0),
+      withdrawable: s?.withdrawable || BigInt(0),
+      delegated: s?.delegated || BigInt(0),
+      pendingUndelegated: s?.pendingUndelegated || BigInt(0),
+      totalDeposited: s?.totalDeposited || BigInt(0),
+    };
+  }, [stakerBalanceResponse.data, xrpAddress]);
+
+  const tokenBalance = useMemo<TokenBalance>(() => {
+    return {
+      token: {
+        customClientChainID: xrp.network.customChainIdByImua,
+        tokenID: xrp.address,
+      },
+      stakerAddress: xrpAddress || "",
+      balance: {
+        value: tokenBalanceQuery.data?.value || BigInt(0),
+        decimals: tokenBalanceQuery.data?.decimals || xrp.decimals,
+        symbol: tokenBalanceQuery.data?.symbol || xrp.symbol,
+      },
+    };
+  }, [tokenBalanceQuery.data, xrpAddress]);
 
   // Stake XRP
   const stakeXrp = useCallback(
@@ -135,7 +144,7 @@ export function useXRPStaking(): StakingService {
       if (boundImuaAddress) {
         // Use the already bound address (priority)
         memoAddress = boundImuaAddress;
-        effectiveAddress = boundImuaAddress;
+        effectiveAddress = boundImuaAddress as `0x${string}`;
       } else if (evmAddress) {
         // Fallback to connected EVM wallet address
         memoAddress = evmAddress;
@@ -185,7 +194,6 @@ export function useXRPStaking(): StakingService {
         if (result.success) {
           console.log("Stake succeeded, updating cached balances...");
           stakerBalanceResponse.refetch();
-          walletBalance.refetch();
         }
       };
 
@@ -200,10 +208,32 @@ export function useXRPStaking(): StakingService {
         utxoGateway: readonlyContract,
       });
 
-      // If transaction and following checks were successful and we don't have a bound address yet, we should explicitly set the bound address
-      if (success && !boundImuaAddress && effectiveAddress) {
-        // Given even the completion verification has been successful, we should explicitly set the bound address
-        setBoundAddress(xrpAddress, effectiveAddress);
+      // If transaction and following checks were successful and we don't have a bound address yet,
+      // set provisional binding to protect against wallet switches during confirmation delay
+      if (success && !boundImuaAddress && effectiveAddress && xrpAddress) {
+        // Set provisional binding that persists across wallet disconnects
+        // This binding is bidirectional: XRP address <-> EVM address
+        setProvisionalBinding(
+          xrp.network.customChainIdByImua,
+          xrpAddress,
+          effectiveAddress as string,
+        );
+
+        // Also set boundImuaAddress in wallet state for immediate UI update
+        setBoundAddress(xrp.network.customChainIdByImua, {
+          boundImuaAddress: effectiveAddress as string,
+          isCheckingBinding: false,
+          bindingError: null,
+        });
+
+        console.log(
+          `Set provisional binding: XRP ${xrpAddress} <-> EVM ${effectiveAddress} (chainId: ${xrp.network.customChainIdByImua})`,
+        );
+
+        // Refetch GraphQL binding to sync with database
+        if (xrpBindingQuery.refetch) {
+          xrpBindingQuery.refetch().catch(console.error);
+        }
       }
 
       return { hash, success, error };
@@ -216,8 +246,14 @@ export function useXRPStaking(): StakingService {
       evmAddress,
       xrplClient,
       boundImuaAddress,
-      checkBoundAddress,
+      setBoundAddress,
+      setProvisionalBinding,
       sendTransaction,
+      xrpBindingQuery,
+      stakerBalanceResponse,
+      readonlyContract,
+      getTransactionStatus,
+      bootstrapStatus,
     ],
   );
 
@@ -382,13 +418,13 @@ export function useXRPStaking(): StakingService {
 
   return {
     token: xrp,
+    tokenBalance: tokenBalance,
     stake: stakeXrp,
     delegateTo: delegateXrp,
     undelegateFrom: undelegateXrp,
     withdrawPrincipal: withdrawXrp,
     getQuote,
     stakerBalance: stakerBalance,
-    walletBalance: walletBalance?.data,
     vaultAddress: vaultAddress,
     minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
     isDepositThenDelegateDisabled: bootstrapStatus?.isBootstrapped,

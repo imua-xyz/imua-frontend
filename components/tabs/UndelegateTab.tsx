@@ -1,6 +1,7 @@
 // components/tabs/UndelegateTab.tsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -74,11 +75,18 @@ export function UndelegateTab({
   // This considers both bootstrap phase and token-specific requirements
   const isNativeChainOperation =
     !bootstrapStatus?.isBootstrapped ||
-    !!token.connector?.requireExtraConnectToImua;
+    !!token.network.connector?.requireExtraConnectToImua;
+
+  // Get active delegations count
+  const activeDelegationsCount = Array.from(
+    delegationsData?.delegationsByOperator?.values() || [],
+  ).filter((delegation) => delegation.delegated > BigInt(0)).length;
+
+  // No need for complex loading state management - React Query handles this
 
   // Amount input with delegation constraint
   const maxAmount = selectedDelegation?.delegated || BigInt(0);
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -150,11 +158,6 @@ export function UndelegateTab({
     });
   };
 
-  // Get active delegations count
-  const activeDelegationsCount = Array.from(
-    delegationsData?.delegationsByOperator?.values() || [],
-  ).filter((delegation) => delegation.delegated > BigInt(0)).length;
-
   // Handle delegation selection
   const handleDelegationSelect = (delegation: DelegationPerOperator) => {
     setSelectedDelegation(delegation);
@@ -181,12 +184,6 @@ export function UndelegateTab({
     setShowProgress(true);
 
     try {
-      console.log(
-        "undelegateFrom",
-        selectedDelegation.operatorAddress,
-        parsedAmount,
-        actualIsInstantUnbond,
-      );
       const result = await stakingService.undelegateFrom(
         selectedDelegation.operatorAddress,
         parsedAmount,
@@ -195,7 +192,6 @@ export function UndelegateTab({
           onPhaseChange: handlePhaseChange,
         },
       );
-      console.log("result", result);
 
       if (result.hash) {
         setTxHash(result.hash);
@@ -365,14 +361,17 @@ export function UndelegateTab({
     setShowProgress(false);
   };
 
-  if (delegationsLoading) {
+  // Show loading when query is loading or when no data is available yet
+  if (delegationsLoading || delegationsData === undefined) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5ff]"></div>
+        <p className="ml-3 text-[#9999aa]">Loading delegations...</p>
       </div>
     );
   }
 
+  // Show "No Active Delegations" when data is loaded but empty
   if (activeDelegationsCount === 0) {
     return (
       <div className="text-center py-20">
@@ -464,13 +463,15 @@ export function UndelegateTab({
           </div>
 
           {/* Continue button - same as DelegateTab */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={!selectedDelegation}
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -628,8 +629,12 @@ export function UndelegateTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !selectedDelegation ||
@@ -642,7 +647,7 @@ export function UndelegateTab({
               onClick={handleUndelegate}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}
@@ -678,6 +683,12 @@ export function UndelegateTab({
                   delegationsData?.delegationsByOperator?.values() || [],
                 )
                   .filter((delegation) => delegation.delegated > BigInt(0))
+                  .sort((a, b) => {
+                    // Sort by delegation amount in descending order (highest first)
+                    if (a.delegated > b.delegated) return -1;
+                    if (a.delegated < b.delegated) return 1;
+                    return 0;
+                  })
                   .map((delegation) => (
                     <div
                       key={delegation.operatorAddress}

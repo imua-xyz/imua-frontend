@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -57,7 +58,7 @@ export function StakeTab({
   // This considers both bootstrap phase and token-specific requirements
   const isNativeChainOperation =
     !bootstrapStatus?.isBootstrapped ||
-    !!token.connector?.requireExtraConnectToImua;
+    !!token.network.connector?.requireExtraConnectToImua;
   const { operators } = useOperatorsContext();
 
   // Check mode availability based on both props
@@ -73,10 +74,10 @@ export function StakeTab({
   // If only stake mode is allowed, force stake mode
   const canSwitchModes = isStakeModeAvailable && isDepositModeAvailable;
 
-  // Balance and amount state
-  const balance = stakingService.walletBalance?.value || BigInt(0);
-  const maxAmount = balance;
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  // Balance and amount state: use token balance from staking service
+  const tokenBalanceValue = stakingService.tokenBalance.balance.value;
+  const maxAmount = tokenBalanceValue;
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -423,11 +424,11 @@ export function StakeTab({
               </label>
               <div className="flex items-center space-x-2 text-xs text-[#9999aa]">
                 <span>
-                  Balance: {formatUnits(balance, decimals)} {token.symbol}
+                  Balance: {formatUnits(maxAmount, decimals)} {token.symbol}
                 </span>
                 <button
                   className="text-xs font-medium text-[#00e5ff] ml-1"
-                  onClick={() => setAmount(formatUnits(balance, decimals))}
+                  onClick={() => setAmount(formatUnits(maxAmount, decimals))}
                 >
                   MAX
                 </button>
@@ -497,8 +498,10 @@ export function StakeTab({
           )}
 
           {/* Continue button */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={
               !!amountError ||
               !amount ||
@@ -508,7 +511,7 @@ export function StakeTab({
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -532,14 +535,6 @@ export function StakeTab({
                     Edit
                   </button>
                 </div>
-              </div>
-
-              {/* Operation type */}
-              <div className="flex justify-between">
-                <span className="text-[#9999aa]">Operation</span>
-                <span className="text-white">
-                  {isStakeMode ? "Stake" : "Deposit"}
-                </span>
               </div>
 
               {/* Selected operator (if staking) */}
@@ -570,6 +565,14 @@ export function StakeTab({
                   </div>
                 </div>
               )}
+
+              {/* Operation type (moved below Operator for better flow) */}
+              <div className="flex justify-between">
+                <span className="text-[#9999aa]">Operation</span>
+                <span className="text-white">
+                  {isStakeMode ? "Stake" : "Deposit"}
+                </span>
+              </div>
             </div>
 
             {/* Estimated rewards section - cleaner */}
@@ -613,8 +616,12 @@ export function StakeTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 (isStakeMode && isStakeModeAvailable && !selectedOperator) ||
@@ -624,7 +631,7 @@ export function StakeTab({
               onClick={handleOperation}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}
@@ -636,6 +643,7 @@ export function StakeTab({
         onSelect={handleOperatorSelect}
         operators={operators || []}
         selectedOperator={selectedOperator}
+        token={token}
       />
 
       {/* Operation Progress Modal */}

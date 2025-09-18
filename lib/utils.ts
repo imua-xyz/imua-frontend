@@ -37,7 +37,7 @@ export const getShortErrorMessage = (error: unknown): string => {
   }
 
   // Default: smart truncation
-  const maxLength = 60;
+  const maxLength = 30;
   if (message.length <= maxLength) {
     return message;
   }

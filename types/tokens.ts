@@ -1,5 +1,14 @@
-import { Network, EVMNetwork, xrpl, imuaChain, hoodi } from "./networks";
-import { ConnectorBase, evmConnector, gemConnector } from "./connectors";
+import {
+  Network,
+  EVMNetwork,
+  xrpl,
+  imuaChain,
+  hoodi,
+  bitcoin,
+  bitcoinTestnet,
+  BitcoinNetwork,
+  BitcoinTestnetNetwork,
+} from "./networks";
 import { imuaDenom } from "./rewards";
 
 // Define a base TokenBase interface with common properties
@@ -11,7 +20,6 @@ interface TokenBase {
   iconUrl: string;
   network: Network;
   type: TokenType;
-  connector: ConnectorBase;
   priceIndex: number;
 }
 
@@ -49,10 +57,9 @@ export const exoETH: EVMLSTToken = {
   symbol: "imETH",
   address: "0x80E5bb3A04554E54b40Dd6e14ca0F97212d9428d",
   decimals: 18,
-  iconUrl: "/imua-logo.avif",
+  iconUrl: "/icons/imua-icon.png",
   underlyingAsset: "ETH",
   provider: "Imua",
-  connector: evmConnector,
   priceIndex: 1,
 } as const;
 
@@ -63,10 +70,9 @@ export const wstETH: EVMLSTToken = {
   symbol: "wstETH",
   address: "0x32118ebD4b82A84B0f13218dbA41f352CC7c2923",
   decimals: 18,
-  iconUrl: "/wsteth-logo.svg",
+  iconUrl: "/icons/wsteth-icon.svg",
   underlyingAsset: "ETH",
   provider: "Lido",
-  connector: evmConnector,
   priceIndex: 2,
 } as const;
 
@@ -77,9 +83,30 @@ export const xrp: NativeToken = {
   symbol: "XRP",
   address: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
   decimals: 6,
-  iconUrl: "/xrp-logo.svg",
-  connector: gemConnector,
+  iconUrl: "/icons/xrp-icon.png",
   priceIndex: 7,
+} as const;
+
+export const btc: NativeToken = {
+  type: "native",
+  network: bitcoin,
+  name: "Bitcoin",
+  symbol: "BTC",
+  address: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+  decimals: 8,
+  iconUrl: "/icons/bitcoin-icon.png",
+  priceIndex: 6,
+} as const;
+
+export const tbtc: NativeToken = {
+  type: "native",
+  network: bitcoinTestnet,
+  name: "Bitcoin Testnet",
+  symbol: "tBTC",
+  address: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+  decimals: 8,
+  iconUrl: "/icons/bitcoin-icon.png",
+  priceIndex: 6,
 } as const;
 
 export const imua: EVMNativeToken = {
@@ -88,15 +115,14 @@ export const imua: EVMNativeToken = {
   symbol: "IM",
   address: "0x0000000000000000000000000000000000000000",
   decimals: 18,
-  iconUrl: "/imua-logo.avif",
+  iconUrl: "/icons/imua-icon.png",
   network: imuaChain,
-  connector: evmConnector,
   priceIndex: 1, // TODO: we use ETH's price index because the imua token does not have a price yet
 } as const;
 
-export type Token = typeof exoETH | typeof wstETH | typeof xrp;
+export type Token = typeof exoETH | typeof wstETH | typeof xrp | typeof tbtc;
 
-export const validTokens: Token[] = [exoETH, wstETH, xrp];
+export const validTokens: Token[] = [exoETH, wstETH, xrp, tbtc];
 
 export const validRewardTokens: Token[] = [imua];
 
@@ -136,3 +162,10 @@ export function getTokenBySymbol(symbol: string): Token | undefined {
   }
   return matchingTokens[0];
 }
+
+// Helper function to get network by custom chain ID from valid tokens
+export const getNetworkByChainId = (customChainId: number) => {
+  return validTokens.find(
+    (token) => token.network.customChainIdByImua === customChainId,
+  )?.network;
+};

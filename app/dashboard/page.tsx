@@ -10,6 +10,7 @@ import {
   ChevronRight,
   AlertCircle,
   Wallet,
+  Info,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { validTokens, Token, getTokenKey } from "@/types/tokens";
@@ -20,7 +21,15 @@ import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal
 import { Header } from "@/components/layout/header";
 import { TokenIcon } from "@/components/ui/token-icon";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { PieChart } from "@/components/ui/pie-chart";
@@ -31,6 +40,8 @@ import { useTokenPrices } from "@/hooks/useTokenPrices";
 import { useDelegations } from "@/hooks/useDelegations";
 import { useOperators, useOperatorsWithOptInAVS } from "@/hooks/useOperators";
 import { validRewardTokens } from "@/types/tokens";
+import { useBootstrapNetworkStatistics } from "@/hooks/useBootstrapGraphQL";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import {
   RewardsPerToken,
   RewardsPerAVS,
@@ -89,16 +100,8 @@ function SkeletonPositionCard() {
   );
 }
 
-const mockNetworkStats = {
-  totalTvl: 1250000000,
-  activeStakers: 45678,
-  averageApy: 7.8,
-  totalTokensStaked: {
-    ETH: 125000,
-    XRP: 850000000,
-    USDT: 350000000,
-  },
-};
+// Mock APY data (not available in indexer schema yet)
+const mockAverageApy = 7.8;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -108,6 +111,11 @@ export default function DashboardPage() {
   const [walletModalToken, setWalletModalToken] = useState<Token | null>(null);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [providerToken, setProviderToken] = useState<Token>(validTokens[0]);
+  const [operatorSortMetric, setOperatorSortMetric] = useState<
+    "self_staked_pct" | "total_staked" | "commission"
+  >("self_staked_pct");
+  const [selectedOperatorToken, setSelectedOperatorToken] =
+    useState<Token | null>(null);
 
   // Sync wallet state
   useSyncAllWalletsToStore();
@@ -156,11 +164,21 @@ export default function DashboardPage() {
     isLoading: pricesLoading,
     error: pricesError,
   } = useTokenPrices([...validTokens, ...validRewardTokens]);
+  // Use selected token or default to first token
+  // Operators can have positions for any valid token (EVM, BTC, XRP, etc.)
+  const dashboardToken = selectedOperatorToken || validTokens[0];
+
   const {
     data: operators,
     isLoading: operatorsLoading,
     error: operatorsError,
-  } = useOperators();
+  } = useOperators({ token: dashboardToken });
+  const {
+    data: networkStats,
+    loading: networkStatsLoading,
+    error: networkStatsError,
+  } = useBootstrapNetworkStatistics();
+  const { bootstrapStatus } = useBootstrapStatus();
 
   // Extract data from Maps for easier access
   const positions = positionsData;
@@ -245,6 +263,63 @@ export default function DashboardPage() {
     setExpandedReward(expandedReward === tokenSymbol ? null : tokenSymbol);
   };
 
+  // Sort operators based on selected metric
+  const sortedOperators = useMemo(() => {
+    if (!operators) return [];
+
+    const operatorsArray = [...operators];
+
+    switch (operatorSortMetric) {
+      case "self_staked_pct":
+        return operatorsArray.sort((a, b) => {
+          const aTotal = a.position?.total_amount || 0;
+          const aSelf = a.position?.self_amount || 0;
+          const bTotal = b.position?.total_amount || 0;
+          const bSelf = b.position?.self_amount || 0;
+
+          const aPct = aTotal > 0 ? (aSelf / aTotal) * 100 : 0;
+          const bPct = bTotal > 0 ? (bSelf / bTotal) * 100 : 0;
+
+          return bPct - aPct; // Descending
+        });
+
+      case "total_staked":
+        return operatorsArray.sort((a, b) => {
+          const aTotal = a.position?.total_amount || 0;
+          const bTotal = b.position?.total_amount || 0;
+          return bTotal - aTotal; // Descending
+        });
+
+      case "commission":
+        return operatorsArray.sort((a, b) => {
+          const aRate = Number(a.commission.commission_rates.rate);
+          const bRate = Number(b.commission.commission_rates.rate);
+          return aRate - bRate; // Ascending (lower commission is better)
+        });
+
+      default:
+        return operatorsArray;
+    }
+  }, [operators, operatorSortMetric]);
+
+  // Format token amount helper
+  const formatTokenAmount = (amount: number, decimals: number = 18): string => {
+    try {
+      const num = amount / Math.pow(10, decimals);
+      if (num >= 1000000) {
+        return `${(num / 1000000).toFixed(2)}M`;
+      } else if (num >= 1000) {
+        return `${(num / 1000).toFixed(2)}K`;
+      } else if (num >= 1) {
+        return num.toFixed(2);
+      } else {
+        return num.toFixed(4);
+      }
+    } catch {
+      return amount.toLocaleString();
+    }
+  };
+
   // Don't render anything until mounted
   if (!mounted) {
     return (
@@ -258,9 +333,17 @@ export default function DashboardPage() {
   }
 
   const isLoading =
-    positionsLoading || rewardsLoading || pricesLoading || operatorsLoading;
+    positionsLoading ||
+    rewardsLoading ||
+    pricesLoading ||
+    operatorsLoading ||
+    networkStatsLoading;
   const hasError =
-    positionsError || rewardsError || pricesError || operatorsError;
+    positionsError ||
+    rewardsError ||
+    pricesError ||
+    operatorsError ||
+    networkStatsError;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -305,43 +388,22 @@ export default function DashboardPage() {
               <p className="text-[#9999aa] text-sm mt-2 mb-4">
                 Please try refreshing the page
               </p>
-              <Button
+              <ActionButton
                 onClick={() => window.location.reload()}
-                className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+                variant="primary"
+                size="md"
               >
                 Refresh Dashboard
-              </Button>
+              </ActionButton>
             </div>
           )}
 
           {!isLoading && !hasError && (
             <>
-              {/* Quick Actions */}
-              <div className="mb-6">
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
-                    onClick={() => (window.location.href = "/staking")}
-                  >
-                    Start Staking
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-[#00e5ff] text-[#00e5ff] hover:bg-[#00e5ff] hover:text-black"
-                  >
-                    View All Operators
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-[#00e5ff] text-[#00e5ff] hover:bg-[#00e5ff] hover:text-black"
-                  >
-                    Claim All Rewards
-                  </Button>
-                </div>
-              </div>
-
               {/* Summary Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+              <div
+                className={`grid ${bootstrapStatus?.isBootstrapped ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"} gap-6 mb-10`}
+              >
                 <Card className="bg-[#13131a] border-[#222233] text-white">
                   <CardHeader>
                     <CardTitle className="text-[#9999aa] text-sm font-normal">
@@ -495,135 +557,138 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-[#13131a] border-[#222233] text-white">
-                  <CardHeader>
-                    <CardTitle className="text-[#9999aa] text-sm font-normal">
-                      Total Rewards Earned
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-baseline">
-                      <span className="text-3xl font-bold">
-                        {formatCurrency(totalRewardsValue)}
-                      </span>
-                      <span className="ml-2 text-green-400 text-sm">
-                        +3.8% <TrendingUp size={14} className="inline" />
-                      </span>
-                    </div>
-                    <div className="mt-6">
-                      {totalRewardsValue > 0 ? (
-                        <div className="h-40 flex justify-center">
-                          <PieChart
-                            data={rewardsWithValues
-                              .map((reward, idx) => ({
-                                name: reward.token.symbol,
-                                value: reward.totalValue,
-                                color: [
-                                  "#00e5ff",
-                                  "#e631dc",
-                                  "#f7931a",
-                                  "#ff6b6b",
-                                  "#4ecdc4",
-                                ][idx % 5],
-                                token: reward.token,
-                              }))
-                              .sort((a, b) => b.value - a.value) // Sort by value descending
-                              .map((item, idx) => ({
-                                ...item,
-                                color: [
-                                  "#00e5ff",
-                                  "#e631dc",
-                                  "#f7931a",
-                                  "#ff6b6b",
-                                  "#4ecdc4",
-                                ][idx % 5],
-                              }))}
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-40 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="w-24 h-24 border-2 border-[#333344] rounded-full flex items-center justify-center mx-auto mb-3">
-                              <span className="text-[#9999aa] text-sm">
-                                No rewards
-                              </span>
-                            </div>
-                            <p className="text-sm text-[#9999aa]">
-                              No rewards earned yet
-                            </p>
+                {bootstrapStatus?.isBootstrapped && (
+                  <Card className="bg-[#13131a] border-[#222233] text-white">
+                    <CardHeader>
+                      <CardTitle className="text-[#9999aa] text-sm font-normal">
+                        Total Rewards Earned
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-baseline">
+                        <span className="text-3xl font-bold">
+                          {formatCurrency(totalRewardsValue)}
+                        </span>
+                        <span className="ml-2 text-green-400 text-sm">
+                          +3.8% <TrendingUp size={14} className="inline" />
+                        </span>
+                      </div>
+                      <div className="mt-6">
+                        {totalRewardsValue > 0 ? (
+                          <div className="h-40 flex justify-center">
+                            <PieChart
+                              data={rewardsWithValues
+                                .map((reward, idx) => ({
+                                  name: reward.token.symbol,
+                                  value: reward.totalValue,
+                                  color: [
+                                    "#00e5ff",
+                                    "#e631dc",
+                                    "#f7931a",
+                                    "#ff6b6b",
+                                    "#4ecdc4",
+                                  ][idx % 5],
+                                  token: reward.token,
+                                }))
+                                .sort((a, b) => b.value - a.value) // Sort by value descending
+                                .map((item, idx) => ({
+                                  ...item,
+                                  color: [
+                                    "#00e5ff",
+                                    "#e631dc",
+                                    "#f7931a",
+                                    "#ff6b6b",
+                                    "#4ecdc4",
+                                  ][idx % 5],
+                                }))}
+                            />
                           </div>
-                        </div>
-                      )}
-                      <div className="mt-4 space-y-2">
-                        {rewardsWithValues
-                          .map((reward, idx) => {
-                            const percentage =
-                              totalRewardsValue > 0
-                                ? (reward.totalValue / totalRewardsValue) * 100
-                                : 0;
-
-                            return {
-                              token: reward.token,
-                              totalValue: reward.totalValue,
-                              percentage,
-                              color: [
-                                "#00e5ff",
-                                "#e631dc",
-                                "#f7931a",
-                                "#ff6b6b",
-                                "#4ecdc4",
-                              ][idx % 5],
-                            };
-                          })
-                          .sort((a, b) => b.totalValue - a.totalValue) // Sort by value descending
-                          .map((item, idx) => (
-                            <div
-                              key={item.token.symbol}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex items-center">
-                                <div
-                                  className="w-3 h-3 rounded-full mr-2"
-                                  style={{
-                                    backgroundColor: [
-                                      "#00e5ff",
-                                      "#e631dc",
-                                      "#f7931a",
-                                      "#ff6b6b",
-                                      "#4ecdc4",
-                                    ][idx % 5],
-                                  }}
-                                ></div>
-                                <TokenIcon
-                                  src={item.token.iconUrl}
-                                  alt={item.token.symbol}
-                                  size={16}
-                                />
-                                <span className="ml-2 text-sm">
-                                  {item.token.symbol}
+                        ) : (
+                          <div className="h-40 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="w-24 h-24 border-2 border-[#333344] rounded-full flex items-center justify-center mx-auto mb-3">
+                                <span className="text-[#9999aa] text-sm">
+                                  No rewards
                                 </span>
                               </div>
-                              <div className="text-right">
-                                <p className="text-sm font-medium text-green-400">
-                                  {formatCurrency(item.totalValue)}
-                                </p>
-                                <p className="text-xs text-[#9999aa]">
-                                  {item.percentage.toFixed(1)}%
-                                </p>
-                              </div>
+                              <p className="text-sm text-[#9999aa]">
+                                No rewards earned yet
+                              </p>
                             </div>
-                          ))}
-                        {rewardsWithValues.length === 0 && (
-                          <div className="text-center py-2">
-                            <p className="text-sm text-[#9999aa]">
-                              Start staking to earn rewards
-                            </p>
                           </div>
                         )}
+                        <div className="mt-4 space-y-2">
+                          {rewardsWithValues
+                            .map((reward, idx) => {
+                              const percentage =
+                                totalRewardsValue > 0
+                                  ? (reward.totalValue / totalRewardsValue) *
+                                    100
+                                  : 0;
+
+                              return {
+                                token: reward.token,
+                                totalValue: reward.totalValue,
+                                percentage,
+                                color: [
+                                  "#00e5ff",
+                                  "#e631dc",
+                                  "#f7931a",
+                                  "#ff6b6b",
+                                  "#4ecdc4",
+                                ][idx % 5],
+                              };
+                            })
+                            .sort((a, b) => b.totalValue - a.totalValue) // Sort by value descending
+                            .map((item, idx) => (
+                              <div
+                                key={item.token.symbol}
+                                className="flex items-center justify-between"
+                              >
+                                <div className="flex items-center">
+                                  <div
+                                    className="w-3 h-3 rounded-full mr-2"
+                                    style={{
+                                      backgroundColor: [
+                                        "#00e5ff",
+                                        "#e631dc",
+                                        "#f7931a",
+                                        "#ff6b6b",
+                                        "#4ecdc4",
+                                      ][idx % 5],
+                                    }}
+                                  ></div>
+                                  <TokenIcon
+                                    src={item.token.iconUrl}
+                                    alt={item.token.symbol}
+                                    size={16}
+                                  />
+                                  <span className="ml-2 text-sm">
+                                    {item.token.symbol}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-medium text-green-400">
+                                    {formatCurrency(item.totalValue)}
+                                  </p>
+                                  <p className="text-xs text-[#9999aa]">
+                                    {item.percentage.toFixed(1)}%
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          {rewardsWithValues.length === 0 && (
+                            <div className="text-center py-2">
+                              <p className="text-sm text-[#9999aa]">
+                                Start staking to earn rewards
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               {/* Positions Section */}
@@ -669,21 +734,27 @@ export default function DashboardPage() {
                                 view positions
                               </p>
                             </div>
-                            <Button
+                            <ActionButton
                               onClick={() => openWalletConnectionModal(token)}
-                              className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black flex items-center gap-2"
+                              variant="primary"
+                              size="md"
+                              className="flex items-center gap-2 min-w-[140px]"
                             >
                               <Wallet size={16} />
                               Connect
-                            </Button>
+                            </ActionButton>
                           </div>
                         </div>
                       </Card>
                     );
                   }
 
-                  // If wallet is connected but no position data, show empty state
-                  if (!positionData?.data) {
+                  // If wallet is connected but no position data or zero position, show empty state with Start Staking button
+                  const position = positionData?.data;
+                  const hasNoPosition =
+                    !position || Number(position.totalDeposited) === 0;
+
+                  if (hasNoPosition) {
                     return (
                       <Card
                         key={token.symbol}
@@ -712,14 +783,24 @@ export default function DashboardPage() {
                                 No staking positions found
                               </p>
                             </div>
-                            <Button
-                              onClick={() =>
-                                (window.location.href = "/staking")
-                              }
-                              className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black"
+                            <ActionButton
+                              onClick={() => {
+                                localStorage.setItem(
+                                  "selectedStakingToken",
+                                  JSON.stringify(token),
+                                );
+                                localStorage.setItem(
+                                  "selectedStakingTab",
+                                  "stake",
+                                );
+                                router.push("/staking");
+                              }}
+                              variant="primary"
+                              size="md"
+                              className="min-w-[140px]"
                             >
                               Start Staking
-                            </Button>
+                            </ActionButton>
                           </div>
                         </div>
                       </Card>
@@ -727,10 +808,6 @@ export default function DashboardPage() {
                   }
 
                   // If wallet is connected and has position data, show normal position card
-                  const position = positionData.data;
-                  if (!position) {
-                    return null; // Skip rendering if no position data
-                  }
 
                   // At this point, position is guaranteed to be defined
                   const safePosition = position as StakingPositionPerToken;
@@ -865,179 +942,326 @@ export default function DashboardPage() {
               </div>
 
               {/* Rewards Section */}
-              <h2 className="text-xl font-bold text-white mb-6">
-                Your Rewards
-              </h2>
-              <div className="space-y-4 mb-10">
-                {rewardsWithValues
-                  .sort((a, b) => b.totalValue - a.totalValue) // Sort by total value descending
-                  .map((rewardPosition) => (
-                    <div key={rewardPosition.token.symbol}>
-                      <Card className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
-                        <div
-                          className="flex items-center justify-between p-6 cursor-pointer"
-                          onClick={() =>
-                            toggleRewardExpand(rewardPosition.token.symbol)
-                          }
-                        >
-                          <div className="flex items-center flex-1">
-                            <TokenIcon
-                              src={rewardPosition.token.iconUrl}
-                              alt={rewardPosition.token.symbol}
-                              size={36}
-                            />
-                            <div className="ml-4">
-                              <h3 className="text-lg font-medium">
-                                {rewardPosition.token.symbol}
-                              </h3>
-                              <p className="text-sm text-[#9999aa]">
-                                {rewardPosition.token.name}
-                              </p>
-                            </div>
-                          </div>
+              {bootstrapStatus?.isBootstrapped && (
+                <>
+                  <h2 className="text-xl font-bold text-white mb-6">
+                    Your Rewards
+                  </h2>
+                  <div className="space-y-4 mb-10">
+                    {rewardsWithValues
+                      .sort((a, b) => b.totalValue - a.totalValue) // Sort by total value descending
+                      .map((rewardPosition) => (
+                        <div key={rewardPosition.token.symbol}>
+                          <Card className="bg-[#13131a] border-[#222233] text-white overflow-hidden">
+                            <div
+                              className="flex items-center justify-between p-6 cursor-pointer"
+                              onClick={() =>
+                                toggleRewardExpand(rewardPosition.token.symbol)
+                              }
+                            >
+                              <div className="flex items-center flex-1">
+                                <TokenIcon
+                                  src={rewardPosition.token.iconUrl}
+                                  alt={rewardPosition.token.symbol}
+                                  size={36}
+                                />
+                                <div className="ml-4">
+                                  <h3 className="text-lg font-medium">
+                                    {rewardPosition.token.symbol}
+                                  </h3>
+                                  <p className="text-sm text-[#9999aa]">
+                                    {rewardPosition.token.name}
+                                  </p>
+                                </div>
+                              </div>
 
-                          <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
-                            <div className="text-center min-w-[120px]">
-                              <p className="text-sm text-[#9999aa]">
-                                Total Value
-                              </p>
-                              <p className="text-base font-medium text-green-400">
-                                {formatCurrency(rewardPosition.totalValue)}
-                              </p>
-                              <p className="text-xs text-[#9999aa]">
-                                {Number(rewardPosition.totalAmount) /
-                                  Math.pow(
-                                    10,
-                                    rewardPosition.token.decimals,
-                                  )}{" "}
-                                {rewardPosition.token.symbol}
-                              </p>
-                            </div>
+                              <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
+                                <div className="text-center min-w-[120px]">
+                                  <p className="text-sm text-[#9999aa]">
+                                    Total Value
+                                  </p>
+                                  <p className="text-base font-medium text-green-400">
+                                    {formatCurrency(rewardPosition.totalValue)}
+                                  </p>
+                                  <p className="text-xs text-[#9999aa]">
+                                    {Number(rewardPosition.totalAmount) /
+                                      Math.pow(
+                                        10,
+                                        rewardPosition.token.decimals,
+                                      )}{" "}
+                                    {rewardPosition.token.symbol}
+                                  </p>
+                                </div>
 
-                            <div className="text-center min-w-[120px]">
-                              <p className="text-sm text-[#9999aa]">Sources</p>
-                              <p className="text-base font-medium text-[#00e5ff]">
-                                {rewardPosition.sources.length}
-                              </p>
-                              <p className="text-xs text-[#9999aa]">
-                                AVS services
-                              </p>
-                            </div>
+                                <div className="text-center min-w-[120px]">
+                                  <p className="text-sm text-[#9999aa]">
+                                    Sources
+                                  </p>
+                                  <p className="text-base font-medium text-[#00e5ff]">
+                                    {rewardPosition.sources.length}
+                                  </p>
+                                  <p className="text-xs text-[#9999aa]">
+                                    AVS services
+                                  </p>
+                                </div>
 
-                            <div className="text-center min-w-[120px]">
-                              <p className="text-sm text-[#9999aa]">Avg APY</p>
-                              <p className="text-base font-medium text-[#00e5ff]">
-                                {formatPercentage(
-                                  rewardPosition.sources.reduce(
-                                    (
-                                      sum: number,
-                                      s: {
-                                        avs: AVS;
-                                        amount: bigint;
-                                        value: number;
-                                      },
-                                    ) => sum + s.avs.apy,
-                                    0,
-                                  ) / rewardPosition.sources.length,
+                                <div className="text-center min-w-[120px]">
+                                  <p className="text-sm text-[#9999aa]">
+                                    Avg APY
+                                  </p>
+                                  <p className="text-base font-medium text-[#00e5ff]">
+                                    {formatPercentage(
+                                      rewardPosition.sources.reduce(
+                                        (
+                                          sum: number,
+                                          s: {
+                                            avs: AVS;
+                                            amount: bigint;
+                                            value: number;
+                                          },
+                                        ) => sum + s.avs.apy,
+                                        0,
+                                      ) / rewardPosition.sources.length,
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="md:hidden flex flex-col items-end flex-1">
+                                <p className="font-medium text-green-400">
+                                  {formatCurrency(rewardPosition.totalValue)}
+                                </p>
+                                <p className="text-xs text-[#9999aa]">
+                                  {Number(rewardPosition.totalAmount) /
+                                    Math.pow(
+                                      10,
+                                      rewardPosition.token.decimals,
+                                    )}{" "}
+                                  {rewardPosition.token.symbol}
+                                </p>
+                              </div>
+
+                              <button className="ml-4 text-[#9999aa] flex-shrink-0">
+                                {expandedReward ===
+                                rewardPosition.token.symbol ? (
+                                  <ChevronDown size={20} />
+                                ) : (
+                                  <ChevronRight size={20} />
                                 )}
-                              </p>
+                              </button>
                             </div>
-                          </div>
 
-                          <div className="md:hidden flex flex-col items-end flex-1">
-                            <p className="font-medium text-green-400">
-                              {formatCurrency(rewardPosition.totalValue)}
-                            </p>
-                            <p className="text-xs text-[#9999aa]">
-                              {Number(rewardPosition.totalAmount) /
-                                Math.pow(
-                                  10,
-                                  rewardPosition.token.decimals,
-                                )}{" "}
-                              {rewardPosition.token.symbol}
-                            </p>
-                          </div>
-
-                          <button className="ml-4 text-[#9999aa] flex-shrink-0">
-                            {expandedReward === rewardPosition.token.symbol ? (
-                              <ChevronDown size={20} />
-                            ) : (
-                              <ChevronRight size={20} />
+                            {/* Expanded View */}
+                            {expandedReward === rewardPosition.token.symbol && (
+                              <ExpandedRewardView
+                                rewardPosition={rewardPosition}
+                              />
                             )}
-                          </button>
+                          </Card>
                         </div>
+                      ))}
 
-                        {/* Expanded View */}
-                        {expandedReward === rewardPosition.token.symbol && (
-                          <ExpandedRewardView rewardPosition={rewardPosition} />
-                        )}
+                    {rewardsWithValues.length === 0 && (
+                      <Card className="bg-[#13131a] border-[#222233] text-white">
+                        <div className="p-8 text-center">
+                          <div className="text-[#9999aa] mb-2">
+                            <AlertCircle size={48} className="mx-auto mb-4" />
+                          </div>
+                          <h3 className="text-lg font-medium mb-2">
+                            No Rewards Available
+                          </h3>
+                          <p className="text-sm text-[#9999aa]">
+                            Start staking to earn rewards from AVS services
+                          </p>
+                        </div>
                       </Card>
-                    </div>
-                  ))}
-
-                {rewardsWithValues.length === 0 && (
-                  <Card className="bg-[#13131a] border-[#222233] text-white">
-                    <div className="p-8 text-center">
-                      <div className="text-[#9999aa] mb-2">
-                        <AlertCircle size={48} className="mx-auto mb-4" />
-                      </div>
-                      <h3 className="text-lg font-medium mb-2">
-                        No Rewards Available
-                      </h3>
-                      <p className="text-sm text-[#9999aa]">
-                        Start staking to earn rewards from AVS services
-                      </p>
-                    </div>
-                  </Card>
-                )}
-              </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Top Operators Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                 <Card className="bg-[#13131a] border-[#222233] text-white">
-                  <CardHeader className="flex flex-row items-center justify-between">
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle>Top Operators</CardTitle>
-                    <Button variant="link" className="text-[#00e5ff]">
-                      View All
-                    </Button>
+                    {/* Token Selector */}
+                    <Select
+                      value={dashboardToken?.symbol || validTokens[0]?.symbol}
+                      onValueChange={(symbol: string) => {
+                        const token = validTokens.find(
+                          (t) => t.symbol === symbol,
+                        );
+                        setSelectedOperatorToken(token || null);
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px] bg-[#1a1a24] border-[#333344] text-white text-sm h-9">
+                        <SelectValue placeholder="Select token" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#21212f] border-[#333344] text-white">
+                        {validTokens.map((token) => (
+                          <SelectItem key={token.symbol} value={token.symbol}>
+                            <div className="flex items-center gap-2">
+                              <TokenIcon
+                                src={token.iconUrl}
+                                alt={token.symbol}
+                                size={16}
+                              />
+                              <span>{token.symbol}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {operators?.slice(0, 5).map((operator, idx) => (
-                        <div
-                          key={operator.address}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 bg-[#1a1a24] rounded-full flex items-center justify-center mr-3">
-                              <span className="text-sm font-medium">
-                                {idx + 1}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-medium">
-                                {operator.operator_meta_info ||
-                                  operator.address.slice(0, 8)}
-                              </p>
-                              <p className="text-xs text-[#9999aa]">
-                                Commission:{" "}
-                                {formatPercentage(
-                                  Number(
-                                    operator.commission.commission_rates.rate,
-                                  ) * 100,
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[#00e5ff] font-medium">
-                              {formatPercentage(Number(operator.apr))}
-                            </p>
-                            <p className="text-xs text-[#9999aa]">APR</p>
-                          </div>
+                    {/* Bootstrap Phase Notice & Sort Selector */}
+                    {bootstrapStatus?.isBootstrapped === false && (
+                      <div className="bg-[#1a1a24] border border-[#444455] rounded-lg p-3 mb-3 flex items-start gap-2">
+                        <Info
+                          size={14}
+                          className="text-[#00e5ff] mt-0.5 flex-shrink-0"
+                        />
+                        <div className="text-xs text-[#9999aa] flex-1">
+                          <span className="font-medium text-white">
+                            Bootstrap Phase:
+                          </span>{" "}
+                          APR data unavailable. Showing {dashboardToken?.symbol}{" "}
+                          operators by{" "}
+                          {operatorSortMetric === "self_staked_pct"
+                            ? "self-staked %"
+                            : operatorSortMetric === "total_staked"
+                              ? "total staked"
+                              : "commission"}
+                          .
                         </div>
-                      ))}
-                      {(!operators || operators.length === 0) && (
+                      </div>
+                    )}
+
+                    {/* Sort Metric Selector */}
+                    <div className="mb-4">
+                      <Select
+                        value={operatorSortMetric}
+                        onValueChange={(
+                          value:
+                            | "self_staked_pct"
+                            | "total_staked"
+                            | "commission",
+                        ) => setOperatorSortMetric(value)}
+                      >
+                        <SelectTrigger className="w-full bg-[#1a1a24] border-[#333344] text-white text-sm">
+                          <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#21212f] border-[#333344] text-white">
+                          <SelectItem value="self_staked_pct">
+                            Sort by Self Staked %
+                          </SelectItem>
+                          <SelectItem value="total_staked">
+                            Sort by Total Staked
+                          </SelectItem>
+                          <SelectItem value="commission">
+                            Sort by Commission
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-4">
+                      {sortedOperators?.slice(0, 5).map((operator, idx) => {
+                        const totalAmount =
+                          operator.position?.total_amount || 0;
+                        const selfAmount = operator.position?.self_amount || 0;
+                        const selfStakedPct =
+                          totalAmount > 0
+                            ? (selfAmount / totalAmount) * 100
+                            : 0;
+
+                        return (
+                          <div
+                            key={operator.address}
+                            className="flex items-center justify-between"
+                          >
+                            <div className="flex items-center flex-1">
+                              <div className="w-8 h-8 bg-[#1a1a24] rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                                <span className="text-sm font-medium">
+                                  {idx + 1}
+                                </span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">
+                                  {operator.operator_meta_info ||
+                                    operator.address.slice(0, 8)}
+                                </p>
+                                <p className="text-xs text-[#9999aa]">
+                                  Commission:{" "}
+                                  {formatPercentage(
+                                    Number(
+                                      operator.commission.commission_rates.rate,
+                                    ) * 100,
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right ml-3 flex-shrink-0">
+                              {bootstrapStatus?.isBootstrapped ? (
+                                <>
+                                  <p className="text-[#00e5ff] font-medium">
+                                    {formatPercentage(Number(operator.apr))}
+                                  </p>
+                                  <p className="text-xs text-[#9999aa]">APR</p>
+                                </>
+                              ) : (
+                                <>
+                                  {operatorSortMetric === "self_staked_pct" && (
+                                    <>
+                                      <p className="text-[#00e5ff] font-medium">
+                                        {selfStakedPct > 0
+                                          ? `${selfStakedPct.toFixed(1)}%`
+                                          : "N/A"}
+                                      </p>
+                                      <p className="text-xs text-[#9999aa]">
+                                        Self Staked
+                                      </p>
+                                    </>
+                                  )}
+                                  {operatorSortMetric === "total_staked" &&
+                                    dashboardToken && (
+                                      <>
+                                        <p className="text-[#00e5ff] font-medium">
+                                          {totalAmount > 0
+                                            ? formatTokenAmount(
+                                                totalAmount,
+                                                dashboardToken.decimals,
+                                              )
+                                            : "N/A"}
+                                        </p>
+                                        <p className="text-xs text-[#9999aa]">
+                                          {dashboardToken.symbol}
+                                        </p>
+                                      </>
+                                    )}
+                                  {operatorSortMetric === "commission" && (
+                                    <>
+                                      <p className="text-[#00e5ff] font-medium">
+                                        {formatPercentage(
+                                          Number(
+                                            operator.commission.commission_rates
+                                              .rate,
+                                          ) * 100,
+                                        )}
+                                      </p>
+                                      <p className="text-xs text-[#9999aa]">
+                                        Commission
+                                      </p>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(!sortedOperators || sortedOperators.length === 0) && (
                         <div className="text-center py-4">
                           <p className="text-sm text-[#9999aa]">
                             No operators available
@@ -1059,7 +1283,7 @@ export default function DashboardPage() {
                           Total Value Locked
                         </p>
                         <p className="text-xl font-medium">
-                          {formatCurrency(mockNetworkStats.totalTvl)}
+                          {formatCurrency(networkStats.totalTvl)}
                         </p>
                       </div>
                       <div>
@@ -1067,25 +1291,64 @@ export default function DashboardPage() {
                           Active Stakers
                         </p>
                         <p className="text-xl font-medium">
-                          {mockNetworkStats.activeStakers.toLocaleString()}
+                          {networkStats.activeStakers.toLocaleString()}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[#9999aa] text-sm mb-1">
-                          Average APY
-                        </p>
-                        <p className="text-xl font-medium text-[#00e5ff]">
-                          {formatPercentage(mockNetworkStats.averageApy)}
-                        </p>
-                      </div>
+                      {bootstrapStatus?.isBootstrapped ? (
+                        <div>
+                          <p className="text-[#9999aa] text-sm mb-1">
+                            Average APY
+                          </p>
+                          <p className="text-xl font-medium text-[#00e5ff]">
+                            {formatPercentage(mockAverageApy)}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[#9999aa] text-sm mb-1">
+                            Total Operators
+                          </p>
+                          <p className="text-xl font-medium text-[#00e5ff]">
+                            {operators?.length || 0}
+                          </p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-[#9999aa] text-sm mb-1">
                           Top Token by TVL
                         </p>
-                        <div className="flex items-center">
-                          <TokenIcon src="/eth-logo.svg" alt="ETH" size={20} />
-                          <p className="text-xl font-medium ml-2">ETH</p>
-                        </div>
+                        {(() => {
+                          // Find top token by total_usd_value
+                          const topToken = networkStats.tokens?.reduce(
+                            (max, token) =>
+                              token.total_usd_value >
+                              (max?.total_usd_value || 0)
+                                ? token
+                                : max,
+                          );
+
+                          // Find matching token from validTokens for icon
+                          const matchingToken = topToken
+                            ? validTokens.find(
+                                (t) =>
+                                  t.symbol.toLowerCase() ===
+                                  topToken.symbol.toLowerCase(),
+                              )
+                            : null;
+
+                          return (
+                            <div className="flex items-center">
+                              <TokenIcon
+                                src={matchingToken?.iconUrl || "/eth-logo.svg"}
+                                alt={topToken?.symbol || "ETH"}
+                                size={20}
+                              />
+                              <p className="text-xl font-medium ml-2">
+                                {topToken?.symbol || "ETH"}
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </CardContent>
@@ -1110,6 +1373,7 @@ export default function DashboardPage() {
               setWalletModalToken(null);
               setProviderToken(validTokens[0]); // Reset to default token
             }}
+            onReopen={() => setIsWalletModalOpen(true)}
           />
         )}
       </WalletConnectorProvider>

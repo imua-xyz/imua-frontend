@@ -52,8 +52,8 @@ export interface XrplTxOptions extends BaseTxOptions {
 
 export interface StakerBalance {
   clientChainID: number;
-  stakerAddress: `0x${string}`;
-  tokenID: `0x${string}`;
+  stakerAddress: string;
+  tokenID: string;
   totalBalance: bigint;
   claimable?: bigint; // the balance that could be claimed from imuachain(but might not be withdrawable)
   withdrawable: bigint; // the balance that could be withdrawn to user wallet on client chain
@@ -64,8 +64,8 @@ export interface StakerBalance {
 
 export interface StakerBalanceResponseFromPrecompile {
   clientChainID: number;
-  stakerAddress: `0x${string}`;
-  tokenID: `0x${string}`;
+  stakerAddress: string;
+  tokenID: string;
   balance: bigint;
   withdrawable: bigint; // the balance that could be claimed from imuachain
   delegated: bigint;
@@ -73,13 +73,17 @@ export interface StakerBalanceResponseFromPrecompile {
   totalDeposited: bigint;
 }
 
-export interface WalletBalance {
-  customClientChainID: number;
+export interface TokenBalance {
+  token: {
+    customClientChainID: number;
+    tokenID: string;
+  };
   stakerAddress: string;
-  tokenID?: string;
-  value: bigint;
-  decimals: number;
-  symbol: string;
+  balance: {
+    value: bigint;
+    decimals: number;
+    symbol: string;
+  };
 }
 
 export interface GemWalletNetwork {

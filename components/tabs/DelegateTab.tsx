@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -48,11 +49,11 @@ export function DelegateTab({
   // This considers both bootstrap phase and token-specific requirements
   const isNativeChainOperation =
     !bootstrapStatus?.isBootstrapped ||
-    !!token.connector?.requireExtraConnectToImua;
+    !!token.network.connector?.requireExtraConnectToImua;
 
   // Balance and amount state
-  const maxAmount = stakingService.stakerBalance?.claimable || BigInt(0);
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const maxAmount = stakingService.stakerBalance.claimable || BigInt(0);
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -408,8 +409,10 @@ export function DelegateTab({
           </div>
 
           {/* Continue button - now only requires valid amount */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={
               !!amountError ||
               !amount ||
@@ -419,7 +422,7 @@ export function DelegateTab({
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -510,8 +513,12 @@ export function DelegateTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !selectedOperator ||
@@ -521,7 +528,7 @@ export function DelegateTab({
               onClick={handleOperation}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}
@@ -533,6 +540,7 @@ export function DelegateTab({
         onSelect={handleOperatorSelect}
         operators={operators || []}
         selectedOperator={selectedOperator}
+        token={token}
       />
 
       {/* Operation Progress Modal */}

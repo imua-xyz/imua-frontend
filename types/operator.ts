@@ -15,6 +15,12 @@ export interface OperatorInfo {
     earning_info_list: any[]; // Update this type if needed
   };
   apr: number;
+  // Optional position data from bootstrap_operator_assets
+  position?: {
+    total_amount: number;
+    self_amount: number;
+    other_amount: number;
+  };
 }
 
 export interface OptInAVSPerOperator {

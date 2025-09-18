@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,9 @@ import {
 } from "@/components/ui/select";
 import { Search, SortDesc, SortAsc, X, Check, Info } from "lucide-react";
 import { OperatorInfo } from "@/types/operator";
+import { Token } from "@/types/tokens";
+import { formatUnits } from "viem";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +27,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-type SortOption = "apr" | "commission" | "name";
+type SortOption =
+  | "commission"
+  | "name"
+  | "total_delegated"
+  | "self_delegated"
+  | "self_delegated_pct";
 type SortDirection = "asc" | "desc";
 
 interface OperatorSelectionModalProps {
@@ -32,6 +41,7 @@ interface OperatorSelectionModalProps {
   onSelect: (operator: OperatorInfo) => void;
   operators: OperatorInfo[];
   selectedOperator?: OperatorInfo | null;
+  token?: Token; // Optional token for formatting amounts
 }
 
 export function OperatorSelectionModal({
@@ -40,10 +50,15 @@ export function OperatorSelectionModal({
   onSelect,
   operators,
   selectedOperator,
+  token,
 }: OperatorSelectionModalProps) {
+  // Bootstrap status
+  const { bootstrapStatus } = useBootstrapStatus();
+  const isBootstrapPhase = !bootstrapStatus?.isBootstrapped;
+
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("apr");
+  const [sortBy, setSortBy] = useState<SortOption>("self_delegated_pct");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Parse operator name from meta info
@@ -60,6 +75,26 @@ export function OperatorSelectionModal({
     return `${(parseFloat(rate) * 100).toFixed(2)}%`;
   };
 
+  // Format token amount with decimals
+  const formatTokenAmount = (amount: number, decimals: number = 18): string => {
+    try {
+      const formatted = formatUnits(BigInt(amount), decimals);
+      // Parse and format to show reasonable precision
+      const num = parseFloat(formatted);
+      if (num >= 1000000) {
+        return `${(num / 1000000).toFixed(2)}M`;
+      } else if (num >= 1000) {
+        return `${(num / 1000).toFixed(2)}K`;
+      } else if (num >= 1) {
+        return num.toFixed(2);
+      } else {
+        return num.toFixed(4);
+      }
+    } catch {
+      return amount.toLocaleString();
+    }
+  };
+
   // Toggle sort direction
   const toggleSortDirection = () => {
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -71,8 +106,14 @@ export function OperatorSelectionModal({
       toggleSortDirection();
     } else {
       setSortBy(value);
-      // Default to descending for APR, ascending for others
-      setSortDirection(value === "apr" ? "desc" : "asc");
+      // Default to descending for delegated amounts and percentages, ascending for commission and name
+      setSortDirection(
+        value === "total_delegated" ||
+          value === "self_delegated" ||
+          value === "self_delegated_pct"
+          ? "desc"
+          : "asc",
+      );
     }
   };
 
@@ -90,9 +131,6 @@ export function OperatorSelectionModal({
         let comparison = 0;
 
         switch (sortBy) {
-          case "apr":
-            comparison = a.apr - b.apr;
-            break;
           case "commission":
             comparison =
               parseFloat(a.commission.commission_rates.rate) -
@@ -100,6 +138,28 @@ export function OperatorSelectionModal({
             break;
           case "name":
             comparison = getOperatorName(a).localeCompare(getOperatorName(b));
+            break;
+          case "total_delegated":
+            // Sort by total delegated amount
+            const totalA = a.position?.total_amount || 0;
+            const totalB = b.position?.total_amount || 0;
+            comparison = totalA - totalB;
+            break;
+          case "self_delegated":
+            // Sort by self delegated amount
+            const selfA = a.position?.self_amount || 0;
+            const selfB = b.position?.self_amount || 0;
+            comparison = selfA - selfB;
+            break;
+          case "self_delegated_pct":
+            // Sort by self delegated percentage
+            const totalAmtA = a.position?.total_amount || 0;
+            const totalAmtB = b.position?.total_amount || 0;
+            const selfAmtA = a.position?.self_amount || 0;
+            const selfAmtB = b.position?.self_amount || 0;
+            const pctA = totalAmtA > 0 ? (selfAmtA / totalAmtA) * 100 : 0;
+            const pctB = totalAmtB > 0 ? (selfAmtB / totalAmtB) * 100 : 0;
+            comparison = pctA - pctB;
             break;
         }
 
@@ -144,10 +204,18 @@ export function OperatorSelectionModal({
           <div className="flex gap-2">
             <Select value={sortBy} onValueChange={handleSortChange}>
               <SelectTrigger className="w-[180px] bg-[#15151c] border-[#333344] text-white">
-                <SelectValue placeholder="Sort by" />
+                <SelectValue placeholder="Sort by Self Staked %" />
               </SelectTrigger>
               <SelectContent className="bg-[#21212f] border-[#333344] text-white">
-                <SelectItem value="apr">Sort by APR</SelectItem>
+                <SelectItem value="self_delegated_pct">
+                  Sort by Self Staked %
+                </SelectItem>
+                <SelectItem value="self_delegated">
+                  Sort by Self Staked Amount
+                </SelectItem>
+                <SelectItem value="total_delegated">
+                  Sort by Total Delegated
+                </SelectItem>
                 <SelectItem value="commission">Sort by Commission</SelectItem>
                 <SelectItem value="name">Sort by Name</SelectItem>
               </SelectContent>
@@ -167,6 +235,19 @@ export function OperatorSelectionModal({
             </Button>
           </div>
         </div>
+
+        {/* Bootstrap Phase Info Banner */}
+        {isBootstrapPhase && (
+          <div className="bg-[#1a1a24] border border-[#444455] rounded-lg p-3 mb-3 flex items-start gap-2">
+            <Info size={16} className="text-[#00e5ff] mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-[#9999aa]">
+              <span className="font-medium text-white">Bootstrap Phase:</span>{" "}
+              APY data is not available during bootstrap and will be presented
+              after the network is fully operational. Currently showing operator
+              commitment metrics.
+            </div>
+          </div>
+        )}
 
         {/* Results count */}
         <div className="text-sm text-[#9999aa] mb-2">
@@ -215,18 +296,44 @@ export function OperatorSelectionModal({
                       </div>
 
                       <div className="text-right">
-                        <div className="font-bold text-[#00e5ff]">
-                          {operator.apr}% APR
-                        </div>
-                        <div className="flex items-center text-xs text-[#9999aa]">
-                          Commission:{" "}
-                          {formatCommission(
-                            operator.commission.commission_rates.rate,
-                          )}
+                        {/* Self Staked % - Primary metric */}
+                        {operator.position &&
+                        token &&
+                        operator.position.total_amount > 0 ? (
+                          <div className="font-bold text-[#00e5ff] text-lg mb-2">
+                            {(
+                              (operator.position.self_amount /
+                                operator.position.total_amount) *
+                              100
+                            ).toFixed(1)}
+                            % Self Staked
+                            <span className="text-sm text-[#9999aa] ml-2 font-normal">
+                              (
+                              {formatTokenAmount(
+                                operator.position.self_amount,
+                                token.decimals,
+                              )}{" "}
+                              {token.symbol})
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="font-bold text-[#666677] text-lg mb-2 italic">
+                            N/A
+                          </div>
+                        )}
+
+                        {/* Commission */}
+                        <div className="flex items-center justify-end text-xs text-[#9999aa] mb-2">
+                          <span className="mr-1">Commission:</span>
+                          <span className="font-medium text-white">
+                            {formatCommission(
+                              operator.commission.commission_rates.rate,
+                            )}
+                          </span>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <button className="ml-1">
+                                <button className="ml-1 hover:text-white transition-colors">
                                   <Info size={12} />
                                 </button>
                               </TooltipTrigger>
@@ -236,6 +343,28 @@ export function OperatorSelectionModal({
                             </Tooltip>
                           </TooltipProvider>
                         </div>
+
+                        {/* Position Data */}
+                        {operator.position && token ? (
+                          <div className="text-xs">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#9999aa]">
+                                Total Delegated:
+                              </span>
+                              <span className="font-medium text-white">
+                                {formatTokenAmount(
+                                  operator.position.total_amount,
+                                  token.decimals,
+                                )}{" "}
+                                {token.symbol}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-[#666677] italic">
+                            No staking data available
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -260,12 +389,13 @@ export function OperatorSelectionModal({
           </Button>
 
           {selectedOperator && (
-            <Button
+            <ActionButton
               onClick={() => onSelect(selectedOperator)}
-              className="bg-[#00e5ff] text-black hover:bg-[#00c8df]"
+              variant="primary"
+              size="md"
             >
               Confirm Selection
-            </Button>
+            </ActionButton>
           )}
         </div>
       </DialogContent>

@@ -1,6 +1,7 @@
 // components/new-staking/tabs/WithdrawTab.tsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -8,6 +9,7 @@ import { formatUnits } from "viem";
 import { ArrowRight, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import {
   OperationProgress,
   OperationStep,
@@ -48,11 +50,12 @@ export function WithdrawTab({
 }: WithdrawTabProps) {
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+  const walletConnector = useWalletConnectorContext();
 
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
 
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const maxClaimAmount = stakingService.stakerBalance?.claimable || BigInt(0);
   const maxWithdrawAmount =
     stakingService.stakerBalance?.withdrawable || BigInt(0);
@@ -120,7 +123,7 @@ export function WithdrawTab({
       // Check if this is a native chain operation (not cross-chain)
       const isNativeChainOperation =
         !bootstrapStatus?.isBootstrapped ||
-        !!token.connector?.requireExtraConnectToImua;
+        !!token.network.connector?.requireExtraConnectToImua;
 
       if (isNativeChainOperation) {
         // Local mode: transaction, confirmation, completion
@@ -159,7 +162,7 @@ export function WithdrawTab({
   }, [
     activeOperation,
     bootstrapStatus?.isBootstrapped,
-    token.connector?.requireExtraConnectToImua,
+    token.network.connector?.requireExtraConnectToImua,
   ]);
 
   // Handle phase changes from txUtils
@@ -272,7 +275,7 @@ export function WithdrawTab({
       const result = await stakingService.withdrawPrincipal!(
         parsedWithdrawAmount,
         (recipientAddress as `0x${string}`) ||
-          stakingService.walletBalance?.stakerAddress,
+          walletConnector.nativeWallet.address,
         {
           onPhaseChange: handlePhaseChange,
         },
@@ -367,29 +370,60 @@ export function WithdrawTab({
     setShowProgress(false);
   };
 
+  // Check if we have any actionable content
+  const hasActionableContent =
+    (canClaimPrincipal && maxClaimAmount > BigInt(0)) ||
+    maxWithdrawAmount > BigInt(0) ||
+    isDirectWithdrawal;
+
   return (
     <div className="space-y-6">
-      {/* Header with Token Info */}
-      <div className="flex items-center">
-        <div className="relative w-16 h-16 mr-3">
-          <Image
-            src={token.iconUrl}
-            alt={token.symbol}
-            fill
-            sizes="(max-width: 768px) 64px, 96px"
-            style={{ objectFit: "contain" }}
-            priority
-          />
+      {/* Adaptive Header - Only show border and stats when there's actionable content */}
+      <div
+        className={`flex items-center justify-between ${hasActionableContent ? "pb-4 border-b border-[#222233]" : ""}`}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-8 h-8 bg-[#1a1a24] rounded-full border border-[#333344] flex-shrink-0">
+            <Image
+              src={token.iconUrl}
+              alt={token.symbol}
+              width={18}
+              height={18}
+              style={{ objectFit: "contain" }}
+              priority
+            />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-white">
+              Withdraw {token.symbol}
+            </h2>
+            <p className="text-xs text-[#666677]">{token.name}</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-white">
-            Withdraw {token.symbol}
-          </h2>
-        </div>
+
+        {/* Quick stats badge - only show when there's something to show */}
+        {!isDirectWithdrawal && hasActionableContent && (
+          <div className="flex items-center gap-2 text-xs">
+            {maxClaimAmount > BigInt(0) && (
+              <div className="px-2 py-1 bg-[#00e5ff]/10 border border-[#00e5ff]/30 rounded-md">
+                <span className="text-[#00e5ff]">
+                  {formatAmountForDisplay(maxClaimAmount, decimals)} to claim
+                </span>
+              </div>
+            )}
+            {maxWithdrawAmount > BigInt(0) && (
+              <div className="px-2 py-1 bg-[#4ade80]/10 border border-[#4ade80]/30 rounded-md">
+                <span className="text-[#4ade80]">
+                  {formatAmountForDisplay(maxWithdrawAmount, decimals)} unlocked
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Clean Tab Navigation - Handle XRP tokens differently */}
-      {!isDirectWithdrawal ? (
+      {/* Clean Tab Navigation - Only show when there's actionable content */}
+      {!isDirectWithdrawal && hasActionableContent && (
         <div className="flex space-x-1 p-1 bg-[#15151c] rounded-lg border border-[#333344]">
           <button
             onClick={() => setActiveTab("claim")}
@@ -428,7 +462,10 @@ export function WithdrawTab({
             )}
           </button>
         </div>
-      ) : (
+      )}
+
+      {/* Direct Withdrawal Badge - Only for tokens that don't need claim step */}
+      {isDirectWithdrawal && (
         <div className="text-center py-3">
           <div className="inline-flex items-center space-x-2 px-4 py-2 bg-[#1a1a24] rounded-lg border border-[#333344]">
             <Wallet size={16} className="text-[#4ade80]" />
@@ -440,46 +477,48 @@ export function WithdrawTab({
         </div>
       )}
 
-      {/* Single, Elegant Process Explanation */}
-      <div className="text-center py-3">
-        {!isDirectWithdrawal ? (
-          <>
+      {/* Single, Elegant Process Explanation - Only show when there's actionable content */}
+      {hasActionableContent && (
+        <div className="text-center py-3">
+          {!isDirectWithdrawal ? (
+            <>
+              <p className="text-sm text-[#9999aa]">
+                Claim tokens to unlock them, then withdraw to your wallet
+              </p>
+              {activeTab === "claim" && maxWithdrawAmount > BigInt(0) && (
+                <div className="flex items-center justify-center space-x-2 text-xs mt-2">
+                  <div className="w-2 h-2 rounded-full bg-[#4ade80]"></div>
+                  <span className="text-[#4ade80]">
+                    You already have{" "}
+                    {formatAmountForDisplay(maxWithdrawAmount, decimals)}{" "}
+                    {token.symbol} unlocked
+                  </span>
+                </div>
+              )}
+              {activeTab === "withdraw" && maxWithdrawAmount === BigInt(0) && (
+                <div className="mt-2">
+                  <p className="text-xs text-[#666677] mb-2">
+                    No tokens unlocked yet
+                  </p>
+                  <Button
+                    onClick={() => setActiveTab("claim")}
+                    variant="outline"
+                    size="sm"
+                    className="border-[#333344] text-[#00e5ff] hover:bg-[#222233]"
+                  >
+                    Go to Claim
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
             <p className="text-sm text-[#9999aa]">
-              Claim tokens to unlock them, then withdraw to your wallet
+              Direct withdrawal from Imuachain to your wallet (no claim step
+              needed)
             </p>
-            {activeTab === "claim" && maxWithdrawAmount > BigInt(0) && (
-              <div className="flex items-center justify-center space-x-2 text-xs mt-2">
-                <div className="w-2 h-2 rounded-full bg-[#4ade80]"></div>
-                <span className="text-[#4ade80]">
-                  You already have{" "}
-                  {formatAmountForDisplay(maxWithdrawAmount, decimals)}{" "}
-                  {token.symbol} unlocked
-                </span>
-              </div>
-            )}
-            {activeTab === "withdraw" && maxWithdrawAmount === BigInt(0) && (
-              <div className="mt-2">
-                <p className="text-xs text-[#666677] mb-2">
-                  No tokens unlocked yet
-                </p>
-                <Button
-                  onClick={() => setActiveTab("claim")}
-                  variant="outline"
-                  size="sm"
-                  className="border-[#333344] text-[#00e5ff] hover:bg-[#222233]"
-                >
-                  Go to Claim
-                </Button>
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="text-sm text-[#9999aa]">
-            Direct withdrawal from Imuachain to your wallet (no claim step
-            needed)
-          </p>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Tab Content - Handle XRP tokens differently */}
       {!isDirectWithdrawal &&
@@ -541,8 +580,12 @@ export function WithdrawTab({
                 )}
               </div>
 
-              <Button
-                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              <ActionButton
+                className="w-full"
+                variant="primary"
+                size="lg"
+                loading={showProgress && activeOperation === "claim"}
+                loadingText="Processing..."
                 disabled={
                   showProgress ||
                   !!claimAmountError ||
@@ -552,10 +595,8 @@ export function WithdrawTab({
                 }
                 onClick={handleClaimOperation}
               >
-                {showProgress && activeOperation === "claim"
-                  ? "Processing..."
-                  : "Claim Tokens"}
-              </Button>
+                Claim Tokens
+              </ActionButton>
             </div>
           </div>
         )}
@@ -660,8 +701,12 @@ export function WithdrawTab({
               </p>
             </div>
 
-            <Button
-              className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+            <ActionButton
+              className="w-full"
+              variant="primary"
+              size="lg"
+              loading={showProgress && activeOperation === "withdraw"}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !!withdrawAmountError ||
@@ -671,10 +716,8 @@ export function WithdrawTab({
               }
               onClick={handleWithdrawOperation}
             >
-              {showProgress && activeOperation === "withdraw"
-                ? "Processing..."
-                : "Withdraw Tokens"}
-            </Button>
+              Withdraw Tokens
+            </ActionButton>
           </div>
         </div>
       )}
@@ -739,8 +782,12 @@ export function WithdrawTab({
                 </p>
               </div>
 
-              <Button
-                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              <ActionButton
+                className="w-full"
+                variant="primary"
+                size="lg"
+                loading={showProgress && activeOperation === "withdraw"}
+                loadingText="Processing..."
                 disabled={
                   showProgress ||
                   !!withdrawAmountError ||
@@ -750,10 +797,8 @@ export function WithdrawTab({
                 }
                 onClick={handleWithdrawOperation}
               >
-                {showProgress && activeOperation === "withdraw"
-                  ? "Processing..."
-                  : "Withdraw Tokens"}
-              </Button>
+                Withdraw Tokens
+              </ActionButton>
             </div>
           </div>
         )}
@@ -772,12 +817,13 @@ export function WithdrawTab({
               Claim tokens first to unlock them for withdrawal.
             </p>
             {canClaimPrincipal && maxClaimAmount > BigInt(0) && (
-              <Button
+              <ActionButton
                 onClick={() => setActiveTab("claim")}
-                className="bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+                variant="primary"
+                size="sm"
               >
                 Go to Claim
-              </Button>
+              </ActionButton>
             )}
           </div>
         )}
@@ -791,7 +837,7 @@ export function WithdrawTab({
               if (activeOperation === "claim") {
                 const isNativeChainOperation =
                   !bootstrapStatus?.isBootstrapped ||
-                  !!token.connector?.requireExtraConnectToImua;
+                  !!token.network.connector?.requireExtraConnectToImua;
                 if (!isNativeChainOperation) {
                   return {
                     sourceChain: destinationChain,

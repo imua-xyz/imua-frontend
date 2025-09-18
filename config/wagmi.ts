@@ -1,10 +1,10 @@
 import { createConfig, http } from "wagmi";
 import { sepolia, mainnet } from "wagmi/chains";
 import { createPublicClient, http as viem_http } from "viem";
-import { walletConnect } from "wagmi/connectors";
 import { getDefaultWallets } from "@rainbow-me/rainbowkit";
 
-const projectId = "f6e3c67c095bd29425c6c94ff24b08db"; // Get this from WalletConnect dashboard
+// Project ID for WalletConnect (used by Reown AppKit)
+export const projectId = "f6e3c67c095bd29425c6c94ff24b08db";
 
 // Define Imua chain
 export const imua = {
@@ -80,9 +80,10 @@ const { connectors } = getDefaultWallets({
   projectId,
 });
 
-// Create wagmi config
+// Create wagmi config with connectors
 export const config = createConfig({
   chains: [sepolia, hoodi, mainnet, imua],
+  connectors,
   transports: {
     [sepolia.id]: http(
       "https://eth-sepolia.g.alchemy.com/v2/f-RpeFxinYzcHV0IydB8u84Wkv74b8kI",
@@ -95,7 +96,6 @@ export const config = createConfig({
     ),
     [imua.id]: http("https://api-eth.exocore-restaking.com"),
   },
-  connectors,
 });
 
 export type ValidEVMChain = "Sepolia" | "Hoodi" | "Mainnet" | "Imua";

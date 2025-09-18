@@ -1,51 +1,59 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { StakerBalanceResponseFromPrecompile } from "@/types/staking";
 import { Token } from "@/types/tokens";
 import { getQueryStakerAddress } from "@/stores/allWalletsStore";
 import { useBootstrapStatus } from "./useBootstrapStatus";
-import { useBootstrap } from "./useBootstrap";
-import { EVMNetwork } from "@/types/networks";
+import { apolloClient } from "@/lib/graphql/client";
+import { GET_BOOTSTRAP_STAKER_ASSETS } from "@/lib/graphql/queries";
+import { BootstrapStakerAsset } from "@/lib/graphql/schema";
 
 export function useStakerBalances(tokens: Token[]) {
   const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { bootstrapStatus } = useBootstrapStatus();
 
-  // Filter EVM tokens that need bootstrap contracts
-  const evmTokens = tokens.filter(
-    (token): token is Token & { network: EVMNetwork } =>
-      "evmChainID" in token.network,
-  );
-
-  // Get unique EVM networks that need bootstrap contracts
-  const uniqueEVMNetworks = evmTokens.reduce((networks, token) => {
-    if (!networks.some((n) => n.evmChainID === token.network.evmChainID)) {
-      networks.push(token.network);
+  // Get unique stakerIds for bootstrap phase
+  const stakerIds = tokens.reduce((acc, token) => {
+    const { queryAddress } = getQueryStakerAddress(token);
+    if (queryAddress && token.network.customChainIdByImua) {
+      const stakerId = `${queryAddress.toLowerCase()}_0x${token.network.customChainIdByImua.toString(16)}`;
+      acc.add(stakerId);
     }
-    return networks;
-  }, [] as EVMNetwork[]);
+    return acc;
+  }, new Set<string>());
 
-  // Create bootstrap contracts for all unique networks (hooks are called unconditionally)
-  // This is safe because useBootstrap will handle the case when not needed
-  const bootstrapContracts = uniqueEVMNetworks.map((network) => ({
-    network,
-    contract: useBootstrap(network),
-  }));
+  // Fetch all staker assets once per stakerId (only in bootstrap phase)
+  const stakerAssetsQueries = useQueries({
+    queries: Array.from(stakerIds).map((stakerId) => ({
+      queryKey: ["bootstrap_staker_assets", stakerId],
+      queryFn: async () => {
+        const { data } = await apolloClient.query<{
+          bootstrap_staker_assets: BootstrapStakerAsset[];
+        }>({
+          query: GET_BOOTSTRAP_STAKER_ASSETS,
+          variables: { stakerId },
+          fetchPolicy: "network-only", // TanStack Query handles caching
+        });
+        return data?.bootstrap_staker_assets ?? [];
+      },
+      enabled: !!bootstrapStatus && !bootstrapStatus?.isBootstrapped,
+      staleTime: 10000,
+      refetchInterval: 30000,
+    })),
+  });
+
+  // Build a map of stakerId -> assets for quick lookup
+  const stakerAssetsMap = new Map<string, BootstrapStakerAsset[]>();
+  stakerAssetsQueries.forEach((query, index) => {
+    const stakerId = Array.from(stakerIds)[index];
+    if (query.data) {
+      stakerAssetsMap.set(stakerId, query.data);
+    }
+  });
 
   const results = useQueries({
     queries: tokens.map((token) => {
-      const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
-
-      const isEVMNetwork = "evmChainID" in token.network;
-
-      // Find the corresponding Bootstrap contract for this token
-      const bootstrapContract = isEVMNetwork
-        ? bootstrapContracts.find(
-            (bc) =>
-              bc.network.customChainIdByImua ===
-              token.network.customChainIdByImua,
-          )?.contract
-        : undefined;
+      const { queryAddress } = getQueryStakerAddress(token);
 
       return {
         queryKey: [
@@ -64,95 +72,47 @@ export function useStakerBalances(tokens: Token[]) {
             throw new Error("Invalid parameters");
           }
 
-          // For non-EVM networks (like XRPL, Bitcoin)
-          if (!isEVMNetwork) {
-            if (bootstrapStatus?.isBootstrapped) {
-              // Post-bootstrap: Use Imuachain precompiles
-              const stakerBalanceResponse = await getStakerBalanceByToken(
-                queryAddress as `0x${string}`,
-                token.network.customChainIdByImua,
-                token.address as `0x${string}`,
-              );
-              return stakerBalanceResponse;
-            } else {
-              // Bootstrap phase: No Imuachain yet, return zero balances as temporary workaround
-              // TODO: Implement vault scanning for Bitcoin/XRPL deposits during bootstrap
-              return {
-                clientChainID: token.network.customChainIdByImua,
-                stakerAddress: queryAddress as `0x${string}`,
-                tokenID: token.address as `0x${string}`,
-                balance: BigInt(0),
-                withdrawable: BigInt(0),
-                delegated: BigInt(0),
-                pendingUndelegated: BigInt(0),
-                totalDeposited: BigInt(0),
-              };
-            }
-          }
+          // Bootstrap phase: use cached staker assets data
+          if (!bootstrapStatus?.isBootstrapped) {
+            const stakerId = `${queryAddress.toLowerCase()}_0x${token.network.customChainIdByImua.toString(16)}`;
+            const assetId = `${token.address.toLowerCase()}_0x${token.network.customChainIdByImua.toString(16)}`;
 
-          if (bootstrapStatus?.isBootstrapped) {
-            // Post-bootstrap: Use Imuachain precompiles via ClientChainGateway
-            const stakerBalanceResponse = await getStakerBalanceByToken(
-              queryAddress as `0x${string}`,
-              token.network.customChainIdByImua,
-              token.address as `0x${string}`,
+            const rows = stakerAssetsMap.get(stakerId);
+            const record = rows?.find(
+              (r) => r.asset_id.toLowerCase() === assetId.toLowerCase(),
             );
-            return stakerBalanceResponse;
-          } else {
-            // Bootstrap phase: Query Bootstrap contract directly
-            if (!bootstrapContract?.readonlyContract) {
-              throw new Error("Bootstrap contract not available");
-            }
 
-            try {
-              // Query Bootstrap contract for balance information
-              const [totalDeposited, withdrawable] = await Promise.all([
-                bootstrapContract.readonlyContract.read.totalDepositAmounts([
-                  queryAddress as `0x${string}`,
-                  token.address as `0x${string}`,
-                ]),
-                bootstrapContract.readonlyContract.read.withdrawableAmounts([
-                  queryAddress as `0x${string}`,
-                  token.address as `0x${string}`,
-                ]),
-              ]);
+            const deposited = BigInt(record?.deposited ?? 0);
+            const withdrawable = BigInt(record?.withdrawable ?? 0);
+            const delegated = BigInt(record?.delegated ?? 0);
 
-              // Calculate delegated balance: totalDeposited - withdrawable
-              const delegated =
-                (totalDeposited as bigint) - (withdrawable as bigint);
-
-              // During bootstrap: no pending undelegated (all undelegations are instant)
-              const pendingUndelegated = BigInt(0);
-
-              return {
-                clientChainID: token.network.customChainIdByImua,
-                stakerAddress: queryAddress as `0x${string}`,
-                tokenID: token.address as `0x${string}`,
-                balance: totalDeposited as bigint, // Total balance (deposited)
-                withdrawable: withdrawable as bigint, // Claimable balance
-                delegated: delegated, // Delegated balance
-                pendingUndelegated: pendingUndelegated, // Always 0 during bootstrap
-                totalDeposited: totalDeposited as bigint, // Total deposited amount
-              };
-            } catch (error) {
-              console.error("Error fetching bootstrap balance:", error);
-              throw new Error(
-                `Failed to fetch bootstrap balance: ${error instanceof Error ? error.message : "Unknown error"}`,
-              );
-            }
+            return {
+              clientChainID: token.network.customChainIdByImua,
+              stakerAddress: queryAddress as `0x${string}`,
+              tokenID: token.address as `0x${string}`,
+              balance: deposited,
+              withdrawable,
+              delegated,
+              pendingUndelegated: BigInt(0),
+              totalDeposited: deposited,
+            };
           }
+
+          // Post-bootstrap: Use Imuachain precompiles via ClientChainGateway
+          const stakerBalanceResponse = await getStakerBalanceByToken(
+            queryAddress as `0x${string}`,
+            token.network.customChainIdByImua,
+            token.address as `0x${string}`,
+          );
+          return stakerBalanceResponse;
         },
         enabled:
           !!queryAddress &&
           !!token.address &&
-          !!bootstrapStatus && // Wait for bootstrap status to be available
-          // customChainIdByImua is only required after bootstrap (for Imuachain queries)
+          !!bootstrapStatus &&
           (bootstrapStatus.isBootstrapped
             ? !!token.network.customChainIdByImua
-            : true) &&
-          (!isEVMNetwork ||
-            !bootstrapStatus.isBootstrapped ||
-            !!bootstrapContract?.readonlyContract), // Ensure contract is available when needed
+            : stakerAssetsQueries.every((q) => !q.isLoading)), // Wait for staker assets in bootstrap
         refetchInterval: 3000,
       };
     }),

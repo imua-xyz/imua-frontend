@@ -6,6 +6,7 @@ import {
   getNetwork,
   sendPayment,
   isInstalled,
+  on,
 } from "@gemwallet/api";
 import { GemWalletNetwork, GemWalletResponse } from "@/types/staking";
 
@@ -13,45 +14,15 @@ import { GemWalletNetwork, GemWalletResponse } from "@/types/staking";
 const isDocumentFocused = () =>
   typeof document !== "undefined" && document.hasFocus();
 
-// Create the client with background polling
+// Create the client with event-driven updates
 const createGemWalletClient = () => {
-  // Polling intervals
-  let networkPollInterval: NodeJS.Timeout | null = null;
+  // Session expiration check (only this needs polling)
   let sessionCheckInterval: NodeJS.Timeout | null = null;
 
-  // Start polling mechanisms
-  const startPolling = () => {
-    // Already polling, don't start again
-    if (networkPollInterval) return;
+  // Start session expiration check (only when connected)
+  const startSessionCheck = () => {
+    if (sessionCheckInterval) return;
 
-    // Network polling
-    networkPollInterval = setInterval(async () => {
-      const state = store.getState();
-      if (!state.isWalletConnected || !state.installed || !isDocumentFocused())
-        return;
-
-      try {
-        const networkResponse = await getNetwork();
-        const currentNetwork = networkResponse.result;
-
-        if (currentNetwork && state.walletNetwork) {
-          const isChanged =
-            currentNetwork.network !== state.walletNetwork.network ||
-            currentNetwork.websocket !== state.walletNetwork.websocket ||
-            currentNetwork.chain !== state.walletNetwork.chain;
-
-          if (isChanged) {
-            console.log("Network changed, reconnecting...");
-            const connect = store.getState().connect;
-            await connect();
-          }
-        }
-      } catch (error) {
-        console.error("Error checking network:", error);
-      }
-    }, 30000);
-
-    // Session expiration check
     sessionCheckInterval = setInterval(() => {
       const state = store.getState();
       if (
@@ -69,12 +40,8 @@ const createGemWalletClient = () => {
     }, 60000);
   };
 
-  // Stop all polling
-  const stopPolling = () => {
-    if (networkPollInterval) {
-      clearInterval(networkPollInterval);
-      networkPollInterval = null;
-    }
+  // Stop session check
+  const stopSessionCheck = () => {
     if (sessionCheckInterval) {
       clearInterval(sessionCheckInterval);
       sessionCheckInterval = null;
@@ -145,8 +112,8 @@ const createGemWalletClient = () => {
               manuallyDisconnected: false,
             });
 
-            // Start polling when connected
-            startPolling();
+            // Start session check when connected
+            startSessionCheck();
 
             return {
               success: true,
@@ -175,8 +142,8 @@ const createGemWalletClient = () => {
               manuallyDisconnected: true,
             });
 
-            // Stop polling when disconnected
-            stopPolling();
+            // Stop session check when disconnected
+            stopSessionCheck();
 
             return { success: true };
           } catch (error) {
@@ -255,32 +222,117 @@ const createGemWalletClient = () => {
     ),
   );
 
-  // Check if already connected on initialization
-  const initialState = store.getState();
-  if (initialState.isWalletConnected && !initialState.manuallyDisconnected) {
-    startPolling();
+  // Set up GemWallet event listeners (client-side only)
+  const setupEventListeners = () => {
+    // Only set up event listeners on the client side
+    if (typeof window === "undefined") return;
 
-    // Auto-reconnect on initial load if there's a session
-    // But only if the user didn't manually disconnect
-    if (
-      initialState.sessionExpiresAt &&
-      initialState.sessionExpiresAt > Date.now()
-    ) {
-      // Small delay to ensure app is mounted
-      setTimeout(() => {
-        initialState.connect();
-      }, 1000);
+    try {
+      // Listen for login events
+      on("login", (response) => {
+        console.log("GemWallet login event:", response.loggedIn);
+        if (response.loggedIn) {
+          // Reconnect when user logs in
+          const connect = store.getState().connect;
+          connect();
+        }
+      });
+
+      // Listen for logout events
+      on("logout", (response) => {
+        console.log("GemWallet logout event:", response.loggedIn);
+        if (!response.loggedIn) {
+          // Disconnect when user logs out
+          const disconnect = store.getState().disconnect;
+          disconnect();
+        }
+      });
+
+      // Listen for network changes
+      on("networkChanged", (response) => {
+        console.log("GemWallet network changed:", response.network);
+        // Reconnect to get updated network info
+        const connect = store.getState().connect;
+        connect();
+      });
+
+      // Listen for wallet changes
+      on("walletChanged", (response) => {
+        console.log("GemWallet wallet changed:", response.wallet.publicAddress);
+        // Reconnect to get updated wallet info
+        const connect = store.getState().connect;
+        connect();
+      });
+    } catch (error) {
+      console.warn("Failed to set up GemWallet event listeners:", error);
+    }
+  };
+
+  // Initialize event listeners only on client side
+  if (typeof window !== "undefined") {
+    setupEventListeners();
+  }
+
+  // Initialize client-side logic only
+  if (typeof window !== "undefined") {
+    const initialState = store.getState();
+
+    // Check installation status when the store is created
+    setTimeout(() => {
+      initialState.checkInstallation();
+    }, 100);
+
+    if (initialState.isWalletConnected && !initialState.manuallyDisconnected) {
+      // Start session check when already connected
+      startSessionCheck();
+
+      // Auto-reconnect on initial load if there's a session
+      // But only if the user didn't manually disconnect
+      if (
+        initialState.sessionExpiresAt &&
+        initialState.sessionExpiresAt > Date.now()
+      ) {
+        // Small delay to ensure app is mounted
+        setTimeout(() => {
+          initialState.connect();
+        }, 1000);
+      }
     }
   }
 
   // Cleanup function
   const cleanup = () => {
-    stopPolling();
+    stopSessionCheck();
+  };
+
+  // Client-side initialization function
+  const initialize = () => {
+    if (typeof window === "undefined") return;
+
+    const state = store.getState();
+
+    // Check installation status
+    state.checkInstallation();
+
+    // Set up event listeners if not already done
+    setupEventListeners();
+
+    // Auto-reconnect if there's a valid session
+    if (state.isWalletConnected && !state.manuallyDisconnected) {
+      startSessionCheck();
+
+      if (state.sessionExpiresAt && state.sessionExpiresAt > Date.now()) {
+        setTimeout(() => {
+          state.connect();
+        }, 1000);
+      }
+    }
   };
 
   return {
     useStore: store,
     cleanup,
+    initialize,
   };
 };
 
@@ -289,6 +341,9 @@ export const gemWalletClient = createGemWalletClient();
 
 // Export the store for component usage
 export const useGemWalletStore = gemWalletClient.useStore;
+
+// Export the initialize function for client-side setup
+export const initializeGemWallet = gemWalletClient.initialize;
 
 // Export interface for type checking
 interface GemWalletState {

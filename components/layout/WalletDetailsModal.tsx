@@ -1,10 +1,12 @@
 // components/layout/WalletDetailsModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, X, ExternalLink, CheckCircle } from "lucide-react";
 import Image from "next/image";
+import { ActionButton } from "@/components/ui/action-button";
 
 interface WalletDetailsModalProps {
   isOpen: boolean;
@@ -27,6 +29,11 @@ export function WalletDetailsModal({
   walletInfo,
 }: WalletDetailsModalProps) {
   const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const copyAddress = () => {
     if (walletInfo.address) {
@@ -47,27 +54,29 @@ export function WalletDetailsModal({
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 min-h-screen">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="bg-white dark:bg-[#15151c] rounded-2xl w-full max-w-md overflow-hidden shadow-xl"
+            className="bg-[#15151c] border border-[rgba(255,255,255,0.1)] rounded-xl w-full max-w-md overflow-hidden shadow-2xl"
           >
             {/* Header */}
-            <div className="relative p-6 border-b border-gray-200 dark:border-gray-800">
+            <div className="relative p-6 border-b border-[rgba(255,255,255,0.1)]">
               <button
                 onClick={onClose}
-                className="absolute top-6 right-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="absolute top-6 right-6 text-[#9999aa] hover:text-white transition-colors"
               >
                 <X size={20} />
               </button>
               <div className="flex items-center justify-center">
-                <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-[#292936] flex items-center justify-center">
                   <Image
                     src={walletInfo.iconUrl}
                     alt={walletInfo.name}
@@ -80,79 +89,75 @@ export function WalletDetailsModal({
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-6">
               {/* Address */}
               <div className="text-center">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                <h3 className="text-xl font-bold text-white mb-2">
                   {walletInfo.address
                     ? `${walletInfo.address.substring(0, 6)}...${walletInfo.address.substring(walletInfo.address.length - 4)}`
                     : "Not Connected"}
                 </h3>
-                <div className="text-gray-600 dark:text-gray-400 text-sm">
-                  {walletInfo.name}
-                </div>
+                <div className="text-[#9999aa] text-sm">{walletInfo.name}</div>
               </div>
 
               {/* Balance */}
               {walletInfo.balance?.formatted && (
-                <div className="text-center text-2xl font-bold text-gray-900 dark:text-white">
-                  {walletInfo.balance.formatted}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white mb-1">
+                    {walletInfo.balance.formatted}
+                  </div>
+                  <div className="text-xs text-[#9999aa]">Balance</div>
                 </div>
               )}
 
               {/* Actions */}
               <div className="grid grid-cols-2 gap-3">
-                <button
+                <ActionButton
                   onClick={copyAddress}
-                  className="flex items-center justify-center space-x-2 bg-gray-100 dark:bg-[#1a1a24] hover:bg-gray-200 dark:hover:bg-[#21212f] transition-colors rounded-xl py-3 px-4"
+                  variant="secondary"
+                  size="sm"
                   disabled={!walletInfo.address}
+                  className="flex items-center justify-center space-x-2"
                 >
                   {copied ? (
                     <>
-                      <CheckCircle size={18} className="text-green-500" />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        Copied
-                      </span>
+                      <CheckCircle size={18} className="text-green-400" />
+                      <span>Copied</span>
                     </>
                   ) : (
                     <>
-                      <Copy
-                        size={18}
-                        className="text-gray-500 dark:text-gray-400"
-                      />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        Copy Address
-                      </span>
+                      <Copy size={18} className="text-[#9999aa]" />
+                      <span>Copy Address</span>
                     </>
                   )}
-                </button>
+                </ActionButton>
 
-                <button
+                <ActionButton
                   onClick={openExplorer}
-                  className="flex items-center justify-center space-x-2 bg-gray-100 dark:bg-[#1a1a24] hover:bg-gray-200 dark:hover:bg-[#21212f] transition-colors rounded-xl py-3 px-4"
+                  variant="secondary"
+                  size="sm"
                   disabled={!walletInfo.explorerUrl}
+                  className="flex items-center justify-center space-x-2"
                 >
-                  <ExternalLink
-                    size={18}
-                    className="text-gray-500 dark:text-gray-400"
-                  />
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    View in Explorer
-                  </span>
-                </button>
+                  <ExternalLink size={18} className="text-[#9999aa]" />
+                  <span>View in Explorer</span>
+                </ActionButton>
               </div>
 
               {/* Disconnect Button */}
-              <button
+              <ActionButton
                 onClick={handleDisconnect}
-                className="w-full mt-4 py-3 rounded-xl text-sm font-medium bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                variant="outline"
+                size="md"
+                className="w-full bg-red-900/20 text-red-400 hover:bg-red-900/30 border-red-500/30"
               >
                 Disconnect
-              </button>
+              </ActionButton>
             </div>
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
