@@ -114,8 +114,10 @@ export function useBitcoinWalletConnector(): BitcoinWalletConnector {
       bitcoinAddress.startsWith("tb1");
 
     // We expect testnet, so mainnet address = wrong network
-    return isMainnetAddress;
-  }, [isBitcoinConnected, bitcoinAddress]);
+    return (
+      isMainnetAddress || caipNetworkId !== expectedBitcoinNetwork.caipNetworkId
+    );
+  }, [isBitcoinConnected, bitcoinAddress, caipNetworkId]);
 
   // State for connection promise resolution
   const [connectionPromise, setConnectionPromise] = useState<{
@@ -234,10 +236,7 @@ export function useBitcoinWalletConnector(): BitcoinWalletConnector {
 
     // Check if Bitcoin is connected but on wrong network
     // We detect this by checking if the balance fetch is failing due to network mismatch
-    const needsSwitchNative =
-      isBitcoinConnected &&
-      (caipNetworkId !== expectedBitcoinNetwork.caipNetworkId ||
-        isWrongNetwork);
+    const needsSwitchNative = isWrongNetwork;
 
     return {
       needsConnectNative: !isBitcoinConnected

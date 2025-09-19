@@ -1,7 +1,7 @@
 import { createAppKit } from "@reown/appkit/react";
 import { BitcoinAdapter } from "@reown/appkit-adapter-bitcoin";
 import { projectId } from "./wagmi";
-import { bitcoin, bitcoinTestnet, AppKitNetwork } from "@reown/appkit/networks";
+import { bitcoinTestnet, AppKitNetwork } from "@reown/appkit/networks";
 
 // Set up Bitcoin Adapter
 export const bitcoinAdapter = new BitcoinAdapter({
@@ -16,7 +16,7 @@ export const metadata = {
   icons: ["public/imua-logo.avif"],
 };
 
-export const supportedChains = [bitcoin, bitcoinTestnet] as [
+export const supportedChains = [bitcoinTestnet] as [
   AppKitNetwork,
   ...AppKitNetwork[],
 ];
