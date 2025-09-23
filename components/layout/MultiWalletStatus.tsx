@@ -2,15 +2,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, AlertCircle, ChevronDown } from "lucide-react";
 import { ActionButton } from "@/components/ui/action-button";
 import { WalletDetailsModal } from "./WalletDetailsModal";
-import { Token } from "@/types/tokens";
+import { Token, btc, tbtc } from "@/types/tokens";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { imuaChain } from "@/types/networks";
-import { useDisconnect } from "wagmi";
 import Image from "next/image";
 
 export function MultiWalletStatus({ token }: { token: Token }) {
@@ -22,7 +20,6 @@ export function MultiWalletStatus({ token }: { token: Token }) {
     disconnectNative,
     disconnectBindingEVM,
   } = useWalletConnectorContext();
-  const { disconnect } = useDisconnect();
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -45,6 +42,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
     token.network.connector.customConnector?.name || "EVM Wallet";
   const connectorIcon =
     token.network.connector.customConnector?.iconUrl || "/eth-logo.svg";
+  const isBTC = token === btc || token === tbtc;
 
   // Function to open the modal for a specific wallet type
   const openWalletDetails = (isNativeWallet: boolean) => {
@@ -61,16 +59,17 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                 formatBalance(
                   nativeWallet.balance.value,
                   nativeWallet.balance.decimals,
+                  isBTC,
                 ) +
                 " " +
                 nativeWallet.balance.symbol,
             }
           : undefined,
-        explorerUrl: token.network.accountExplorerUrl,
+        explorerUrl: isBTC
+          ? "https://mempool.space/tx/"
+          : token.network.accountExplorerUrl,
         onDisconnect: async () => {
-          if (token.network.connector.evmCompatible) {
-            await disconnect();
-          } else if (disconnectNative) {
+          if (disconnectNative) {
             await disconnectNative();
           }
         },
@@ -87,6 +86,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                 formatBalance(
                   bindingEVMWallet.balance.value,
                   bindingEVMWallet.balance.decimals,
+                  isBTC,
                 ) +
                 " " +
                 bindingEVMWallet.balance.symbol,
@@ -96,8 +96,6 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         onDisconnect: async () => {
           if (disconnectBindingEVM) {
             await disconnectBindingEVM();
-          } else {
-            disconnect();
           }
         },
       });
@@ -143,6 +141,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
               {formatBalance(
                 nativeWallet.balance.value,
                 nativeWallet.balance.decimals,
+                isBTC,
               )}{" "}
               {nativeWallet.balance.symbol}
             </span>
@@ -251,6 +250,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                           {formatBalance(
                             nativeWallet.balance.value,
                             nativeWallet.balance.decimals,
+                            isBTC,
                           )}{" "}
                           {nativeWallet.balance.symbol}
                         </span>
@@ -275,19 +275,29 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                       Install {connectorName}
                     </ActionButton>
                   </div>
-                ) : (
+                ) : issues?.needsConnectNative ? (
                   <div className="flex justify-center">
-                    <ConnectButton.Custom>
-                      {({ openConnectModal }) => (
-                        <ActionButton
-                          onClick={openConnectModal}
-                          variant="primary"
-                          size="sm"
-                        >
-                          Connect
-                        </ActionButton>
-                      )}
-                    </ConnectButton.Custom>
+                    {issues.needsConnectNative.resolve ? (
+                      <ActionButton
+                        onClick={() => issues.needsConnectNative!.resolve!()}
+                        variant="primary"
+                        size="sm"
+                      >
+                        Connect {connectorName}
+                      </ActionButton>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-xs text-[#9999aa] mb-2">
+                          Please manually connect your {connectorName} wallet
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <p className="text-xs text-[#9999aa] mb-2">
+                      Please connect your {connectorName} wallet
+                    </p>
                   </div>
                 )}
               </div>
@@ -345,25 +355,38 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                             {formatBalance(
                               bindingEVMWallet.balance.value,
                               bindingEVMWallet.balance.decimals,
+                              isBTC,
                             )}{" "}
                             {bindingEVMWallet.balance.symbol}
                           </span>
                         </div>
                       )}
                     </div>
-                  ) : (
+                  ) : issues?.needsConnectBindingEVM ? (
                     <div className="flex justify-center">
-                      <ConnectButton.Custom>
-                        {({ openConnectModal }) => (
-                          <ActionButton
-                            onClick={openConnectModal}
-                            variant="primary"
-                            size="sm"
-                          >
-                            Connect
-                          </ActionButton>
-                        )}
-                      </ConnectButton.Custom>
+                      {issues.needsConnectBindingEVM.resolve ? (
+                        <ActionButton
+                          onClick={() =>
+                            issues.needsConnectBindingEVM!.resolve!()
+                          }
+                          variant="primary"
+                          size="sm"
+                        >
+                          Connect EVM Wallet
+                        </ActionButton>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-xs text-[#9999aa] mb-2">
+                            Please manually connect your EVM wallet
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-xs text-[#9999aa] mb-2">
+                        Please connect your EVM wallet
+                      </p>
                     </div>
                   )}
                 </div>
@@ -416,15 +439,23 @@ export function MultiWalletStatus({ token }: { token: Token }) {
 }
 
 // Helper function to format balance
-function formatBalance(value: bigint, decimals: number): string {
+function formatBalance(
+  value: bigint,
+  decimals: number,
+  isBTC: boolean,
+): string {
   if (!value) return "0";
 
   const divisor = BigInt(10) ** BigInt(decimals);
   const integerPart = value / divisor;
-  const decimalPart = (value % divisor)
-    .toString()
-    .padStart(decimals, "0")
-    .substring(0, 2);
+  const decimalPart = (value % divisor).toString().padStart(decimals, "0");
 
-  return `${integerPart}.${decimalPart}`;
+  // For Bitcoin (8 decimals), show more precision for small amounts
+  const significantDecimals = isBTC ? 6 : 2;
+  const trimmedDecimalPart = decimalPart.substring(0, significantDecimals);
+
+  // Remove trailing zeros
+  const cleanDecimalPart = trimmedDecimalPart.replace(/0+$/, "") || "0";
+
+  return `${integerPart}.${cleanDecimalPart}`;
 }

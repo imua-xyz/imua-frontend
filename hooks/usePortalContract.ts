@@ -8,8 +8,8 @@ import { Network } from "@/types/networks";
 
 export function usePortalContract(network: Network) {
   const evmChainID =
-    "evmChainId" in network
-      ? (network.evmChainId as number)
+    "evmChainID" in network
+      ? (network.evmChainID as number)
       : imuaChain.evmChainID;
 
   const { data: walletClient } = useWalletClient({ chainId: evmChainID });
