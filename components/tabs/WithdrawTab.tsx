@@ -55,7 +55,7 @@ export function WithdrawTab({
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
 
-  const decimals = walletConnector.nativeWallet.balance.decimals;
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const maxClaimAmount = stakingService.stakerBalance?.claimable || BigInt(0);
   const maxWithdrawAmount =
     stakingService.stakerBalance?.withdrawable || BigInt(0);

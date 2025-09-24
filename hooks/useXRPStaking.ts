@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 import { useAccount } from "wagmi";
-import { BaseTxOptions, StakerBalance } from "@/types/staking";
+import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import {
   XRP_TOKEN_ENUM,
   XRP_VAULT_ADDRESS,
@@ -17,8 +17,8 @@ import { usePortalContract } from "./usePortalContract";
 import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { useStakerBalances } from "./useStakerBalances";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useBootstrapStatus } from "./useBootstrapStatus";
+import { useTokenBalance } from "./useTokenBalance";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -57,20 +57,41 @@ export function useXRPStaking(): StakingService {
 
   const [stakerBalanceResponse] = useStakerBalances([xrp]);
 
-  const stakerBalance = useMemo<StakerBalance | undefined>(() => {
+  // Fetch XRP token balance using the unified hook
+  const tokenBalanceQuery = useTokenBalance({
+    token: xrp,
+    address: xrpAddress,
+    refetchInterval: 30000, // 30 seconds
+  });
+
+  const stakerBalance = useMemo<StakerBalance>(() => {
     const s = stakerBalanceResponse.data;
-    if (!s) return undefined;
     return {
-      clientChainID: s.clientChainID,
-      stakerAddress: s.stakerAddress,
-      tokenID: s.tokenID,
-      totalBalance: s.balance,
-      withdrawable: s.withdrawable,
-      delegated: s.delegated,
-      pendingUndelegated: s.pendingUndelegated,
-      totalDeposited: s.totalDeposited,
+      clientChainID: xrp.network.customChainIdByImua,
+      stakerAddress: xrpAddress || "",
+      tokenID: xrp.address,
+      totalBalance: s?.balance || BigInt(0),
+      withdrawable: s?.withdrawable || BigInt(0),
+      delegated: s?.delegated || BigInt(0),
+      pendingUndelegated: s?.pendingUndelegated || BigInt(0),
+      totalDeposited: s?.totalDeposited || BigInt(0),
     };
-  }, [stakerBalanceResponse.data]);
+  }, [stakerBalanceResponse.data, xrpAddress]);
+
+  const tokenBalance = useMemo<TokenBalance>(() => {
+    return {
+      token: {
+        customClientChainID: xrp.network.customChainIdByImua,
+        tokenID: xrp.address,
+      },
+      stakerAddress: xrpAddress || "",
+      balance: {
+        value: tokenBalanceQuery.data?.value || BigInt(0),
+        decimals: tokenBalanceQuery.data?.decimals || xrp.decimals,
+        symbol: tokenBalanceQuery.data?.symbol || xrp.symbol,
+      },
+    };
+  }, [tokenBalanceQuery.data, xrpAddress]);
 
   // Stake XRP
   const stakeXrp = useCallback(
@@ -372,6 +393,7 @@ export function useXRPStaking(): StakingService {
 
   return {
     token: xrp,
+    tokenBalance: tokenBalance,
     stake: stakeXrp,
     delegateTo: delegateXrp,
     undelegateFrom: undelegateXrp,

@@ -21,7 +21,6 @@ import {
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
-import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
 import {
@@ -51,7 +50,6 @@ export function StakeTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
-  const walletConnector = useWalletConnectorContext();
 
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
@@ -76,10 +74,10 @@ export function StakeTab({
   // If only stake mode is allowed, force stake mode
   const canSwitchModes = isStakeModeAvailable && isDepositModeAvailable;
 
-  // Balance and amount state
-  const balance = walletConnector.nativeWallet.balance.value;
-  const maxAmount = balance;
-  const decimals = walletConnector.nativeWallet.balance.decimals;
+  // Balance and amount state: use token balance from staking service
+  const tokenBalanceValue = stakingService.tokenBalance.balance.value;
+  const maxAmount = tokenBalanceValue;
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -426,11 +424,11 @@ export function StakeTab({
               </label>
               <div className="flex items-center space-x-2 text-xs text-[#9999aa]">
                 <span>
-                  Balance: {formatUnits(balance, decimals)} {token.symbol}
+                  Balance: {formatUnits(maxAmount, decimals)} {token.symbol}
                 </span>
                 <button
                   className="text-xs font-medium text-[#00e5ff] ml-1"
-                  onClick={() => setAmount(formatUnits(balance, decimals))}
+                  onClick={() => setAmount(formatUnits(maxAmount, decimals))}
                 >
                   MAX
                 </button>

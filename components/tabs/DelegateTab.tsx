@@ -18,7 +18,6 @@ import {
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
-import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
 import { getShortErrorMessage } from "@/lib/utils";
@@ -42,7 +41,6 @@ export function DelegateTab({
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
   const { operators } = useOperatorsContext();
-  const walletConnector = useWalletConnectorContext();
 
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
@@ -54,8 +52,8 @@ export function DelegateTab({
     !!token.network.connector?.requireExtraConnectToImua;
 
   // Balance and amount state
-  const maxAmount = stakingService.stakerBalance?.claimable || BigInt(0);
-  const decimals = walletConnector.nativeWallet.balance.decimals;
+  const maxAmount = stakingService.stakerBalance.claimable || BigInt(0);
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,

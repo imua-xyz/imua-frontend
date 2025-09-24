@@ -17,7 +17,6 @@ import {
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useDelegations } from "@/hooks/useDelegations";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
-import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { DelegationPerOperator } from "@/types/delegations";
 import { Info, ChevronDown } from "lucide-react";
 import { UNBOND_PERIOD } from "@/config/cosmos";
@@ -43,7 +42,6 @@ export function UndelegateTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
-  const walletConnector = useWalletConnectorContext();
 
   // Get delegations for this token
   const { data: delegationsData, isLoading: delegationsLoading } =
@@ -81,7 +79,7 @@ export function UndelegateTab({
 
   // Amount input with delegation constraint
   const maxAmount = selectedDelegation?.delegated || BigInt(0);
-  const decimals = walletConnector.nativeWallet.balance.decimals;
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,

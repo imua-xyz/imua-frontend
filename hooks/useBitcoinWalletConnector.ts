@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   useAccount,
   useBalance,
@@ -22,6 +21,7 @@ import { btc } from "@/types/tokens";
 import { bootstrapContractNetwork, imuaChain } from "@/types/networks";
 import { BitcoinWalletConnector } from "@/types/wallet-connector";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
 
 export function useBitcoinWalletConnector(): BitcoinWalletConnector {
   // Expected Bitcoin network (using testnet for testing)
@@ -31,7 +31,6 @@ export function useBitcoinWalletConnector(): BitcoinWalletConnector {
   const { bootstrapStatus } = useBootstrapStatus();
   const { open: openAppKit } = useAppKit();
   const { disconnect: disconnectAppKit } = useDisconnect();
-  const { fetchBalance } = useAppKitBalance();
   const { switchNetwork, caipNetworkId } = useAppKitNetwork();
 
   // EVM wallet state for Imua connection (same wallet as Bitcoin)
@@ -62,38 +61,11 @@ export function useBitcoinWalletConnector(): BitcoinWalletConnector {
     ? bootstrapContractNetwork.evmChainID
     : imuaChain.evmChainID;
 
-  // Bitcoin balance query using AppKit
-  const balance = useQuery({
-    queryKey: ["Bitcoin Balance", bitcoinAddress],
-    queryFn: async (): Promise<any> => {
-      if (!bitcoinAddress || !isBitcoinConnected)
-        throw new Error("Bitcoin address not available or not connected");
-
-      try {
-        const balanceData = await fetchBalance();
-        // AppKit GetBalanceResult structure: { balance: string, symbol: string }
-        // Convert BTC to satoshis (1 BTC = 100,000,000 satoshis)
-        const btcBalance = parseFloat(balanceData.data?.balance || "0");
-        const satoshis = Math.floor(btcBalance * 1e8); // Convert to satoshis
-
-        return {
-          value: BigInt(satoshis),
-          decimals: 8, // Bitcoin always has 8 decimals
-          symbol: balanceData.data?.symbol || "BTC",
-        };
-      } catch (error) {
-        console.error("Failed to fetch Bitcoin balance:", error);
-        // Return zero balance on error
-        return {
-          value: BigInt(0),
-          decimals: 8,
-          symbol: "BTC",
-        };
-      }
-    },
-    enabled: !!bitcoinAddress && !!isBitcoinConnected,
-    refetchInterval: 30000, // Refetch every 30 seconds
-    retry: false, // Don't retry on error to avoid spam
+  // Use the unified token balance hook
+  const balanceQuery = useTokenBalance({
+    token: btc,
+    address: bitcoinAddress,
+    refetchInterval: 30000, // 30 seconds
   });
 
   // Detect if wallet is on wrong network by checking address prefix
@@ -201,12 +173,12 @@ export function useBitcoinWalletConnector(): BitcoinWalletConnector {
       connected: isBitcoinConnected || false,
       address: bitcoinAddress,
       balance: {
-        value: balance.data?.value || BigInt(0),
-        decimals: balance.data?.decimals || 8,
-        symbol: balance.data?.symbol || "BTC",
+        value: balanceQuery.data?.value || BigInt(0),
+        decimals: balanceQuery.data?.decimals || 8,
+        symbol: balanceQuery.data?.symbol || "BTC",
       },
     }),
-    [isBitcoinConnected, bitcoinAddress, balance.data],
+    [isBitcoinConnected, bitcoinAddress, balanceQuery.data],
   );
 
   const bindingEVMWallet = useMemo(

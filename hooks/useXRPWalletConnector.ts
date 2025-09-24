@@ -14,6 +14,7 @@ import { xrp } from "@/types/tokens";
 import { useXrplStore } from "@/stores/xrplClient";
 import { XRPWalletConnector } from "@/types/wallet-connector";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
 
 export function useXRPWalletConnector(): XRPWalletConnector {
   const { bootstrapStatus } = useBootstrapStatus();
@@ -62,19 +63,11 @@ export function useXRPWalletConnector(): XRPWalletConnector {
   const { switchChain } = useSwitchChain();
   const { data: evmBalance } = useBalance({ address: evmAddress });
 
-  const balance = useQuery({
-    queryKey: ["XRP Balance", xrpAddress],
-    queryFn: async (): Promise<any> => {
-      if (!xrpAddress) throw new Error("Required dependencies not available");
-      const accountInfo = await getAccountInfo(xrpAddress);
-      if (!accountInfo.success) throw new Error("Failed to fetch account info");
-      return {
-        value: accountInfo.data?.balance || BigInt(0),
-        decimals: 6,
-        symbol: "XRP",
-      };
-    },
-    enabled: !!xrpAddress && !!getAccountInfo,
+  // Use the unified token balance hook
+  const balanceQuery = useTokenBalance({
+    token: xrp,
+    address: xrpAddress,
+    refetchInterval: 30000, // 30 seconds
   });
 
   // Determine if we're in bootstrap phase
@@ -109,12 +102,12 @@ export function useXRPWalletConnector(): XRPWalletConnector {
       connected: isGemWalletConnected,
       address: xrpAddress,
       balance: {
-        value: balance.data?.value || BigInt(0),
-        decimals: balance.data?.decimals || 6,
-        symbol: balance.data?.symbol || "XRP",
+        value: balanceQuery.data?.value || BigInt(0),
+        decimals: balanceQuery.data?.decimals || 6,
+        symbol: balanceQuery.data?.symbol || "XRP",
       },
     }),
-    [isGemWalletConnected, xrpAddress, balance.data],
+    [isGemWalletConnected, xrpAddress, balanceQuery.data],
   );
 
   const bindingEVMWallet = useMemo(

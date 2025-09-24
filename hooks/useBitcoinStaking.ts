@@ -5,7 +5,7 @@ import { useAccount } from "wagmi";
 import { useAppKitProvider, useAppKitAccount } from "@reown/appkit/react";
 import type { BitcoinConnector } from "@reown/appkit-adapter-bitcoin";
 import * as bitcoin from "bitcoinjs-lib";
-import { BaseTxOptions, StakerBalance } from "@/types/staking";
+import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import { StakingService } from "@/types/staking-service";
 import { tbtc } from "@/types/tokens";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
@@ -23,6 +23,7 @@ import {
   MINIMUM_STAKE_AMOUNT_SATS,
   BTC_TOKEN_ENUM,
 } from "@/config/bitcoin";
+import { useTokenBalance } from "./useTokenBalance";
 import axios from "axios";
 
 export function useBitcoinStaking(): StakingService {
@@ -66,20 +67,41 @@ export function useBitcoinStaking(): StakingService {
   // Get staker balance for Bitcoin
   const [stakerBalanceResponse] = useStakerBalances([tbtc]);
 
-  const stakerBalance = useMemo<StakerBalance | undefined>(() => {
+  // Fetch Bitcoin token balance using the unified hook
+  const tokenBalanceQuery = useTokenBalance({
+    token: tbtc,
+    address: bitcoinAddress,
+    refetchInterval: 30000, // 30 seconds
+  });
+
+  const stakerBalance = useMemo<StakerBalance>(() => {
     const s = stakerBalanceResponse.data;
-    if (!s) return undefined;
     return {
-      clientChainID: s.clientChainID,
-      stakerAddress: s.stakerAddress,
-      tokenID: s.tokenID,
-      totalBalance: s.balance,
-      withdrawable: s.withdrawable,
-      delegated: s.delegated,
-      pendingUndelegated: s.pendingUndelegated,
-      totalDeposited: s.totalDeposited,
+      clientChainID: tbtc.network.customChainIdByImua,
+      stakerAddress: bitcoinAddress || "",
+      tokenID: tbtc.address,
+      totalBalance: s?.balance || BigInt(0),
+      withdrawable: s?.withdrawable || BigInt(0),
+      delegated: s?.delegated || BigInt(0),
+      pendingUndelegated: s?.pendingUndelegated || BigInt(0),
+      totalDeposited: s?.totalDeposited || BigInt(0),
     };
-  }, [stakerBalanceResponse.data]);
+  }, [stakerBalanceResponse.data, bitcoinAddress]);
+
+  const tokenBalance = useMemo<TokenBalance>(() => {
+    return {
+      token: {
+        customClientChainID: tbtc.network.customChainIdByImua,
+        tokenID: tbtc.address,
+      },
+      stakerAddress: bitcoinAddress || "",
+      balance: {
+        value: tokenBalanceQuery.data?.value || BigInt(0),
+        decimals: tokenBalanceQuery.data?.decimals || tbtc.decimals,
+        symbol: tokenBalanceQuery.data?.symbol || tbtc.symbol,
+      },
+    };
+  }, [tokenBalanceQuery.data, bitcoinAddress]);
 
   // Stake Bitcoin (similar to XRP staking)
   const stakeBitcoin = useCallback(
@@ -454,6 +476,7 @@ export function useBitcoinStaking(): StakingService {
 
   return {
     token: tbtc,
+    tokenBalance: tokenBalance,
     stake: stakeBitcoin,
     delegateTo: delegateBitcoin,
     undelegateFrom: undelegateBitcoin,

@@ -1,11 +1,12 @@
 import { BaseTxOptions } from "./staking";
-import { StakerBalance, WalletBalance, OperationType } from "./staking";
+import { StakerBalance, TokenBalance, OperationType } from "./staking";
 import { Token } from "./tokens";
 
 export interface StakingService {
   // core data
   token: Token;
-  stakerBalance: StakerBalance | undefined;
+  tokenBalance: TokenBalance;
+  stakerBalance: StakerBalance;
   vaultAddress: string | undefined;
   minimumStakeAmount?: bigint;
   isDepositThenDelegateDisabled?: boolean;

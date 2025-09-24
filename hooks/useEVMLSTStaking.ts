@@ -1,8 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useBalance } from "wagmi";
 import { maxUint256 } from "viem";
-import { BaseTxOptions, StakerBalance } from "@/types/staking";
+import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import { StakingService } from "@/types/staking-service";
 import { useEVMVault } from "./useVault";
 import { EVMLSTToken } from "@/types/tokens";
@@ -14,6 +13,7 @@ import { useBootstrapStatus } from "./useBootstrapStatus";
 import { useStakerBalances } from "./useStakerBalances";
 import { useERC20Token } from "./useERC20Token";
 import { useDelegations } from "./useDelegations";
+import { useTokenBalance } from "./useTokenBalance";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress } = useAccount();
@@ -23,9 +23,11 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { contract: erc20Contract } = useERC20Token(token);
   const delegations = useDelegations(token);
 
-  const balance = useBalance({
+  // Fetch token balance using the unified hook
+  const tokenBalanceQuery = useTokenBalance({
+    token,
     address: userAddress,
-    token: token.address,
+    refetchInterval: 30000, // 30 seconds
   });
   const { bootstrapStatus } = useBootstrapStatus();
 
@@ -48,21 +50,40 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     refetchInterval: 3000,
   });
 
-  const stakerBalance = useMemo<StakerBalance | undefined>(() => {
+  const stakerBalance = useMemo<StakerBalance>(() => {
     const s = stakerBalanceFromHook.data;
-    if (!s) return undefined;
     return {
-      clientChainID: s.clientChainID,
-      stakerAddress: s.stakerAddress,
-      tokenID: s.tokenID,
-      totalBalance: s.balance,
-      claimable: s.withdrawable,
-      withdrawable: withdrawableAmountFromVault.data ?? BigInt(0),
-      delegated: s.delegated,
-      pendingUndelegated: s.pendingUndelegated,
-      totalDeposited: s.totalDeposited,
+      clientChainID: token.network.customChainIdByImua,
+      stakerAddress: userAddress as `0x${string}`,
+      tokenID: token.address,
+      totalBalance: s?.balance || BigInt(0),
+      claimable: s?.withdrawable || BigInt(0),
+      withdrawable: withdrawableAmountFromVault.data || BigInt(0),
+      delegated: s?.delegated || BigInt(0),
+      pendingUndelegated: s?.pendingUndelegated || BigInt(0),
+      totalDeposited: s?.totalDeposited || BigInt(0),
     };
-  }, [stakerBalanceFromHook.data, withdrawableAmountFromVault.data]);
+  }, [
+    stakerBalanceFromHook.data,
+    withdrawableAmountFromVault.data,
+    token,
+    userAddress,
+  ]);
+
+  const tokenBalance = useMemo<TokenBalance>(() => {
+    return {
+      token: {
+        customClientChainID: token.network.customChainIdByImua,
+        tokenID: token.address,
+      },
+      stakerAddress: userAddress || "",
+      balance: {
+        value: tokenBalanceQuery.data?.value || BigInt(0),
+        decimals: tokenBalanceQuery.data?.decimals || token.decimals,
+        symbol: tokenBalanceQuery.data?.symbol || token.symbol,
+      },
+    };
+  }, [tokenBalanceQuery.data, token, userAddress]);
 
   // Get quote for relaying a message to imua chain, and relaying fee is needed only after bootstrap
   const getQuote = useCallback(
@@ -125,7 +146,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
             // Force update both Imuachain staker balance and client chain wallet balance
             stakerBalanceFromHook.refetch();
             // Force refetch wallet balance for immediate update
-            balance?.refetch();
+            tokenBalanceQuery.refetch();
           }
         },
       });
@@ -281,7 +302,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
             );
             // Force update both Imuachain staker balance and client chain wallet balance
             stakerBalanceFromHook.refetch();
-            balance?.refetch();
+            tokenBalanceQuery.refetch();
             // Force update delegations to reflect new delegation amounts
             delegations.refetch();
           }
@@ -377,7 +398,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
             console.log("Withdraw succeeded, updating cached balances...");
             // Force update client chain vault withdrawable balance and wallet balance
             // Note: stakerBalance.withdrawable will automatically reflect the updated vault balance
-            balance?.refetch();
+            tokenBalanceQuery.refetch();
             withdrawableAmountFromVault.refetch();
           }
         },
@@ -432,6 +453,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
   return {
     token: token,
+    tokenBalance: tokenBalance,
     stakerBalance: stakerBalance,
     vaultAddress: vaultAddress || undefined,
 
