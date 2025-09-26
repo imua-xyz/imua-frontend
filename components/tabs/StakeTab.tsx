@@ -537,14 +537,6 @@ export function StakeTab({
                 </div>
               </div>
 
-              {/* Operation type */}
-              <div className="flex justify-between">
-                <span className="text-[#9999aa]">Operation</span>
-                <span className="text-white">
-                  {isStakeMode ? "Stake" : "Deposit"}
-                </span>
-              </div>
-
               {/* Selected operator (if staking) */}
               {isStakeMode && isStakeModeAvailable && (
                 <div className="flex justify-between items-center">
@@ -573,6 +565,14 @@ export function StakeTab({
                   </div>
                 </div>
               )}
+
+              {/* Operation type (moved below Operator for better flow) */}
+              <div className="flex justify-between">
+                <span className="text-[#9999aa]">Operation</span>
+                <span className="text-white">
+                  {isStakeMode ? "Stake" : "Deposit"}
+                </span>
+              </div>
             </div>
 
             {/* Estimated rewards section - cleaner */}
