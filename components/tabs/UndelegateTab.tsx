@@ -1,5 +1,5 @@
 // components/tabs/UndelegateTab.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
@@ -184,12 +184,6 @@ export function UndelegateTab({
     setShowProgress(true);
 
     try {
-      console.log(
-        "undelegateFrom",
-        selectedDelegation.operatorAddress,
-        parsedAmount,
-        actualIsInstantUnbond,
-      );
       const result = await stakingService.undelegateFrom(
         selectedDelegation.operatorAddress,
         parsedAmount,
@@ -198,7 +192,6 @@ export function UndelegateTab({
           onPhaseChange: handlePhaseChange,
         },
       );
-      console.log("result", result);
 
       if (result.hash) {
         setTxHash(result.hash);

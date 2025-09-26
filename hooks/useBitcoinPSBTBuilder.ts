@@ -2,10 +2,14 @@
 
 import { useCallback, useMemo } from "react";
 import * as bitcoin from "bitcoinjs-lib";
+import * as ecc from "tiny-secp256k1";
 import { getFeeRates } from "./useFeeRate";
 import { useUTXOSet, UTXO } from "./useUTXOSet";
 import { useFullTransactions, FullTransaction } from "./useFullTransactions";
 import { DUST_THRESHOLD } from "@/config/bitcoin";
+
+// Initialize ECC library for Taproot support
+bitcoin.initEccLib(ecc);
 
 // Transaction size constants for fee estimation
 const TX_SIZE_CONSTANTS = {
@@ -138,7 +142,7 @@ function getAddressInfo(address: string): {
     }
     // Other versions: treat as segwit unknown
     return { isSegwit: true, type: "Unknown" };
-  } catch {
+  } catch (error) {
     // Not bech32, fall back to Base58 prefixes
     if (
       address.startsWith("1") ||
@@ -162,6 +166,11 @@ function getAddressScript(address: string, network: bitcoin.Network): Buffer {
     return bitcoin.address.toOutputScript(address, network);
   } catch (error) {
     console.error(`Error generating script for address ${address}:`, error);
+    console.error(`Address details:`, {
+      address,
+      network: network === bitcoin.networks.testnet ? "testnet" : "mainnet",
+      addressType: getAddressInfo(address),
+    });
     throw new Error(`Invalid Bitcoin address: ${address}`);
   }
 }

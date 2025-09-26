@@ -5,11 +5,11 @@ import { useAccount } from "wagmi";
 import { useAppKitProvider, useAppKitAccount } from "@reown/appkit/react";
 import type { BitcoinConnector } from "@reown/appkit-adapter-bitcoin";
 import * as bitcoin from "bitcoinjs-lib";
+import * as ecc from "tiny-secp256k1";
 import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import { StakingService } from "@/types/staking-service";
 import { tbtc } from "@/types/tokens";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
-import { ESPLORA_API_URL } from "@/config/bitcoin";
 import { usePortalContract } from "./usePortalContract";
 import {
   handleEVMTxWithStatus,
@@ -24,7 +24,9 @@ import {
   BTC_TOKEN_ENUM,
 } from "@/config/bitcoin";
 import { useTokenBalance } from "./useTokenBalance";
-import axios from "axios";
+
+// Initialize ECC library for Taproot support
+bitcoin.initEccLib(ecc);
 
 export function useBitcoinStaking(): StakingService {
   const vaultAddress = BTC_VAULT_ADDRESS;

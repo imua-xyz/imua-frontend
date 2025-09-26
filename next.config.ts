@@ -1,6 +1,23 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Ensure pnpm workspaces modules are bundled correctly
+  transpilePackages: ["tiny-secp256k1"],
+  webpack: (config, { isServer }) => {
+    // Enable WebAssembly support for tiny-secp256k1
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    // Handle .wasm files
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: "webassembly/async",
+    });
+
+    return config;
+  },
   async headers() {
     return [
       {
