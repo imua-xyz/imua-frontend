@@ -1,5 +1,5 @@
 // components/tabs/UndelegateTab.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +77,13 @@ export function UndelegateTab({
     !bootstrapStatus?.isBootstrapped ||
     !!token.network.connector?.requireExtraConnectToImua;
 
+  // Get active delegations count
+  const activeDelegationsCount = Array.from(
+    delegationsData?.delegationsByOperator?.values() || [],
+  ).filter((delegation) => delegation.delegated > BigInt(0)).length;
+
+  // No need for complex loading state management - React Query handles this
+
   // Amount input with delegation constraint
   const maxAmount = selectedDelegation?.delegated || BigInt(0);
   const decimals = stakingService.tokenBalance.balance.decimals;
@@ -150,11 +157,6 @@ export function UndelegateTab({
       return updatedSteps;
     });
   };
-
-  // Get active delegations count
-  const activeDelegationsCount = Array.from(
-    delegationsData?.delegationsByOperator?.values() || [],
-  ).filter((delegation) => delegation.delegated > BigInt(0)).length;
 
   // Handle delegation selection
   const handleDelegationSelect = (delegation: DelegationPerOperator) => {
@@ -366,14 +368,17 @@ export function UndelegateTab({
     setShowProgress(false);
   };
 
-  if (delegationsLoading) {
+  // Show loading when query is loading or when no data is available yet
+  if (delegationsLoading || delegationsData === undefined) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5ff]"></div>
+        <p className="ml-3 text-[#9999aa]">Loading delegations...</p>
       </div>
     );
   }
 
+  // Show "No Active Delegations" when data is loaded but empty
   if (activeDelegationsCount === 0) {
     return (
       <div className="text-center py-20">
@@ -685,6 +690,12 @@ export function UndelegateTab({
                   delegationsData?.delegationsByOperator?.values() || [],
                 )
                   .filter((delegation) => delegation.delegated > BigInt(0))
+                  .sort((a, b) => {
+                    // Sort by delegation amount in descending order (highest first)
+                    if (a.delegated > b.delegated) return -1;
+                    if (a.delegated < b.delegated) return 1;
+                    return 0;
+                  })
                   .map((delegation) => (
                     <div
                       key={delegation.operatorAddress}

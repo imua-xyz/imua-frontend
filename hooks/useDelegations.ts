@@ -20,9 +20,8 @@ async function fetchBootstrapDelegations(
   tokenAddress: string,
   operators: any[],
 ): Promise<Map<string, DelegationPerOperator>> {
-  const delegationsByOperator = new Map<string, DelegationPerOperator>();
-
   if (operators && operators.length > 0) {
+    const delegationsByOperator = new Map<string, DelegationPerOperator>();
     // Iterate over all operators to get user's delegations
     await Promise.all(
       operators.map(async (operator) => {
@@ -43,16 +42,19 @@ async function fetchBootstrapDelegations(
             });
           }
         } catch (error) {
-          console.warn(
+          console.error(
             `Failed to fetch delegation for operator ${operator.address}:`,
             error,
           );
+          throw error;
         }
       }),
     );
-  }
 
-  return delegationsByOperator;
+    return delegationsByOperator;
+  } else {
+    throw new Error("No operators available");
+  }
 }
 
 // If no staker address, returns { data: undefined, isLoading: false, error: null, ... }
@@ -138,7 +140,8 @@ export function useDelegations(
         delegationsByOperator,
       };
     },
-    enabled: !!queryAddress && !!token.address && !!customChainId,
+    enabled:
+      !!queryAddress && !!token.address && !!customChainId && !!bootstrapStatus,
     refetchInterval: 3000,
   });
 
