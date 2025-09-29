@@ -95,3 +95,23 @@ export interface GemWalletResponse {
   xrpAddress?: string;
   data?: any;
 }
+
+// NST (Native Staking) specific types
+export interface ValidatorContainerProof {
+  beaconBlockTimestamp: bigint;
+  validatorIndex: bigint;
+  stateRoot: `0x${string}`;
+  stateRootProof: `0x${string}`[];
+  validatorContainerRootProof: `0x${string}`[];
+}
+
+export interface NSTStakeParams {
+  pubkey: `0x${string}`;
+  signature: `0x${string}`;
+  depositDataRoot: `0x${string}`;
+}
+
+export interface NSTVerifyParams {
+  validatorContainer: `0x${string}`[];
+  proof: ValidatorContainerProof;
+}

@@ -78,6 +78,7 @@ interface OperationProgressProps {
   open: boolean;
   onClose: () => void;
   onViewDetails?: () => void;
+  viewDetailsText?: string;
 }
 
 export function OperationProgress({
@@ -85,6 +86,7 @@ export function OperationProgress({
   open,
   onClose,
   onViewDetails,
+  viewDetailsText,
 }: OperationProgressProps) {
   const [progressValue, setProgressValue] = useState(0);
   const isCrossChain = !!(
@@ -290,7 +292,7 @@ export function OperationProgress({
                   onClick={onViewDetails}
                   className="bg-[#00e5ff] hover:bg-[#00c8df] text-black"
                 >
-                  View Details
+                  {viewDetailsText || "View Details"}
                 </Button>
               )}
             </>

@@ -1,4 +1,4 @@
-import { Network, EVMNetwork, xrpl, imuaChain, hoodi } from "./networks";
+import { Network, EVMNetwork, xrpl, imuaChain, hoodi, ethPosLocalnet } from "./networks";
 import { ConnectorBase, evmConnector, gemConnector } from "./connectors";
 import { imuaDenom } from "./rewards";
 
@@ -28,9 +28,11 @@ export interface LSTToken extends TokenBase {
   provider: string;
 }
 
-export interface NSTToken extends TokenBase {
+export interface EVMNSTToken extends TokenBase {
   type: "nst";
   underlyingAsset: string;
+  provider: string;
+  network: EVMNetwork;
 }
 
 export interface EVMLSTToken extends LSTToken {
@@ -94,9 +96,37 @@ export const imua: EVMNativeToken = {
   priceIndex: 1, // TODO: we use ETH's price index because the imua token does not have a price yet
 } as const;
 
-export type Token = typeof exoETH | typeof wstETH | typeof xrp;
+export const ethNSTlocal: EVMNSTToken = {
+  type: "nst",
+  name: "Local Staked ETH",
+  symbol: "nstLocalETH",
+  address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  decimals: 18,
+  iconUrl: "/eth-logo.svg",
+  network: ethPosLocalnet,
+  underlyingAsset: "Local ETH",
+  connector: evmConnector,
+  priceIndex: 1,
+  provider: "Chain",
+} as const;
 
-export const validTokens: Token[] = [exoETH, wstETH, xrp];
+export const ethNSTHoodi: EVMNSTToken = {
+  type: "nst",
+  name: "Hoodi Staked ETH",
+  symbol: "nstHoodiETH",
+  address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  decimals: 18,
+  iconUrl: "/eth-logo.svg",
+  network: hoodi,
+  underlyingAsset: "Hoodi ETH",
+  connector: evmConnector,
+  priceIndex: 1,
+  provider: "Chain",
+} as const;
+
+export type Token = typeof exoETH | typeof wstETH | typeof xrp | typeof ethNSTlocal | typeof ethNSTHoodi;
+
+export const validTokens: Token[] = [exoETH, wstETH, xrp, process.env.NEXT_PUBLIC_NST_LOCALNET?.toLowerCase() === "true" ? ethNSTlocal : ethNSTHoodi];
 
 export const validRewardTokens: Token[] = [imua];
 

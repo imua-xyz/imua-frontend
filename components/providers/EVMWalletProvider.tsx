@@ -1,10 +1,10 @@
-import { EVMLSTToken } from "@/types/tokens";
+import { EVMLSTToken, EVMNSTToken } from "@/types/tokens";
 import { ReactNode } from "react";
 import { useEVMWalletConnector } from "@/hooks/useEVMWalletConnector";
 import { WalletConnectorContext } from "@/contexts/WalletConnectorContext";
 
 interface EVMWalletProviderProps {
-  token: EVMLSTToken;
+  token: EVMLSTToken | EVMNSTToken;
   children: ReactNode;
 }
 

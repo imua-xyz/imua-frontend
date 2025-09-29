@@ -1,6 +1,6 @@
 // components/new-staking/providers/StakingServiceProvider.tsx
 import { ReactNode } from "react";
-import { Token, exoETH, wstETH, xrp } from "@/types/tokens";
+import { Token, exoETH, wstETH, xrp, ethNSTlocal, EVMLSTToken, EVMNSTToken, ethNSTHoodi } from "@/types/tokens";
 import { EVMWalletProvider } from "./EVMWalletProvider";
 import { XRPWalletProvider } from "./XRPWalletProvider";
 
@@ -14,11 +14,15 @@ export function WalletConnectorProvider({
   children,
 }: WalletConnectorProviderProps) {
   // Render the appropriate provider based on token
-  if (token === exoETH || token === wstETH) {
-    return <EVMWalletProvider token={token}>{children}</EVMWalletProvider>;
+  if (token.address === exoETH.address || token.address === wstETH.address) {
+    return <EVMWalletProvider token={token as EVMLSTToken}>{children}</EVMWalletProvider>;
   }
 
-  if (token === xrp) {
+  if (token.address === ethNSTlocal.address || token.address === ethNSTHoodi.address) {
+    return <EVMWalletProvider token={token as EVMNSTToken}>{children}</EVMWalletProvider>;
+  }
+
+  if (token.address === xrp.address) {
     return <XRPWalletProvider>{children}</XRPWalletProvider>;
   }
 

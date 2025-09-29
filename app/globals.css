@@ -69,4 +69,29 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  a {
+    @apply underline hover:no-underline text-blue-400 hover:text-blue-300 transition-colors;
+  }
+}
+
+/* Custom utility classes */
+.command-wrap code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: normal;
+}
+
+.no-wrap {
+  white-space: nowrap;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
 }

@@ -275,8 +275,17 @@ export async function handleEVMTxWithStatus({
     }
 
     return { hash, success: true };
-  } catch {
-    return { hash: "", success: false, error: "Operation failed" };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Check if this is a user rejection error
+    if (errorMessage.includes("user rejected") || 
+        errorMessage.includes("User denied") || 
+        errorMessage.includes("User rejected") ||
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("denied")) {
+      return { hash: "", success: false, error: "Transaction rejected by user" };
+    }
+    return { hash: "", success: false, error: errorMessage };
   }
 }
 

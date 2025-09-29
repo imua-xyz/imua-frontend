@@ -1,9 +1,9 @@
 import { useBalance } from "wagmi";
-import { EVMLSTToken } from "@/types/tokens";
+import { EVMLSTToken, EVMNSTToken } from "@/types/tokens";
 import { useAccount } from "wagmi";
 import { EVMWalletConnector } from "@/types/wallet-connector";
 
-export function useEVMWalletConnector(token: EVMLSTToken): EVMWalletConnector {
+export function useEVMWalletConnector(token: EVMLSTToken | EVMNSTToken): EVMWalletConnector {
   const { address: userAddress, chainId, isConnected } = useAccount();
   const { data: balance } = useBalance({ address: userAddress });
 

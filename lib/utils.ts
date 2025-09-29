@@ -17,7 +17,12 @@ export function isValidOperatorAddress(address: string): boolean {
 
 // Get short error message for display
 export const getShortErrorMessage = (error: unknown): string => {
-  const message = error instanceof Error ? error.message : "Operation failed";
+  let message = (error instanceof Error ? error.message : "Operation failed");
+  let simulated = false;
+  if (message.includes("Transaction simulation failed: ")) {
+    simulated = true;
+    message = message.replace("Transaction simulation failed: ", "");
+  }
 
   // Common error patterns
   if (message.includes("insufficient funds")) {
@@ -66,5 +71,6 @@ export const getShortErrorMessage = (error: unknown): string => {
     }
   }
 
-  return short.trim() + (short.length < message.length ? "..." : "");
+  return (simulated ? "Simulation: " : "") +
+    short.trim() + (short.length < message.length ? "..." : "");
 };
