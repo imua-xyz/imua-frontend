@@ -45,7 +45,7 @@ export const bitcoinConnector: NonEVMConnector = {
   requireExtraConnectToImua: true,
   customConnector: {
     name: "Bitcoin Wallet",
-    iconUrl: "/bitcoin-logo.svg",
+    iconUrl: "/icons/bitcoin-icon.png",
   },
   installUrl: "https://bitcoin.org/en/wallets/",
 } as const;

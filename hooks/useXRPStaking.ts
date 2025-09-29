@@ -42,7 +42,6 @@ export function useXRPStaking(): StakingService {
     (state) => state.wallets[xrp.network.customChainIdByImua]?.boundImuaAddress,
   );
 
-  const xrplClient = useXrplStore((state) => state.client);
   const setNetwork = useXrplStore((state) => state.setNetwork);
 
   const { bootstrapStatus } = useBootstrapStatus();
@@ -244,13 +243,12 @@ export function useXRPStaking(): StakingService {
       isWagmiConnected,
       xrpAddress,
       evmAddress,
-      xrplClient,
       boundImuaAddress,
       setBoundAddress,
       setProvisionalBinding,
       sendTransaction,
-      xrpBindingQuery,
-      stakerBalanceResponse,
+      xrpBindingQuery.refetch,
+      stakerBalanceResponse.refetch,
       readonlyContract,
       getTransactionStatus,
       bootstrapStatus,
@@ -296,6 +294,8 @@ export function useXRPStaking(): StakingService {
         }
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: "local",
@@ -306,7 +306,14 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      publicClient,
+      stakerBalanceResponse.refetch,
+      evmAddress,
+      bootstrapStatus?.isBootstrapped,
+      boundImuaAddress,
+    ],
   );
 
   // Undelegate XRP from an operator
@@ -355,6 +362,8 @@ export function useXRPStaking(): StakingService {
         }
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: "local",
@@ -365,7 +374,14 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      publicClient,
+      stakerBalanceResponse.refetch,
+      evmAddress,
+      bootstrapStatus?.isBootstrapped,
+      boundImuaAddress,
+    ],
   );
 
   // Withdraw XRP from staking
@@ -403,6 +419,8 @@ export function useXRPStaking(): StakingService {
         }
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: "local",
@@ -413,7 +431,14 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      publicClient,
+      stakerBalanceResponse.refetch,
+      evmAddress,
+      bootstrapStatus?.isBootstrapped,
+      boundImuaAddress,
+    ],
   );
 
   return {

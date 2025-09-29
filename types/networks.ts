@@ -1,8 +1,8 @@
-import ClientChainGatewayABI from "@/abi/ClientChainGateway.abi.json";
-import UTXOGatewayABI from "@/abi/UTXOGateway.abi.json";
+import BootstrapContract from "@/out/Bootstrap.sol/Bootstrap.json";
+import ClientChainGatewayContract from "@/out/ClientChainGateway.sol/ClientChainGateway.json";
+import UTXOGatewayContract from "@/out/UTXOGateway.sol/UTXOGateway.json";
 import deployedContracts from "@/deployedContracts.json";
 import { ValidEVMChain } from "@/config/wagmi";
-import BootstrapABI from "@/abi/Bootstrap.abi.json";
 import {
   ConnectorBase,
   evmConnector,
@@ -26,9 +26,14 @@ export interface EVMNetwork extends NetworkBase {
   portalContract: {
     type: ContractType;
     address: `0x${string}`;
-    abi: any;
-    bootstrapABI?: any;
+    abi: readonly unknown[];
+    bootstrapABI?: readonly unknown[];
   };
+}
+
+export interface EVMNSTNetwork extends EVMNetwork {
+  validatorExplorerUrl: string;
+  beaconApiUrl: string;
 }
 
 export interface XRPL extends NetworkBase {
@@ -37,7 +42,7 @@ export interface XRPL extends NetworkBase {
   portalContract: {
     type: ContractType;
     address: `0x${string}`;
-    abi: any;
+    abi: readonly unknown[];
   };
   txExplorerUrl: "https://testnet.xrpl.org/transactions/";
   accountExplorerUrl: "https://testnet.xrpl.org/accounts/";
@@ -75,13 +80,13 @@ export const sepolia: EVMNetwork = {
   portalContract: {
     type: "ClientChainGateway",
     address: deployedContracts.clientChain.bootstrap as `0x${string}`,
-    abi: ClientChainGatewayABI,
+    abi: ClientChainGatewayContract.abi,
   },
   txExplorerUrl: "https://sepolia.etherscan.io/tx/",
   accountExplorerUrl: "https://sepolia.etherscan.io/address/",
 } as const;
 
-export const hoodi: EVMNetwork = {
+export const hoodi: EVMNSTNetwork = {
   chainName: "Hoodi",
   evmChainID: 560048,
   customChainIdByImua: 40217,
@@ -89,12 +94,24 @@ export const hoodi: EVMNetwork = {
   portalContract: {
     type: "ClientChainGateway",
     address: "0xf21FB1667A8Aa3D3ea365D3D1D257f3E4fdd0651",
-    abi: ClientChainGatewayABI,
-    bootstrapABI: BootstrapABI,
+    abi: ClientChainGatewayContract.abi,
+    bootstrapABI: BootstrapContract.abi,
   },
   txExplorerUrl: "https://hoodi.etherscan.io/tx/",
   accountExplorerUrl: "https://hoodi.etherscan.io/address/",
+  validatorExplorerUrl: "https://hoodi.beaconcha.in/validator/",
+  beaconApiUrl: "",
 } as const;
+
+if (process.env.NEXT_PUBLIC_NST_LOCALNET?.toLowerCase() !== "true") {
+  // not localnet
+  if (!process.env.NEXT_PUBLIC_BEACON_API_URL) {
+    // and no beacon api url is set
+    throw new Error("NEXT_PUBLIC_BEACON_API_URL is not set");
+  }
+  // otherwise set the beacon api url
+  hoodi.beaconApiUrl = process.env.NEXT_PUBLIC_BEACON_API_URL;
+}
 
 export const xrpl: XRPL = {
   chainName: "XRPL",
@@ -103,7 +120,7 @@ export const xrpl: XRPL = {
   portalContract: {
     type: "UTXOGateway",
     address: deployedContracts.imuachain.utxoGateway as `0x${string}`,
-    abi: UTXOGatewayABI,
+    abi: UTXOGatewayContract.abi,
   },
   txExplorerUrl: "https://testnet.xrpl.org/transactions/",
   accountExplorerUrl: "https://testnet.xrpl.org/accounts/",
@@ -116,7 +133,7 @@ export const bitcoin: BitcoinNetwork = {
   portalContract: {
     type: "UTXOGateway",
     address: deployedContracts.imuachain.utxoGateway as `0x${string}`,
-    abi: UTXOGatewayABI,
+    abi: UTXOGatewayContract.abi,
   },
   txExplorerUrl: "https://blockstream.info/tx/",
   accountExplorerUrl: "https://blockstream.info/address/",
@@ -129,7 +146,7 @@ export const bitcoinTestnet: BitcoinTestnetNetwork = {
   portalContract: {
     type: "UTXOGateway",
     address: deployedContracts.imuachain.utxoGateway as `0x${string}`,
-    abi: UTXOGatewayABI,
+    abi: UTXOGatewayContract.abi,
   },
   txExplorerUrl: "https://blockstream.info/testnet/tx/",
   accountExplorerUrl: "https://blockstream.info/testnet/address/",
@@ -143,10 +160,41 @@ export const imuaChain: EVMNetwork = {
   portalContract: {
     type: "Bootstrap",
     address: "0x0",
-    abi: "",
+    abi: [],
   },
   txExplorerUrl: "https://exoscan.org/tx/",
   accountExplorerUrl: "https://exoscan.org/address/",
+} as const;
+
+export const ethPosLocalnet: EVMNSTNetwork = {
+  chainName: "ETH POS localnet",
+  evmChainID: 31337,
+  // not set
+  customChainIdByImua: 999,
+  connector: evmConnector,
+  portalContract: {
+    type: "Bootstrap",
+    // write script to deploy and derive this address from create3
+    address: "0x356b1e5938e64387a4A752e35ac4447B19027c6a",
+    abi: ClientChainGatewayContract.abi,
+    bootstrapABI: BootstrapContract.abi,
+  },
+  txExplorerUrl: "http://127.0.0.1:3000/tx/",
+  accountExplorerUrl: "http://127.0.0.1:3000/address/",
+  validatorExplorerUrl: "http://127.0.0.1:36003/validator/",
+  beaconApiUrl: "http://127.0.0.1:33001",
+} as const;
+
+export const imuaLocalnet: EVMNetwork = {
+  chainName: "Imua localnet",
+  evmChainID: 232,
+  customChainIdByImua: 999,
+  connector: evmConnector,
+  portalContract: {
+    type: "Bootstrap",
+    address: "0x0",
+    abi: [],
+  },
 } as const;
 
 export type Network =
@@ -155,6 +203,11 @@ export type Network =
   | typeof xrpl
   | typeof bitcoin
   | typeof bitcoinTestnet
-  | typeof imuaChain;
+  | typeof imuaChain
+  | typeof ethPosLocalnet
+  | typeof imuaLocalnet;
 
-export const bootstrapContractNetwork = hoodi;
+export const bootstrapContractNetwork =
+  process.env.NEXT_PUBLIC_NST_LOCALNET?.toLowerCase() === "true"
+    ? ethPosLocalnet
+    : hoodi;

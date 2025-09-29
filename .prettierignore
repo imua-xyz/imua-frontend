@@ -1,0 +1,7 @@
+# ignore contracts
+lib/forge-std
+lib/imua-contracts
+.next
+cache
+out
+node_modules

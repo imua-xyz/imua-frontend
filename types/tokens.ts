@@ -6,8 +6,7 @@ import {
   hoodi,
   bitcoin,
   bitcoinTestnet,
-  BitcoinNetwork,
-  BitcoinTestnetNetwork,
+  ethPosLocalnet,
 } from "./networks";
 import { imuaDenom } from "./rewards";
 
@@ -36,9 +35,11 @@ export interface LSTToken extends TokenBase {
   provider: string;
 }
 
-export interface NSTToken extends TokenBase {
+export interface EVMNSTToken extends TokenBase {
   type: "nst";
   underlyingAsset: string;
+  provider: string;
+  network: EVMNetwork;
 }
 
 export interface EVMLSTToken extends LSTToken {
@@ -120,9 +121,49 @@ export const imua: EVMNativeToken = {
   priceIndex: 1, // TODO: we use ETH's price index because the imua token does not have a price yet
 } as const;
 
-export type Token = typeof exoETH | typeof wstETH | typeof xrp | typeof tbtc;
+export const ethNSTlocal: EVMNSTToken = {
+  type: "nst",
+  name: "Local Staked ETH",
+  symbol: "nstLocalETH",
+  address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  decimals: 18,
+  iconUrl: "/icons/eth-icon.svg",
+  network: ethPosLocalnet,
+  underlyingAsset: "Local ETH",
+  priceIndex: 1,
+  provider: "Chain",
+} as const;
 
-export const validTokens: Token[] = [exoETH, wstETH, xrp, tbtc];
+export const ethNSTHoodi: EVMNSTToken = {
+  type: "nst",
+  name: "Hoodi Staked ETH",
+  symbol: "nstHoodiETH",
+  address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  decimals: 18,
+  iconUrl: "/icons/eth-icon.svg",
+  network: hoodi,
+  underlyingAsset: "Hoodi ETH",
+  priceIndex: 1,
+  provider: "Chain",
+} as const;
+
+export type Token =
+  | typeof exoETH
+  | typeof wstETH
+  | typeof xrp
+  | typeof tbtc
+  | typeof ethNSTlocal
+  | typeof ethNSTHoodi;
+
+export const validTokens: Token[] = [
+  exoETH,
+  wstETH,
+  xrp,
+  tbtc,
+  process.env.NEXT_PUBLIC_NST_LOCALNET?.toLowerCase() === "true"
+    ? ethNSTlocal
+    : ethNSTHoodi,
+];
 
 export const validRewardTokens: Token[] = [imua];
 

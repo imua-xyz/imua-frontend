@@ -3,13 +3,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/compat/router";
 import { useEffect, useState } from "react";
 import { MultiWalletStatus } from "./MultiWalletStatus";
 import { Token } from "@/types/tokens";
 export function Header({ token }: { token: Token | null }) {
   const [mounted, setMounted] = useState(false);
-  const pathname = usePathname();
+  const router = useRouter();
+  const pathname = router?.pathname;
 
   useEffect(() => {
     setMounted(true);

@@ -41,7 +41,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
   const connectorName =
     token.network.connector.customConnector?.name || "EVM Wallet";
   const connectorIcon =
-    token.network.connector.customConnector?.iconUrl || "/eth-logo.svg";
+    token.network.connector.customConnector?.iconUrl || "/icons/eth-icon.svg";
   const isBTC = token === btc || token === tbtc;
 
   // Function to open the modal for a specific wallet type
@@ -52,7 +52,8 @@ export function MultiWalletStatus({ token }: { token: Token }) {
         address: nativeWallet.address || "",
         name: token.network.connector.customConnector?.name || "EVM Wallet",
         iconUrl:
-          token.network.connector.customConnector?.iconUrl || "/eth-logo.svg",
+          token.network.connector.customConnector?.iconUrl ||
+          "/icons/eth-icon.svg",
         balance: nativeWallet.balance
           ? {
               formatted:
@@ -79,7 +80,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
       setActiveWalletInfo({
         address: bindingEVMWallet?.address || "",
         name: "EVM Wallet",
-        iconUrl: "/eth-logo.svg",
+        iconUrl: "/icons/eth-icon.svg",
         balance: bindingEVMWallet?.balance
           ? {
               formatted:
@@ -155,7 +156,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-[#292936] flex items-center justify-center">
                 <Image
-                  src="/eth-logo.svg"
+                  src="/icons/eth-icon.svg"
                   alt="Imua"
                   className="w-4 h-4"
                   width={16}
@@ -308,7 +309,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium text-white flex items-center gap-2">
                       <Image
-                        src="/eth-logo.svg"
+                        src="/icons/eth-icon.svg"
                         alt="EVM"
                         className="w-4 h-4"
                         width={16}

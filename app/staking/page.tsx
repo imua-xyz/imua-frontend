@@ -11,6 +11,7 @@ import { OperatorsProvider } from "@/components/providers/OperatorsProvider";
 import { WalletConnectionModal } from "@/components/modals/WalletConnectionModal";
 import { TokenSelectorModal } from "@/components/modals/TokenSelectorModal";
 import { StakeTab } from "@/components/tabs/StakeTab";
+import { StakeNSTTab } from "@/components/tabs/StakeNSTTab";
 import { DelegateTab } from "@/components/tabs/DelegateTab";
 import { UndelegateTab } from "@/components/tabs/UndelegateTab";
 import { WithdrawTab } from "@/components/tabs/WithdrawTab";
@@ -23,16 +24,19 @@ import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { useSyncAllWalletsToStore } from "@/hooks/useSyncAllWalletsToStore";
 import { AlertCircle } from "lucide-react";
 import { BootstrapStatus } from "@/types/bootstrap-status";
+import { VerifyTab } from "@/components/tabs/VerifyTab";
 
-type TabType = "stake" | "delegate" | "undelegate" | "withdraw";
+type TabType = "stake" | "verify" | "delegate" | "undelegate" | "withdraw";
 
 // Main content component that uses the staking service
 function StakingContent({
   selectedToken,
   bootstrapStatus,
+  tokenText,
 }: {
   selectedToken: Token;
   bootstrapStatus: BootstrapStatus;
+  tokenText?: string;
 }) {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabType>("stake");
@@ -63,8 +67,15 @@ function StakingContent({
     const requiresExtraConnect =
       selectedToken.network.connector?.requireExtraConnectToImua || false;
 
+    // Check if this is an NST token
+    const isNSTToken = selectedToken.type === "nst";
     // Default tabs for all scenarios
     const tabs = [{ id: "stake", label: "Stake" }];
+
+    // For NST tokens, add verify tab after stake
+    if (isNSTToken) {
+      tabs.push({ id: "verify", label: "Verify" });
+    }
 
     // Only add other tabs if bootstrapped or if the connector doesn't require extra connection
     if (isBootstrapped || !requiresExtraConnect) {
@@ -75,8 +86,13 @@ function StakingContent({
       );
     }
 
+    // However, withdraw should only be added for NST tokens if bootstrapped
+    if (isNSTToken && !isBootstrapped) {
+      tabs.pop();
+    }
+
     return tabs;
-  }, [bootstrapStatus, selectedToken.network.connector]);
+  }, [bootstrapStatus, selectedToken.network.connector, selectedToken.type]);
 
   // Reset to stake tab if current tab becomes unavailable
   useEffect(() => {
@@ -101,7 +117,7 @@ function StakingContent({
             </h3>
             <p className="text-[#9999aa]">
               Connect your wallet to stake, delegate, and earn rewards with your{" "}
-              {selectedToken.symbol} assets
+              {tokenText || selectedToken.symbol} assets
             </p>
           </div>
 
@@ -154,9 +170,29 @@ function StakingContent({
 
     switch (currentTab) {
       case "stake":
-        // For stake, if not bootstrapped, both source and destination are the token's native chain
+        // For NST tokens, use the specialized NST staking tab
+        if (selectedToken.type === "nst") {
+          return (
+            <StakeNSTTab
+              sourceChain={selectedToken.network.chainName.toLowerCase()}
+              destinationChain={selectedToken.network.chainName.toLowerCase()}
+            />
+          );
+        }
+        // For other tokens, use the regular stake tab
         return (
           <StakeTab
+            sourceChain={selectedToken.network.chainName.toLowerCase()}
+            destinationChain={
+              isBootstrapped
+                ? "imua"
+                : selectedToken.network.chainName.toLowerCase()
+            }
+          />
+        );
+      case "verify":
+        return (
+          <VerifyTab
             sourceChain={selectedToken.network.chainName.toLowerCase()}
             destinationChain={
               isBootstrapped
@@ -185,6 +221,7 @@ function StakingContent({
                 ? "imua"
                 : selectedToken.network.chainName.toLowerCase()
             }
+            setCurrentTab={setCurrentTab}
           />
         );
       case "withdraw":
@@ -205,27 +242,29 @@ function StakingContent({
     <>
       {/* Operation Tabs - Refined tab design */}
       <div className="mb-8">
-        <div className="flex border-b border-[#222233]">
-          {availableTabs.map((tab) => (
-            <button
-              key={tab.id}
-              className={`py-4 px-6 text-base font-medium relative ${
-                currentTab === tab.id
-                  ? "text-[#00e5ff]"
-                  : "text-[#9999aa] hover:text-white"
-              }`}
-              onClick={() => setCurrentTab(tab.id as TabType)}
-            >
-              {tab.label}
-              {currentTab === tab.id && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00e5ff]"
-                  initial={false}
-                />
-              )}
-            </button>
-          ))}
+        <div className="flex justify-center border-b border-[#222233] overflow-x-auto scrollbar-hide">
+          <div className="flex min-w-0">
+            {availableTabs.map((tab) => (
+              <button
+                key={tab.id}
+                className={`py-4 px-6 text-base font-medium relative whitespace-nowrap flex-shrink-0 ${
+                  currentTab === tab.id
+                    ? "text-[#00e5ff]"
+                    : "text-[#9999aa] hover:text-white"
+                }`}
+                onClick={() => setCurrentTab(tab.id as TabType)}
+              >
+                {tab.label}
+                {currentTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00e5ff]"
+                    initial={false}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -336,6 +375,9 @@ export default function StakingPage() {
                   <OperatorsProvider token={selectedToken}>
                     <StakingContent
                       selectedToken={selectedToken}
+                      tokenText={
+                        selectedToken.symbol.includes("nst") ? "ETH" : undefined
+                      }
                       bootstrapStatus={
                         bootstrapStatus || {
                           isBootstrapped: false,

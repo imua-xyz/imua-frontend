@@ -1,9 +1,11 @@
 import { useBalance, useAccount, useDisconnect, useSwitchChain } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { EVMLSTToken } from "@/types/tokens";
+import { EVMLSTToken, EVMNSTToken } from "@/types/tokens";
 import { EVMWalletConnector } from "@/types/wallet-connector";
 
-export function useEVMWalletConnector(token: EVMLSTToken): EVMWalletConnector {
+export function useEVMWalletConnector(
+  token: EVMLSTToken | EVMNSTToken,
+): EVMWalletConnector {
   const { address: userAddress, chainId, isConnected } = useAccount();
   const { data: balance } = useBalance({ address: userAddress });
   const { openConnectModal } = useConnectModal();

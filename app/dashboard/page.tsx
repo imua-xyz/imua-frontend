@@ -12,7 +12,7 @@ import {
   Wallet,
   Info,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/compat/router";
 import { validTokens, Token, getTokenKey } from "@/types/tokens";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
 import { useSyncAllWalletsToStore } from "@/hooks/useSyncAllWalletsToStore";
@@ -145,7 +145,7 @@ export default function DashboardPage() {
     // Store the selected token and tab in localStorage for the staking page to read
     localStorage.setItem("selectedStakingToken", JSON.stringify(token));
     localStorage.setItem("selectedStakingTab", tab);
-    router.push("/staking");
+    router?.push("/staking");
   };
 
   // Always call hooks, but handle logic conditionally
@@ -793,7 +793,7 @@ export default function DashboardPage() {
                                   "selectedStakingTab",
                                   "stake",
                                 );
-                                router.push("/staking");
+                                router?.push("/staking");
                               }}
                               variant="primary"
                               size="md"

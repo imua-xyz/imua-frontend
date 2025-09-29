@@ -1,7 +1,12 @@
 import { createAppKit } from "@reown/appkit/react";
-import { projectId } from "@/config/wagmi";
 import { bitcoinAdapter, metadata, supportedChains } from "@/config/reown";
 import React, { type ReactNode } from "react";
+
+// Get this from WalletConnect dashboard
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+if (!projectId) {
+  throw new Error("NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set");
+}
 
 // Create AppKit instance - this creates a global modal that can be used anywhere
 export const appKit = createAppKit({

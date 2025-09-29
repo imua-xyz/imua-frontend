@@ -317,11 +317,11 @@ export function useBitcoinStaking(): StakingService {
       walletProvider,
       setBoundAddress,
       setProvisionalBinding,
-      stakerBalanceResponse,
+      stakerBalanceResponse.refetch,
       readonlyContract,
       paymentAddress,
       psbtBuilder,
-      bitcoinBindingQuery,
+      bitcoinBindingQuery.refetch,
     ],
   );
 
@@ -339,6 +339,7 @@ export function useBitcoinStaking(): StakingService {
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot delegate before bootstrap");
+      if (!publicClient) throw new Error("Public client not found");
 
       const spawnTx = () =>
         writeableContract.write.delegateTo([BTC_TOKEN_ENUM, operator, amount]);
@@ -376,7 +377,7 @@ export function useBitcoinStaking(): StakingService {
       boundImuaAddress,
       evmAddress,
       bootstrapStatus,
-      stakerBalanceResponse,
+      stakerBalanceResponse.refetch,
       publicClient,
     ],
   );
@@ -396,6 +397,7 @@ export function useBitcoinStaking(): StakingService {
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot undelegate before bootstrap");
+      if (!publicClient) throw new Error("Public client not found");
 
       const spawnTx = () =>
         writeableContract.write.undelegateFrom([
@@ -444,7 +446,7 @@ export function useBitcoinStaking(): StakingService {
       boundImuaAddress,
       evmAddress,
       bootstrapStatus,
-      stakerBalanceResponse,
+      stakerBalanceResponse.refetch,
       publicClient,
     ],
   );
@@ -464,6 +466,7 @@ export function useBitcoinStaking(): StakingService {
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot withdraw before bootstrap");
+      if (!publicClient) throw new Error("Public client not found");
 
       const spawnTx = () =>
         writeableContract.write.withdrawPrincipal([BTC_TOKEN_ENUM, amount]);
@@ -501,7 +504,7 @@ export function useBitcoinStaking(): StakingService {
       boundImuaAddress,
       evmAddress,
       bootstrapStatus,
-      stakerBalanceResponse,
+      stakerBalanceResponse.refetch,
       publicClient,
     ],
   );
