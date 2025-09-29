@@ -137,7 +137,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           stakeParams.signature,
           stakeParams.depositDataRoot
         ], {
-          value: amount, // 32 ETH for validator stake
+          value: amount as any, // 32 ETH for validator stake
         });
 
       const getBalanceSnapshot = async () => {
@@ -149,6 +149,8 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
         // For stake step, we just verify the transaction was successful
         return true;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -183,7 +185,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           writeableContract,
           "verifyAndDepositNativeStake",
           [verifyParams.validatorContainer, verifyParams.proof],
-          { value: fee }
+          { value: fee as any }
         );
       } catch (error) {
         return {
@@ -198,7 +200,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           verifyParams.validatorContainer,
           verifyParams.proof
         ], {
-          value: fee,
+          value: fee as any,
         });
 
       const getBalanceSnapshot = async () => {
@@ -212,6 +214,8 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
       ) => {
         return totalDepositedAfter > totalDepositedBefore;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -248,7 +252,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           writeableContract,
           "delegateTo",
           [operator, token.address, amount],
-          { value: fee }
+          { value: fee as any }
         );
       } catch (error) {
         return {
@@ -260,7 +264,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
       
       const spawnTx = () =>
         writeableContract.write.delegateTo([operator, token.address, amount], {
-          value: fee,
+          value: fee as any,
         });
       const getBalanceSnapshot = async () => {
         const freshStaker = await stakerBalanceFromHook.refetch();
@@ -272,6 +276,8 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
       ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -316,7 +322,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           writeableContract,
           "undelegateFrom",
           [operator, token.address, amount, instantUnbond],
-          { value: fee }
+          { value: fee as any }
         );
       } catch (error) {
         return {
@@ -330,7 +336,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
         writeableContract.write.undelegateFrom(
           [operator, token.address, amount, instantUnbond],
           {
-            value: fee,
+            value: fee as any,
           },
         );
       const getBalanceSnapshot = async () => {
@@ -348,6 +354,8 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           ? balanceAfter > balanceBefore
           : balanceAfter === balanceBefore + amount;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -416,6 +424,8 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
       ) => {
         return totalDepositedAfter + amount === totalDepositedBefore;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -538,6 +548,8 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           };
         }
 
+        if (!publicClient) throw new Error("Public client not found");
+
         const result = await handleEVMTxWithStatus({
           spawnTx: () => writeableContract.write.createImuaCapsule([], {
             account: userAddress as `0x${string}`,
@@ -657,7 +669,6 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           wallet: walletClient,
         },
       });
-      
       // Simulate the transaction first
       try {
         await simulateTransaction(
@@ -672,7 +683,8 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           error: error instanceof Error ? error.message : "Simulation failed",
         };
       }
-      
+      if (!publicClient) throw new Error("Public client not found");
+
       const result = await handleEVMTxWithStatus({
         spawnTx: () => beaconOracleContract.write.addTimestamp([BigInt(timestamp)], {
           account: userAddress as `0x${string}`,

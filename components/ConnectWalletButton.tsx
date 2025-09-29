@@ -2,11 +2,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { NativeToken, LSTToken, NSTToken } from "@/types/tokens";
+import { NativeToken, LSTToken, EVMNSTToken } from "@/types/tokens";
 
 interface ConnectWalletButtonProps {
   onClick: () => void;
-  token: NativeToken | LSTToken | NSTToken;
+  token: NativeToken | LSTToken | EVMNSTToken;
 }
 
 export function ConnectWalletButton({

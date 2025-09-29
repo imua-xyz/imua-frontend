@@ -95,7 +95,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return BigInt(0);
       }
     },
-    [readonlyContract],
+    [readonlyContract, bootstrapStatus?.isBootstrapped],
   );
 
   const handleDeposit = useCallback(
@@ -108,7 +108,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const fee = await getQuote("asset");
       const spawnTx = () =>
         writeableContract.write.deposit([token.address, amount], {
-          value: fee,
+          value: fee as any,
         });
       const getBalanceSnapshot = async () => {
         const freshStaker = await stakerBalanceFromHook.refetch();
@@ -120,6 +120,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       ) => {
         return totalDepositedAfter === totalDepositedBefore + amount;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
@@ -140,7 +142,15 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      token.address,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook,
+      balance,
+    ],
   );
 
   const handleDelegateTo = useCallback(
@@ -154,7 +164,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const fee = await getQuote("delegation");
       const spawnTx = () =>
         writeableContract.write.delegateTo([operator, token.address, amount], {
-          value: fee,
+          value: fee as any,
         });
       const getBalanceSnapshot = async () => {
         const freshStaker = await stakerBalanceFromHook.refetch();
@@ -166,6 +176,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -185,7 +197,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [writeableContract, token.address, getQuote, bootstrapStatus?.isBootstrapped, publicClient, stakerBalanceFromHook, delegations],
   );
 
   const handleUndelegateFrom = useCallback(
@@ -208,7 +220,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         writeableContract.write.undelegateFrom(
           [operator, token.address, amount, instantUnbond],
           {
-            value: fee,
+            value: fee as any,
           },
         );
       const getBalanceSnapshot = async () => {
@@ -226,6 +238,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
           ? BalanceAfter > balanceBefore
           : BalanceAfter === balanceBefore + amount;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -245,7 +259,15 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      token.address,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook,
+      delegations,
+    ],
   );
 
   const handleDepositAndDelegate = useCallback(
@@ -262,7 +284,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const spawnTx = () =>
         writeableContract.write.depositThenDelegateTo(
           [token.address, amount, operator],
-          { value: fee },
+          { value: fee as any },
         );
       const getBalanceSnapshot = async () => {
         const freshStaker = await stakerBalanceFromHook.refetch();
@@ -275,6 +297,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
@@ -298,7 +322,16 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      token.address,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook,
+      balance,
+      delegations,
+    ],
   );
 
   const handleClaimPrincipal = useCallback(
@@ -310,7 +343,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         writeableContract.write.claimPrincipalFromImuachain(
           [token.address, amount],
           {
-            value: fee,
+            value: fee as any,
           },
         );
       const getBalanceSnapshot = async () => {
@@ -325,6 +358,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       ) => {
         return withdrawableAfter === withdrawableBefore + amount;
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -344,7 +379,15 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      token.address,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook,
+      withdrawableAmountFromVault,
+    ],
   );
 
   const handleWithdrawPrincipal = useCallback(
@@ -375,6 +418,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return withdrawableAfter + amount === withdrawableBefore;
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: "local",
@@ -393,7 +438,15 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         },
       });
     },
-    [writeableContract, token.address],
+    [
+      writeableContract,
+      token.address,
+      publicClient,
+      balance,
+      withdrawableAmountFromVault,
+      userAddress,
+      vault?.read,
+    ],
   );
 
   const handleStakeWithApproval = useCallback(
