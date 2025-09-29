@@ -1,10 +1,5 @@
 {
   "buildCommand": "bash ./scripts/vercel-build.sh",
   "installCommand": "pnpm install",
-  "framework": "nextjs",
-  "functions": {
-    "app/**": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "framework": "nextjs"
 }
