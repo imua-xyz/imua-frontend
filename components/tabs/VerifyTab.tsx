@@ -182,7 +182,6 @@ export function VerifyTab({ sourceChain, destinationChain, onSuccess }: VerifyTa
     }
     setValidatorStatus(prev => ({ ...prev, loading: true, error: null }));
     try {
-      // Use our API route to proxy the beacon chain API call (avoids CORS issues)
       const response = await fetch(beaconApiUrl + `/eth/v1/beacon/states/head/validators/${validatorPublicKey}`);
       if (!response.ok) {
         if (response.status === 404) {
