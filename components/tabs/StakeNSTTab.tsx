@@ -197,8 +197,8 @@ export function StakeNSTTab({ sourceChain, destinationChain, onSuccess }: StakeN
       }
       // Don't change step yet - let user close dialog first
     } catch (err) {
+      console.error("handleCreateCapsule error:", err);
       const errorMessage = getShortErrorMessage(err);
-      console.log("handleCreateCapsule error:", err);
       setError(errorMessage);
       setCurrentOperationStep(null);
     } finally {
@@ -290,6 +290,7 @@ export function StakeNSTTab({ sourceChain, destinationChain, onSuccess }: StakeN
         throw new Error(result.error || "Staking failed");
       }
     } catch (err) {
+      console.error("handleStake error:", err);
       const errorMessage = getShortErrorMessage(err);
       setError(errorMessage);
       setCurrentOperationStep(

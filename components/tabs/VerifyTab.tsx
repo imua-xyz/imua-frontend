@@ -310,6 +310,7 @@ export function VerifyTab({ sourceChain, destinationChain, onSuccess }: VerifyTa
         throw new Error(result.error || "Failed to add timestamp");
       }
     } catch (err) {
+      console.error("Failed to add timestamp:", err);
       const errorMessage = getShortErrorMessage(err);
       setError(errorMessage);
       setCurrentStep(
@@ -445,6 +446,7 @@ export function VerifyTab({ sourceChain, destinationChain, onSuccess }: VerifyTa
         throw new Error(result.error || "Verification failed");
       }
     } catch (err) {
+      console.error("Failed to verify:", err);
       const errorMessage = getShortErrorMessage(err);
       setError(errorMessage);
       // Show error in progress dialog instead of closing it
