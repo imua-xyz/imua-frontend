@@ -385,10 +385,10 @@ export function VerifyTab({ sourceChain, destinationChain, onSuccess }: VerifyTa
       return;
     }
 
-    if (activationSlot !== null && parseInt(proofData.slot) !== activationSlot) {
-      setError(`Proof slot (${proofData.slot}) does not match expected activation slot (${activationSlot})`);
-      return;
-    }
+    // if (activationSlot !== null && parseInt(proofData.slot) !== activationSlot) {
+    //   setError(`Proof slot (${proofData.slot}) does not match expected activation slot (${activationSlot})`);
+    //   return;
+    // }
 
     try {
       setIsProcessing(true);
