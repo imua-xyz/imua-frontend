@@ -17,7 +17,7 @@ if ! command -v forge &> /dev/null; then
     source $HOME/.zshrc 2>/dev/null || true
 
     # Run foundryup to install forge, cast, anvil, and chisel
-    $HOME/.foundry/bin/foundryup
+    $HOME/.foundry/bin/foundryup --repo foundry-rs/foundry --commit 86d5c5b1cd40505abba1c86f49c6361e8a82100a
 
     # Verify the installation
     if ! command -v forge &> /dev/null; then
