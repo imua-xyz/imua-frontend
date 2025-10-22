@@ -219,6 +219,7 @@ function StakingContent({
                 ? "imua"
                 : selectedToken.network.chainName.toLowerCase()
             }
+            setCurrentTab={setCurrentTab}
           />
         );
       case "withdraw":

@@ -25,12 +25,14 @@ interface UndelegateTabProps {
   sourceChain: string;
   destinationChain: string;
   onSuccess?: () => void;
+  setCurrentTab?: (tab: "delegate" | "undelegate" | "withdraw") => void;
 }
 
 export function UndelegateTab({
   sourceChain,
   destinationChain,
   onSuccess,
+  setCurrentTab,
 }: UndelegateTabProps) {
   // Step management - same as DelegateTab
   const [currentStep, setCurrentStep] = useState<"delegation" | "review">(
@@ -386,7 +388,7 @@ export function UndelegateTab({
           You don&apos;t have any active delegations for this token.
         </p>
         <Button
-          onClick={() => (window.location.href = "/staking")}
+          onClick={() => setCurrentTab?.("delegate")}
           className="bg-[#00e5ff] hover:bg-[#00b8cc] text-black font-medium"
         >
           Start Delegating
