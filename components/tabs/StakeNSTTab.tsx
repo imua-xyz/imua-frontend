@@ -60,6 +60,7 @@ export function StakeNSTTab({ sourceChain, destinationChain, onSuccess }: StakeN
   const [isStaking, setIsStaking] = useState(false);
   const [currentOperationStep, setCurrentOperationStep] = useState<OperationStep | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCheckingCapsule, setIsCheckingCapsule] = useState(true);
 
   // Stake form data
   const [stakeData, setStakeData] = useState<{
@@ -104,7 +105,10 @@ export function StakeNSTTab({ sourceChain, destinationChain, onSuccess }: StakeN
   }
 
   const checkCapsuleExists = useCallback(async () => {
-    if (!stakingService.checkCapsuleExists || !stakingService.isPectraMode) return;
+    if (!stakingService.checkCapsuleExists || !stakingService.isPectraMode) {
+      setIsCheckingCapsule(false);
+      return;
+    }
     try {
       const existingCapsule = await stakingService.checkCapsuleExists();
       if (existingCapsule) {
@@ -130,6 +134,8 @@ export function StakeNSTTab({ sourceChain, destinationChain, onSuccess }: StakeN
         setCurrentStep("capsule");
       }
       console.log(err);
+    } finally {
+      setIsCheckingCapsule(false);
     }
   }, [stakingService, currentOperationStep]);
 
@@ -587,6 +593,15 @@ export function StakeNSTTab({ sourceChain, destinationChain, onSuccess }: StakeN
       </div>
     </div>
   );
+
+  // Show loading state while checking if capsule exists
+  if (isCheckingCapsule) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00e5ff]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
