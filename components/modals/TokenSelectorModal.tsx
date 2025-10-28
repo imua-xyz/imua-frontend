@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, X, Check, ChevronDown } from "lucide-react";
+import { Search, X, Check } from "lucide-react";
 import { useState } from "react";
 import { Token } from "@/types/tokens";
 import Image from "next/image";
