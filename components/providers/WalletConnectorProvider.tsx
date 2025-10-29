@@ -25,8 +25,8 @@ export function WalletConnectorProvider({
   token,
   children,
 }: WalletConnectorProviderProps) {
-  // Render the appropriate provider based on token
-  if (token.address === exoETH.address || token.address === wstETH.address) {
+  // Render the appropriate provider based on token reference equality
+  if (token === exoETH || token === wstETH) {
     return (
       <EVMWalletProvider token={token as EVMLSTToken}>
         {children}
@@ -34,10 +34,7 @@ export function WalletConnectorProvider({
     );
   }
 
-  if (
-    token.address === ethNSTlocal.address ||
-    token.address === ethNSTHoodi.address
-  ) {
+  if (token === ethNSTlocal || token === ethNSTHoodi) {
     return (
       <EVMWalletProvider token={token as EVMNSTToken}>
         {children}
@@ -45,7 +42,7 @@ export function WalletConnectorProvider({
     );
   }
 
-  if (token.address === xrp.address) {
+  if (token === xrp) {
     return <XRPWalletProvider>{children}</XRPWalletProvider>;
   }
 

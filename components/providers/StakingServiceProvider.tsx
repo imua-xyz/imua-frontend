@@ -26,9 +26,8 @@ export function StakingServiceProvider({
   token,
   children,
 }: StakingServiceProviderProps) {
-  // Render the appropriate provider based on token
-  // Use address comparison instead of object reference comparison
-  if (token.address === exoETH.address || token.address === wstETH.address) {
+  // Render the appropriate provider based on token reference equality
+  if (token === exoETH || token === wstETH) {
     return (
       <EVMLSTStakingProvider token={token as EVMLSTToken}>
         {children}
@@ -36,10 +35,7 @@ export function StakingServiceProvider({
     );
   }
 
-  if (
-    token.address === ethNSTlocal.address ||
-    token.address === ethNSTHoodi.address
-  ) {
+  if (token === ethNSTlocal || token === ethNSTHoodi) {
     return (
       <EVMNSTStakingProvider token={token as EVMNSTToken}>
         {children}
@@ -47,7 +43,7 @@ export function StakingServiceProvider({
     );
   }
 
-  if (token.address === xrp.address) {
+  if (token === xrp) {
     return <XRPStakingProvider>{children}</XRPStakingProvider>;
   }
 
