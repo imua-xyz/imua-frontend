@@ -50,6 +50,11 @@ export interface XrplTxOptions extends BaseTxOptions {
   getTransactionStatus: XrplClientState["getTransactionStatus"];
 }
 
+export interface BitcoinTxOptions extends BaseTxOptions {
+  spawnTx: () => Promise<string>;
+  utxoGateway: any;
+}
+
 export interface StakerBalance {
   clientChainID: number;
   stakerAddress: string;

@@ -196,12 +196,13 @@ export function useXRPStaking(): StakingService {
         }
       };
 
+      // We get staker balance from indexer, which indexes XRP tx with delay, so we cannot verify completion immediately after tx
       const { hash, success, error } = await handleXrplTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapped ? "simplex" : "local",
         getTransactionStatus: getTransactionStatus,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getStateSnapshot,
+        verifyCompletion: bootstrapped ? verifyCompletion : undefined,
+        getStateSnapshot: bootstrapped ? getStateSnapshot : undefined,
         onPhaseChange: options?.onPhaseChange,
         onSuccess: onSuccess,
         utxoGateway: readonlyContract,

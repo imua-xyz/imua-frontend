@@ -265,11 +265,12 @@ export function useBitcoinStaking(): StakingService {
         }
       };
 
+      // We get staker balance from indexer, which indexes bitcoin tx with delay, so we cannot verify completion here
       const { hash, success, error } = await handleBitcoinTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapped ? "simplex" : "local",
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getStateSnapshot,
+        verifyCompletion: bootstrapped ? verifyCompletion : undefined,
+        getStateSnapshot: bootstrapped ? getStateSnapshot : undefined,
         onPhaseChange: options?.onPhaseChange
           ? (phase: string) => options.onPhaseChange?.(phase as any)
           : undefined,

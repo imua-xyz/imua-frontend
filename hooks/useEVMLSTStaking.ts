@@ -134,13 +134,18 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       if (!publicClient) throw new Error("Public client not found");
 
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
         onSuccess: (result: { hash: string; success: boolean }) => {
           if (result.success) {
@@ -190,12 +195,17 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       if (!publicClient) throw new Error("Public client not found");
 
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
         onSuccess: (result: { hash: string; success: boolean }) => {
           if (result.success) {
@@ -260,12 +270,17 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       if (!publicClient) throw new Error("Public client not found");
 
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
         onSuccess: (result: { hash: string; success: boolean }) => {
           if (result.success) {
@@ -319,13 +334,18 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
       if (!publicClient) throw new Error("Public client not found");
 
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
         onSuccess: (result: { hash: string; success: boolean }) => {
           if (result.success) {

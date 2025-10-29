@@ -2,7 +2,12 @@
 // Transaction utility functions for handling EVM and XRPL transactions with phase-based lifecycle
 // Supports local, simplex (one-way cross-chain), and duplex (two-way cross-chain) operations
 // XRPL operations use UTXOGateway contract to check stake message processing status
-import { BaseTxOptions, EVMTxOptions, XrplTxOptions } from "@/types/staking";
+import {
+  BaseTxOptions,
+  EVMTxOptions,
+  XrplTxOptions,
+  BitcoinTxOptions,
+} from "@/types/staking";
 import { LAYERZERO_CONFIG } from "@/config/layerzero";
 import { MessageResponse } from "@/types/layerzero";
 import {
@@ -736,15 +741,11 @@ export async function handleBitcoinTxWithStatus({
   onPhaseChange,
   onSuccess,
   utxoGateway,
-}: {
-  spawnTx: () => Promise<string>;
-  mode: "local" | "simplex" | "duplex";
-  verifyCompletion: (before: bigint, after: bigint) => Promise<boolean>;
-  getStateSnapshot: () => Promise<bigint>;
-  onPhaseChange?: (phase: string) => void;
-  onSuccess?: (result: { hash: string; success: boolean }) => void;
-  utxoGateway?: UTXOGatewayContract;
-}): Promise<{ hash: string; success: boolean; error?: string }> {
+}: BitcoinTxOptions): Promise<{
+  hash: string;
+  success: boolean;
+  error?: string;
+}> {
   try {
     // Take initial state snapshot before any transaction work
     let snapshotBefore: StateSnapshot | null = null;
@@ -830,7 +831,6 @@ export async function handleBitcoinTxWithStatus({
     }
   } catch (error) {
     console.error("Bitcoin transaction failed:", error);
-    onPhaseChange?.("error");
 
     return {
       hash: "",
