@@ -75,6 +75,7 @@ export function useBootstrapValidatorsGraphQL() {
     useQuery<GetBootstrapValidatorsResponse>(GET_BOOTSTRAP_VALIDATORS, {
       errorPolicy: "all",
       notifyOnNetworkStatusChange: true,
+      pollInterval: 30000, // Poll every 30 seconds for operator updates
     });
 
   const operators = useMemo(() => {
@@ -122,6 +123,7 @@ export function useBootstrapDelegationsGraphQL(
         errorPolicy: "all",
         notifyOnNetworkStatusChange: true,
         skip: !stakerAddress || !token.address,
+        pollInterval: 3000, // Poll every 3 seconds
       },
     );
 
@@ -216,6 +218,7 @@ export function useBootstrapAddressBinding(
         errorPolicy: "all",
         notifyOnNetworkStatusChange: true,
         skip: !chainType || !sourceAddr,
+        pollInterval: 30000, // Poll every 30 seconds for address binding updates
       },
     );
 
@@ -255,6 +258,7 @@ export function useBootstrapAddressBindingsByTarget(
         errorPolicy: "all",
         notifyOnNetworkStatusChange: true,
         skip: !chainType || !targetAddr,
+        pollInterval: 30000, // Poll every 30 seconds for address binding updates
       },
     );
 
