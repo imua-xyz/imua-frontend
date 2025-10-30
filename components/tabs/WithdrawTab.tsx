@@ -234,8 +234,9 @@ export function WithdrawTab({
           );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage =
-              result.error || "Claim failed";
+            updated[processingStepIndex].errorMessage = result.error
+              ? getShortErrorMessage(new Error(result.error))
+              : "Claim failed";
           }
           return updated;
         });
@@ -305,8 +306,9 @@ export function WithdrawTab({
           );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage =
-              result.error || "Withdrawal failed";
+            updated[processingStepIndex].errorMessage = result.error
+              ? getShortErrorMessage(new Error(result.error))
+              : "Withdrawal failed";
           }
           return updated;
         });

@@ -222,8 +222,9 @@ export function DelegateTab({
           );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage =
-              result.error || "Operation failed";
+            updated[processingStepIndex].errorMessage = result.error
+              ? getShortErrorMessage(new Error(result.error))
+              : "Operation failed";
           }
           return updated;
         });
