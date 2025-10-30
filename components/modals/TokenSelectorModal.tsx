@@ -26,12 +26,21 @@ export function TokenSelectorModal({
   onSelectToken,
 }: TokenSelectorModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showBottomFade, setShowBottomFade] = useState(true);
 
   const filteredTokens = tokens.filter(
     (token) =>
       token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       token.symbol.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  // Handle scroll to detect if we're at the bottom
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    const isAtBottom =
+      element.scrollHeight - element.scrollTop <= element.clientHeight + 5; // 5px threshold
+    setShowBottomFade(!isAtBottom);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -81,6 +90,7 @@ export function TokenSelectorModal({
           <div
             className="token-list-scroll max-h-[300px] overflow-y-auto pr-2"
             style={{ scrollbarColor: "#00e5ff #222233" }}
+            onScroll={handleScroll}
           >
             {filteredTokens.map((token) => (
               <button
@@ -117,8 +127,8 @@ export function TokenSelectorModal({
             )}
           </div>
 
-          {/* Strong fade at bottom to show more content */}
-          {filteredTokens.length > 4 && (
+          {/* Strong fade at bottom to show more content - only when not at bottom */}
+          {filteredTokens.length > 4 && showBottomFade && (
             <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#13131a] via-[#13131a]/90 to-transparent pointer-events-none z-10" />
           )}
         </div>
