@@ -126,7 +126,10 @@ export function useXRPStaking(): StakingService {
             : "Operator address is required for now",
         );
       if (!evmAddress) throw new Error("EVM wallet not connected");
-      if (boundImuaAddress && boundImuaAddress !== evmAddress)
+      if (
+        boundImuaAddress &&
+        boundImuaAddress.toLowerCase() !== evmAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
 
       // Get account info using the xrplClient
@@ -282,7 +285,10 @@ export function useXRPStaking(): StakingService {
       if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
-      if (evmAddress && evmAddress !== boundImuaAddress)
+      if (
+        evmAddress &&
+        evmAddress.toLowerCase() !== boundImuaAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot delegate before bootstrap");
@@ -339,7 +345,10 @@ export function useXRPStaking(): StakingService {
       if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
-      if (evmAddress && evmAddress !== boundImuaAddress)
+      if (
+        evmAddress &&
+        evmAddress.toLowerCase() !== boundImuaAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot undelegate before bootstrap");
@@ -407,7 +416,10 @@ export function useXRPStaking(): StakingService {
         throw new Error("Contract not available or bound address not found");
       if (!amount) throw new Error("Invalid parameters");
       if (recipient) throw new Error("Recipient not supported for now");
-      if (evmAddress && evmAddress !== boundImuaAddress)
+      if (
+        evmAddress &&
+        evmAddress.toLowerCase() !== boundImuaAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot withdraw before bootstrap");
