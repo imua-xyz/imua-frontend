@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { HelpCircle } from "lucide-react";
 import { getShortErrorMessage } from "@/lib/utils";
+import { btc, tbtc } from "@/types/tokens";
 
 interface StakeTabProps {
   sourceChain: string;
@@ -70,6 +71,7 @@ export function StakeTab({
   // Determine which modes are available
   const isStakeModeAvailable = !isDepositThenDelegateDisabled;
   const isDepositModeAvailable = !isOnlyDepositThenDelegateAllowed;
+  const isConfirmationSlow = token === btc || token === tbtc;
 
   // If only stake mode is allowed, force stake mode
   const canSwitchModes = isStakeModeAvailable && isDepositModeAvailable;
@@ -124,6 +126,7 @@ export function StakeTab({
       // Update descriptions for local context
       steps[1].description = "Sending stake transaction";
       steps[2].description = "Waiting for transaction confirmation";
+      steps[2].estimatedTime = isConfirmationSlow ? "10 min" : "10 sec";
     } else {
       // Cross-chain mode: approval, transaction, confirmation, relay, completion
       steps = [
@@ -136,6 +139,7 @@ export function StakeTab({
       // Update descriptions for cross-chain context
       steps[1].description = "Sending stake transaction";
       steps[3].description = `Relaying message to ${destinationChain}`;
+      steps[2].estimatedTime = isConfirmationSlow ? "10 min" : "10 sec";
     }
 
     setOperationSteps(steps);
