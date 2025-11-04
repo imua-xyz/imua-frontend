@@ -18,6 +18,7 @@ const isDocumentFocused = () =>
 const createGemWalletClient = () => {
   // Session expiration check (only this needs polling)
   let sessionCheckInterval: NodeJS.Timeout | null = null;
+  let eventListenersSetup = false; // Flag to prevent duplicate event listener setup
 
   // Start session expiration check (only when connected)
   const startSessionCheck = () => {
@@ -227,6 +228,9 @@ const createGemWalletClient = () => {
     // Only set up event listeners on the client side
     if (typeof window === "undefined") return;
 
+    // Prevent duplicate event listener setup
+    if (eventListenersSetup) return;
+
     try {
       // Listen for login events
       on("login", (response) => {
@@ -263,6 +267,9 @@ const createGemWalletClient = () => {
         const connect = store.getState().connect;
         connect();
       });
+
+      // Mark event listeners as set up
+      eventListenersSetup = true;
     } catch (error) {
       console.warn("Failed to set up GemWallet event listeners:", error);
     }
@@ -281,23 +288,6 @@ const createGemWalletClient = () => {
     setTimeout(() => {
       initialState.checkInstallation();
     }, 100);
-
-    if (initialState.isWalletConnected && !initialState.manuallyDisconnected) {
-      // Start session check when already connected
-      startSessionCheck();
-
-      // Auto-reconnect on initial load if there's a session
-      // But only if the user didn't manually disconnect
-      if (
-        initialState.sessionExpiresAt &&
-        initialState.sessionExpiresAt > Date.now()
-      ) {
-        // Small delay to ensure app is mounted
-        setTimeout(() => {
-          initialState.connect();
-        }, 1000);
-      }
-    }
   }
 
   // Cleanup function
@@ -306,26 +296,28 @@ const createGemWalletClient = () => {
   };
 
   // Client-side initialization function
+  // This is called when the XRP provider mounts
   const initialize = () => {
     if (typeof window === "undefined") return;
 
     const state = store.getState();
 
-    // Check installation status
-    state.checkInstallation();
+    // Only check installation status if not already known
+    if (!state.installed) {
+      state.checkInstallation();
+    }
 
-    // Set up event listeners if not already done
+    // Set up event listeners if not already done (this is safe to call multiple times)
     setupEventListeners();
 
-    // Auto-reconnect if there's a valid session
+    // Start session check if already connected
+    // Note: We don't auto-reconnect because:
+    // 1. GemWallet API is stateless - each call (getAddress, sendPayment) works independently
+    // 2. The stored state (address, network) is still valid until user logs out or session expires
+    // 3. Auto-reconnecting would unnecessarily pop up the extension
+    // 4. Event listeners will handle actual state changes (login, logout, network change)
     if (state.isWalletConnected && !state.manuallyDisconnected) {
       startSessionCheck();
-
-      if (state.sessionExpiresAt && state.sessionExpiresAt > Date.now()) {
-        setTimeout(() => {
-          state.connect();
-        }, 1000);
-      }
     }
   };
 

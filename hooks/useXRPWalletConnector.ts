@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useAccount, useBalance, useDisconnect, useSwitchChain } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import {
@@ -41,9 +40,9 @@ export function useXRPWalletConnector(): XRPWalletConnector {
   const disconnect = useGemWalletStore((state) => state.disconnect);
 
   const setNetwork = useXrplStore((state) => state.setNetwork);
-  const getAccountInfo = useXrplStore((state) => state.getAccountInfo);
 
-  // Initialize GemWallet on mount
+  // Initialize GemWallet on mount (but only start session check, don't auto-reconnect)
+  // The gemWalletClient already handles initial auto-reconnect on first load
   useEffect(() => {
     initializeGemWallet();
   }, []);
