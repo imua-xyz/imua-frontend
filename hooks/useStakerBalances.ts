@@ -113,7 +113,8 @@ export function useStakerBalances(tokens: Token[]) {
           (bootstrapStatus.isBootstrapped
             ? !!token.network.customChainIdByImua
             : stakerAssetsQueries.every((q) => !q.isLoading)), // Wait for staker assets in bootstrap
-        refetchInterval: 3000,
+        refetchInterval: 30000, // Reduced from 3000ms to 30000ms (30 seconds)
+        staleTime: 20000, // Consider data fresh for 20 seconds
       };
     }),
   });

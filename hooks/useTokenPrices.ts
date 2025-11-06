@@ -105,6 +105,7 @@ export function useTokenPrices(tokens: Token[]): {
       error: Error | null;
     }
   >();
+
   results.forEach((result, index) => {
     const token = tokens[index];
     const tokenKey = getTokenKey(token);
@@ -116,8 +117,7 @@ export function useTokenPrices(tokens: Token[]): {
   });
 
   const isLoading = Array.from(prices.values()).some((p) => p.isLoading);
-  const error =
-    Array.from(prices.values()).find((p) => p && p.error)?.error || null;
+  const error = Array.from(prices.values()).find((p) => p.error)?.error || null;
 
   return {
     data: prices,

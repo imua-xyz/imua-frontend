@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { COSMOS_CONFIG } from "@/config/cosmos";
@@ -12,6 +13,7 @@ import { RewardResponse, RewardsPerStakerId } from "@/types/rewards";
 import { useAllWalletsStore } from "@/stores/allWalletsStore";
 import { RewardsPerAVS, RewardsPerToken } from "@/types/rewards";
 import { AVS, findKnownAVSByAddress, createUnknownAVS } from "@/types/avs";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 
 // Helper function to get unique stakerIds from validTokens and connected wallets
 function getUniqueStakerIds(): Array<{
@@ -165,15 +167,38 @@ export function useRewardsPerStakerId(
   isLoading: boolean;
   error: Error | null;
 } {
+  const { bootstrapStatus } = useBootstrapStatus();
+
   // Always call useQuery, but control execution with enabled option
   const query = useQuery({
     queryKey: ["rewards", userAddress, customChainId],
     queryFn: async (): Promise<RewardsPerStakerId> => {
       return fetchRewards(userAddress, customChainId);
     },
-    enabled: !!userAddress && !!customChainId,
+    // Only fetch rewards if wallet is connected AND bootstrap phase is complete
+    enabled:
+      !!userAddress && !!customChainId && !!bootstrapStatus?.isBootstrapped,
     refetchInterval: 30000,
   });
+
+  // Memoize empty rewards during bootstrap phase to prevent unnecessary re-renders
+  const emptyRewards = useMemo(
+    () => ({
+      userAddress: userAddress,
+      customChainId: customChainId,
+      rewards: new Map(),
+    }),
+    [userAddress, customChainId],
+  );
+
+  // Return empty rewards during bootstrap phase
+  if (!bootstrapStatus?.isBootstrapped) {
+    return {
+      data: emptyRewards,
+      isLoading: false,
+      error: null,
+    };
+  }
 
   return {
     data: query.data,
@@ -190,6 +215,7 @@ export function useAllRewards(): {
   isLoading: boolean;
   error: Error | null;
 } {
+  const { bootstrapStatus } = useBootstrapStatus();
   const uniqueStakerIds = getUniqueStakerIds();
 
   // Create queries for all unique staker IDs
@@ -198,7 +224,9 @@ export function useAllRewards(): {
     queryFn: async (): Promise<RewardsPerStakerId> => {
       return fetchRewards(userAddress, customChainId);
     },
-    enabled: !!userAddress && !!customChainId,
+    // Only fetch rewards if wallet is connected AND bootstrap phase is complete
+    enabled:
+      !!userAddress && !!customChainId && !!bootstrapStatus?.isBootstrapped,
     refetchInterval: 30000,
   }));
 
@@ -206,94 +234,113 @@ export function useAllRewards(): {
   const isLoading = results.some((r) => r.isLoading);
   const error = results.find((r) => r && r.error)?.error || undefined;
 
-  // Aggregate rewards by AVS across all stakerIds
-  const rewardsByAvs = new Map<string, RewardsPerAVS | undefined>();
+  // Return empty rewards during bootstrap phase
+  if (!bootstrapStatus?.isBootstrapped) {
+    return {
+      data: {
+        rewardsByAvs: new Map<string, RewardsPerAVS | undefined>(),
+        rewardsByToken: new Map<string, RewardsPerToken | undefined>(),
+      },
+      isLoading: false,
+      error: null,
+    };
+  }
 
-  results.forEach((result) => {
-    if (result.data) {
-      result.data.rewards.forEach((reward) => {
-        const avsKey = reward.avs.address;
-        const existing = rewardsByAvs.get(avsKey);
+  // Aggregate rewards
+  const aggregatedRewards = (() => {
+    // Aggregate rewards by AVS across all stakerIds
+    const rewardsByAvs = new Map<string, RewardsPerAVS | undefined>();
 
-        if (existing) {
-          // Merge tokens for the same AVS
-          reward.tokens.forEach((newToken) => {
-            // Use token key for the tokens map
-            const tokenKey = getTokenKey(newToken.token);
-            const existingToken = existing.tokens.get(tokenKey);
+    results.forEach((result) => {
+      if (result.data) {
+        result.data.rewards.forEach((reward) => {
+          const avsKey = reward.avs.address;
+          const existing = rewardsByAvs.get(avsKey);
 
-            if (existingToken) {
-              // Add amounts for the same token
-              existing.tokens.set(tokenKey, {
-                token: newToken.token,
-                amount: existingToken.amount + newToken.amount,
-              });
-            } else {
-              // Add new token
-              existing.tokens.set(tokenKey, newToken);
-            }
-          });
-        } else {
-          // First time seeing this AVS
-          rewardsByAvs.set(avsKey, {
-            avs: reward.avs,
-            tokens: new Map<string, { token: Token; amount: bigint }>(
-              Array.from(reward.tokens.entries()),
-            ),
-          });
-        }
-      });
-    }
-  });
+          if (existing) {
+            // Merge tokens for the same AVS
+            reward.tokens.forEach((newToken) => {
+              // Use token key for the tokens map
+              const tokenKey = getTokenKey(newToken.token);
+              const existingToken = existing.tokens.get(tokenKey);
 
-  // Group rewards by token (final step for dashboard display)
-  const rewardsByToken = new Map<string, RewardsPerToken>();
-
-  Array.from(rewardsByAvs.values())
-    .filter((avsReward): avsReward is RewardsPerAVS => avsReward !== undefined)
-    .forEach((avsReward) => {
-      avsReward.tokens.forEach((tokenReward) => {
-        // Use token ID (address + custom chain ID) as key for uniqueness
-        const tokenKey = getTokenKey(tokenReward.token);
-        const existing = rewardsByToken.get(tokenKey);
-
-        if (existing) {
-          // Add amounts for the same token
-          existing.totalAmount += tokenReward.amount;
-          existing.sources.set(avsReward.avs.address, {
-            avs: avsReward.avs,
-            amount: tokenReward.amount,
-          });
-        } else {
-          // First time seeing this token
-          rewardsByToken.set(tokenKey, {
-            token: tokenReward.token,
-            totalAmount: tokenReward.amount,
-            sources: new Map<
-              string,
-              {
-                avs: AVS;
-                amount: bigint;
+              if (existingToken) {
+                // Add amounts for the same token
+                existing.tokens.set(tokenKey, {
+                  token: newToken.token,
+                  amount: existingToken.amount + newToken.amount,
+                });
+              } else {
+                // Add new token
+                existing.tokens.set(tokenKey, newToken);
               }
-            >([
-              [
-                avsReward.avs.address,
-                {
-                  avs: avsReward.avs,
-                  amount: tokenReward.amount,
-                },
-              ],
-            ]),
-          });
-        }
-      });
+            });
+          } else {
+            // First time seeing this AVS
+            rewardsByAvs.set(avsKey, {
+              avs: reward.avs,
+              tokens: new Map<string, { token: Token; amount: bigint }>(
+                Array.from(reward.tokens.entries()),
+              ),
+            });
+          }
+        });
+      }
     });
 
-  return {
-    data: {
+    // Group rewards by token (final step for dashboard display)
+    const rewardsByToken = new Map<string, RewardsPerToken>();
+
+    Array.from(rewardsByAvs.values())
+      .filter(
+        (avsReward): avsReward is RewardsPerAVS => avsReward !== undefined,
+      )
+      .forEach((avsReward) => {
+        avsReward.tokens.forEach((tokenReward) => {
+          // Use token ID (address + custom chain ID) as key for uniqueness
+          const tokenKey = getTokenKey(tokenReward.token);
+          const existing = rewardsByToken.get(tokenKey);
+
+          if (existing) {
+            // Add amounts for the same token
+            existing.totalAmount += tokenReward.amount;
+            existing.sources.set(avsReward.avs.address, {
+              avs: avsReward.avs,
+              amount: tokenReward.amount,
+            });
+          } else {
+            // First time seeing this token
+            rewardsByToken.set(tokenKey, {
+              token: tokenReward.token,
+              totalAmount: tokenReward.amount,
+              sources: new Map<
+                string,
+                {
+                  avs: AVS;
+                  amount: bigint;
+                }
+              >([
+                [
+                  avsReward.avs.address,
+                  {
+                    avs: avsReward.avs,
+                    amount: tokenReward.amount,
+                  },
+                ],
+              ]),
+            });
+          }
+        });
+      });
+
+    return {
       rewardsByAvs, // AVS-grouped rewards (Map)
       rewardsByToken, // Token-grouped rewards (Map)
-    },
+    };
+  })();
+
+  return {
+    data: aggregatedRewards,
     isLoading,
     error: error || null,
   };
