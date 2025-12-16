@@ -58,7 +58,7 @@ export const exoETH: EVMLSTToken = {
   symbol: "imETH",
   address: "0x80E5bb3A04554E54b40Dd6e14ca0F97212d9428d",
   decimals: 18,
-  iconUrl: "/icons/imua-icon.png",
+  iconUrl: "/icons/imua-icon.svg",
   underlyingAsset: "ETH",
   provider: "Imua",
   priceIndex: 1,
@@ -116,7 +116,7 @@ export const imua: EVMNativeToken = {
   symbol: "IM",
   address: "0x0000000000000000000000000000000000000000",
   decimals: 18,
-  iconUrl: "/icons/imua-icon.png",
+  iconUrl: "/icons/imua-icon.svg",
   network: imuaChain,
   priceIndex: 1, // TODO: we use ETH's price index because the imua token does not have a price yet
 } as const;

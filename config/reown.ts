@@ -17,7 +17,7 @@ export const metadata = {
   name: "Imua Staking",
   description: "Omnichain Restaking Platform",
   url: "https://www.imua.xyz/",
-  icons: ["public/imua-logo.avif"],
+  icons: ["public/logos/imua-logo.svg"],
 };
 
 export const supportedChains = [bitcoinTestnet] as [

@@ -25,7 +25,7 @@ export default function HomePage() {
         transition={{ duration: 0.5 }}
       >
         <Image
-          src={"/imua-logo.avif"}
+          src={"/logos/imua-logo.svg"}
           alt="IMUA"
           width={400}
           height={120}

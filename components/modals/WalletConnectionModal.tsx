@@ -546,7 +546,7 @@ export function WalletConnectionModal({
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-medium text-white flex items-center gap-2">
                     <Image
-                      src="/imua-logo.avif"
+                      src="/logos/imua-logo.svg"
                       alt="EVM Wallet"
                       className="w-4 h-4"
                       width={16}

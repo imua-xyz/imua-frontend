@@ -25,7 +25,7 @@ export function Header({ token }: { token: Token | null }) {
         <div className="flex items-center space-x-8">
           <Link href="/" className="flex items-center">
             <Image
-              src={"/imua-logo.avif"}
+              src={"/logos/imua-logo.svg"}
               alt="IMUA"
               width={120}
               height={40}
