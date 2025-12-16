@@ -1,4 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { useAccount } from "wagmi";
 import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { StakerBalanceResponseFromPrecompile } from "@/types/staking";
 import { Token } from "@/types/tokens";
@@ -11,10 +12,30 @@ import { BootstrapStakerAsset } from "@/lib/graphql/schema";
 export function useStakerBalances(tokens: Token[]) {
   const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { bootstrapStatus } = useBootstrapStatus();
+  const { address: evmAddress, isConnected: isEVMConnected } = useAccount();
+
+  // Helper function to get query address with EVM wallet fallback
+  const getQueryAddress = (token: Token): string | undefined => {
+    const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
+
+    // If query address is empty and token requires extra connect to Imua
+    // and native wallet is not connected, use EVM wallet address as fallback
+    if (
+      !queryAddress &&
+      token.network.connector.requireExtraConnectToImua &&
+      !stakerAddress && // Native wallet not connected
+      isEVMConnected &&
+      evmAddress
+    ) {
+      return evmAddress;
+    }
+
+    return queryAddress;
+  };
 
   // Get unique stakerIds for bootstrap phase
   const stakerIds = tokens.reduce((acc, token) => {
-    const { queryAddress } = getQueryStakerAddress(token);
+    const queryAddress = getQueryAddress(token);
     if (queryAddress && token.network.customChainIdByImua) {
       const stakerId = `${queryAddress.toLowerCase()}_0x${token.network.customChainIdByImua.toString(16)}`;
       acc.add(stakerId);
@@ -53,7 +74,7 @@ export function useStakerBalances(tokens: Token[]) {
 
   const results = useQueries({
     queries: tokens.map((token) => {
-      const { queryAddress } = getQueryStakerAddress(token);
+      const queryAddress = getQueryAddress(token);
 
       return {
         queryKey: [

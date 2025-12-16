@@ -186,6 +186,31 @@ export default function DashboardPage() {
   const rewardsByToken = rewardsData?.rewardsByToken;
   const prices = pricesData;
 
+  // Sort tokens for the Positions section so that tokens with actual positions
+  // (non-zero totalDeposited) appear first, followed by tokens without data.
+  const sortedTokensForPositions = useMemo(() => {
+    return [...validTokens].sort((a, b) => {
+      const posA = positions?.get(getTokenKey(a))?.data;
+      const posB = positions?.get(getTokenKey(b))?.data;
+
+      const hasNonZeroA = !!posA && Number(posA.totalDeposited || 0) > 0;
+      const hasNonZeroB = !!posB && Number(posB.totalDeposited || 0) > 0;
+
+      // First key: non-zero positions first
+      if (hasNonZeroA && !hasNonZeroB) return -1;
+      if (!hasNonZeroA && hasNonZeroB) return 1;
+
+      // Second key: zero-but-present positions before completely undefined
+      const hasDefinedA = !!posA;
+      const hasDefinedB = !!posB;
+      if (hasDefinedA && !hasDefinedB) return -1;
+      if (!hasDefinedA && hasDefinedB) return 1;
+
+      // Otherwise keep original order
+      return 0;
+    });
+  }, [positions]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -696,15 +721,25 @@ export default function DashboardPage() {
                 Your Positions
               </h2>
               <div className="space-y-6 mb-10">
-                {validTokens.map((token) => {
-                  // Check if wallet is connected for this token
+                {sortedTokensForPositions.map((token) => {
+                  // Check if wallet is connected for this token (used for EVM-native tokens)
                   const isWalletConnected = isWalletConnectedForToken(token);
 
                   // Find position data for this token using Map lookup
                   const positionData = positions?.get(getTokenKey(token));
+                  const requiresExtraConnect =
+                    token.network.connector.requireExtraConnectToImua;
 
-                  // If wallet is not connected, show connect wallet card
-                  if (!isWalletConnected) {
+                  // Decide when to show the \"Connect wallet\" card:
+                  // - For EVM-native tokens: when wallet is not connected
+                  // - For tokens that require extra connect to Imua (e.g. XRP, tBTC):
+                  //   only when we have no position data at all (we can still fetch
+                  //   positions via EVM fallback even if native wallet is disconnected).
+                  const shouldShowConnectCard = requiresExtraConnect
+                    ? !positionData
+                    : !isWalletConnected;
+
+                  if (shouldShowConnectCard) {
                     return (
                       <Card
                         key={token.symbol}
@@ -749,7 +784,8 @@ export default function DashboardPage() {
                     );
                   }
 
-                  // If wallet is connected but no position data or zero position, show empty state with Start Staking button
+                  // If we have a wallet (or EVM fallback) but no position data or zero position,
+                  // show empty state with Start Staking button
                   const position = positionData?.data;
                   const hasNoPosition =
                     !position || Number(position.totalDeposited) === 0;
