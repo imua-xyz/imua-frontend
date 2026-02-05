@@ -109,6 +109,7 @@ export interface BootstrapStakerAsset {
   withdrawable: number;
   delegated: number;
   updated_at?: string;
+  updated_at_block?: number; // Block height when this record was last updated
 }
 
 export interface BootstrapDelegationState {
@@ -117,6 +118,7 @@ export interface BootstrapDelegationState {
   operator_addr: string;
   delegated: number;
   updated_at?: string;
+  updated_at_block?: number; // Block height when this record was last updated
 }
 
 export interface BootstrapOperatorAsset {

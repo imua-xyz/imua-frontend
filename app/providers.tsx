@@ -9,6 +9,12 @@ import { ApolloProvider } from "@/components/providers/ApolloProvider";
 import "@rainbow-me/rainbowkit/styles.css";
 import { config } from "@/config/wagmi";
 import { useState } from "react";
+import { useOptimisticCacheCleanup } from "@/hooks/useOptimisticCacheCleanup";
+
+function OptimisticCacheCleanup() {
+  useOptimisticCacheCleanup();
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -18,7 +24,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
           <ApolloProvider>
-            <RainbowKitProvider>{children}</RainbowKitProvider>
+            <RainbowKitProvider>
+              <OptimisticCacheCleanup />
+              {children}
+            </RainbowKitProvider>
           </ApolloProvider>
         </QueryClientProvider>
       </WagmiProvider>

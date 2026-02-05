@@ -24,6 +24,7 @@ export const GET_BOOTSTRAP_DELEGATIONS = gql`
       operator_addr
       delegated
       updated_at
+      updated_at_block
     }
   }
 `;
@@ -38,6 +39,7 @@ export const GET_BOOTSTRAP_DELEGATIONS_BY_ASSET = gql`
       operator_addr
       delegated
       updated_at
+      updated_at_block
     }
   }
 `;
@@ -51,6 +53,7 @@ export const GET_BOOTSTRAP_STAKER_ASSETS = gql`
       withdrawable
       delegated
       updated_at
+      updated_at_block
     }
   }
 `;

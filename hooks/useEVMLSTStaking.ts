@@ -14,6 +14,7 @@ import { useStakerBalances } from "./useStakerBalances";
 import { useERC20Token } from "./useERC20Token";
 import { useDelegations } from "./useDelegations";
 import { useTokenBalance } from "./useTokenBalance";
+import { storePendingTransaction } from "@/lib/optimistic-helpers";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress } = useAccount();
@@ -147,12 +148,20 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "deposit",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+            );
+
             console.log("Deposit succeeded, updating cached balances...");
-            // Force update both Imuachain staker balance and client chain wallet balance
             stakerBalanceFromHook.refetch();
-            // Force refetch wallet balance for immediate update
             tokenBalanceQuery.refetch();
           }
         },
@@ -160,12 +169,13 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     },
     [
       writeableContract,
-      token.address,
       getQuote,
       bootstrapStatus?.isBootstrapped,
       publicClient,
       stakerBalanceFromHook.refetch,
       tokenBalanceQuery.refetch,
+      userAddress,
+      token,
     ],
   );
 
@@ -207,12 +217,20 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "delegate",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log("Delegate succeeded, updating cached balances...");
-            // Update Imuachain staker balance (delegated and claimable balances)
             stakerBalanceFromHook.refetch();
-            // Force update delegations to reflect new delegation amounts
             delegations.refetch();
           }
         },
@@ -220,12 +238,13 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     },
     [
       writeableContract,
-      token.address,
       getQuote,
       bootstrapStatus?.isBootstrapped,
       publicClient,
       stakerBalanceFromHook.refetch,
       delegations.refetch,
+      userAddress,
+      token,
     ],
   );
 
@@ -282,12 +301,20 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "undelegate",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log("Undelegate succeeded, updating cached balances...");
-            // Update Imuachain staker balance (delegated, claimable, or pendingUndelegated)
             stakerBalanceFromHook.refetch();
-            // Force update delegations to reflect reduced delegation amounts
             delegations.refetch();
           }
         },
@@ -295,12 +322,13 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     },
     [
       writeableContract,
-      token.address,
       getQuote,
       bootstrapStatus?.isBootstrapped,
       publicClient,
       stakerBalanceFromHook.refetch,
       delegations.refetch,
+      userAddress,
+      token,
     ],
   );
 
@@ -347,15 +375,23 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update (stake = deposit + delegate) - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "stake",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log(
               "Deposit and delegate succeeded, updating cached balances...",
             );
-            // Force update both Imuachain staker balance and client chain wallet balance
             stakerBalanceFromHook.refetch();
             tokenBalanceQuery.refetch();
-            // Force update delegations to reflect new delegation amounts
             delegations.refetch();
           }
         },
@@ -363,13 +399,14 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     },
     [
       writeableContract,
-      token.address,
       getQuote,
       bootstrapStatus?.isBootstrapped,
       publicClient,
       stakerBalanceFromHook.refetch,
       tokenBalanceQuery.refetch,
       delegations.refetch,
+      userAddress,
+      token,
     ],
   );
 
@@ -407,12 +444,20 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getBalanceSnapshot,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "claim",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+            );
+
             console.log("Claim succeeded, updating cached balances...");
-            // Force update withdrawable amount from vault
             withdrawableAmountFromVault.refetch();
-            // Force update both Imuachain staker balance and client chain vault withdrawable balance
             stakerBalanceFromHook.refetch();
           }
         },
@@ -420,12 +465,13 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     },
     [
       writeableContract,
-      token.address,
       getQuote,
       bootstrapStatus?.isBootstrapped,
       publicClient,
       stakerBalanceFromHook.refetch,
       withdrawableAmountFromVault.refetch,
+      userAddress,
+      token,
     ],
   );
 
@@ -469,8 +515,6 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         onSuccess: (result: { hash: string; success: boolean }) => {
           if (result.success) {
             console.log("Withdraw succeeded, updating cached balances...");
-            // Force update client chain vault withdrawable balance and wallet balance
-            // Note: stakerBalance.withdrawable will automatically reflect the updated vault balance
             tokenBalanceQuery.refetch();
             withdrawableAmountFromVault.refetch();
           }

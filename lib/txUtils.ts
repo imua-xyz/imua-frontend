@@ -152,6 +152,7 @@ async function handleCompletion(
     BaseTxOptions,
     "getStateSnapshot" | "verifyCompletion" | "onPhaseChange" | "onSuccess"
   >,
+  blockHeight?: number,
 ): Promise<{ hash: string; success: boolean; error?: string }> {
   try {
     // Phase 6: Verifying Completion
@@ -183,7 +184,7 @@ async function handleCompletion(
     }
 
     // Call onSuccess callback after successful verification
-    options?.onSuccess?.({ hash, success: true });
+    options?.onSuccess?.({ hash, success: true, blockHeight });
 
     return { hash, success: true };
   } catch {
@@ -255,6 +256,9 @@ export async function handleEVMTxWithStatus({
       return { hash, success: false, error: "Transaction failed" };
     }
 
+    // Extract block height from receipt
+    const blockHeight = Number(receipt.blockNumber);
+
     // Handle different operation modes
     if (mode === "local") {
       // Local operations: go straight to completion
@@ -263,7 +267,7 @@ export async function handleEVMTxWithStatus({
         getStateSnapshot,
         onPhaseChange,
         onSuccess,
-      });
+      }, blockHeight);
     } else if (mode === "simplex" || mode === "duplex") {
       // Cross-chain operations: handle relay and response
       return await handleCrossChainOperation(
@@ -276,6 +280,7 @@ export async function handleEVMTxWithStatus({
           onSuccess,
         },
         snapshotBefore,
+        blockHeight,
       );
     }
 
@@ -309,6 +314,7 @@ async function handleCrossChainOperation(
     "getStateSnapshot" | "verifyCompletion" | "onPhaseChange" | "onSuccess"
   >,
   snapshotBefore?: StateSnapshot,
+  blockHeight?: number,
 ): Promise<{ hash: string; success: boolean; error?: string }> {
   try {
     // Phase 4: Sending Request
@@ -335,7 +341,7 @@ async function handleCrossChainOperation(
       );
     } else {
       // Simplex mode: go to completion
-      return await handleCompletion(hash, snapshotBefore, options);
+      return await handleCompletion(hash, snapshotBefore, options, blockHeight);
     }
   } catch {
     return { hash, success: false, error: "Operation failed" };
@@ -351,6 +357,7 @@ async function handleBitcoinSimplexOperation(
     BaseTxOptions,
     "onPhaseChange" | "verifyCompletion" | "getStateSnapshot" | "onSuccess"
   >,
+  blockHeight?: number,
 ): Promise<{ hash: string; success: boolean; error?: string }> {
   try {
     // Phase 4: Sending Request (Bitcoin deposit message relayed to Imuachain)
@@ -437,6 +444,7 @@ async function handleXrplSimplexOperation(
     BaseTxOptions,
     "onPhaseChange" | "verifyCompletion" | "getStateSnapshot" | "onSuccess"
   >,
+  ledgerIndex?: number,
 ): Promise<{ hash: string; success: boolean; error?: string }> {
   try {
     // Phase 4: Sending Request (XRPL deposit message relayed to Imuachain)
@@ -606,6 +614,9 @@ export async function handleXrplTxWithStatus({
       if (status.success && status.data?.finalized) {
         isValidated = true;
         if (status.data?.success) {
+          // Extract ledger index (XRP's block height equivalent)
+          const ledgerIndex = status.data.ledger_index;
+          
           // Handle completion based on mode
           if (mode === "local") {
             return await handleCompletion(txHash, snapshotBefore, {
@@ -613,7 +624,7 @@ export async function handleXrplTxWithStatus({
               getStateSnapshot,
               onPhaseChange,
               onSuccess,
-            });
+            }, ledgerIndex);
           } else if (mode === "simplex") {
             // Simplex mode: handle cross-chain relay to Imuachain
             return await handleXrplSimplexOperation(
@@ -626,6 +637,7 @@ export async function handleXrplTxWithStatus({
                 onPhaseChange,
                 onSuccess,
               },
+              ledgerIndex,
             );
           } else {
             // Duplex mode not supported for XRPL
@@ -772,6 +784,7 @@ export async function handleBitcoinTxWithStatus({
     // Phase 3: Confirming Transaction
     onPhaseChange?.("confirmingTx");
 
+    let blockHeight: number | undefined;
     try {
       // Wait for Bitcoin transaction confirmation using Esplora API
       const confirmations = await waitForBitcoinConfirmation(
@@ -781,6 +794,13 @@ export async function handleBitcoinTxWithStatus({
       console.log(
         `Bitcoin transaction confirmed with ${confirmations} confirmations`,
       );
+      
+      // Fetch transaction to get block height
+      const response = await fetch(`${ESPLORA_API_URL}/tx/${hash}`);
+      if (response.ok) {
+        const tx = await response.json();
+        blockHeight = tx.status?.block_height;
+      }
     } catch (error) {
       console.error("Bitcoin confirmation failed:", error);
       return {
@@ -800,7 +820,7 @@ export async function handleBitcoinTxWithStatus({
         getStateSnapshot,
         onPhaseChange,
         onSuccess,
-      });
+      }, blockHeight);
     } else if (mode === "simplex") {
       // Simplex mode: handle cross-chain relay to Imuachain
       if (!utxoGateway) {
@@ -820,6 +840,7 @@ export async function handleBitcoinTxWithStatus({
           onPhaseChange,
           onSuccess,
         },
+        blockHeight,
       );
     } else {
       // Duplex mode not supported for Bitcoin

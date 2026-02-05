@@ -23,8 +23,10 @@ import {
   BTC_VAULT_ADDRESS,
   MINIMUM_STAKE_AMOUNT_SATS,
   BTC_TOKEN_ENUM,
+  ESPLORA_API_URL,
 } from "@/config/bitcoin";
 import { useTokenBalance } from "./useTokenBalance";
+import { storePendingTransaction } from "@/lib/optimistic-helpers";
 
 // Initialize ECC library for Taproot support
 bitcoin.initEccLib(ecc);
@@ -260,8 +262,20 @@ export function useBitcoinStaking(): StakingService {
         return bootstrapped ? balanceAfter === balanceBefore + amount : true;
       };
 
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && effectiveAddress) {
+          // Determine operation type: stake (deposit + delegate) if operatorAddress provided, else deposit
+          const operation = operatorAddress ? "stake" : "deposit";
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            operation,
+            tbtc,
+            effectiveAddress,
+            result.blockHeight,
+            amount,
+            operatorAddress,
+          );
           console.log("Bitcoin stake succeeded, updating cached balances...");
           stakerBalanceResponse.refetch();
           // UTXOs will be refetched automatically by the PSBT builder hook
@@ -360,8 +374,18 @@ export function useBitcoinStaking(): StakingService {
       ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            "delegate",
+            tbtc,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+            operator,
+          );
           console.log(
             "Bitcoin delegate succeeded, updating cached balances...",
           );
@@ -432,8 +456,18 @@ export function useBitcoinStaking(): StakingService {
           : balanceAfter === balanceBefore + amount;
       };
 
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            "undelegate",
+            tbtc,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+            operator,
+          );
           console.log(
             "Bitcoin undelegate succeeded, updating cached balances...",
           );
@@ -493,8 +527,17 @@ export function useBitcoinStaking(): StakingService {
       ) => {
         return balanceAfter === balanceBefore - amount;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // BTC withdraw is claim+withdraw in one step; cache so merge can apply optimistic deltas
+          storePendingTransaction(
+            result.hash,
+            "withdraw",
+            tbtc,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+          );
           console.log(
             "Bitcoin withdraw succeeded, updating cached balances...",
           );

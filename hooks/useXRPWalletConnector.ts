@@ -89,24 +89,27 @@ export function useXRPWalletConnector(): XRPWalletConnector {
     const boundXrpAddress = reverseBindingQuery.boundSourceAddress;
 
     // Conflict exists if the EVM address is bound to a different XRP address
-    if (
+    return !!(
       boundXrpAddress &&
       boundXrpAddress.toLowerCase() !== xrpAddress.toLowerCase()
-    ) {
-      console.warn(
-        `Conflict: EVM address ${evmAddress} is already bound to XRP address ${boundXrpAddress}, ` +
-          `but current connected XRP address is ${xrpAddress}`,
-      );
-      return true;
-    }
-
-    return false;
+    );
   }, [
     evmAddress,
     isGemWalletConnected,
     xrpAddress,
     reverseBindingQuery.boundSourceAddress,
   ]);
+
+  // Log warning for conflicting binding (side effect belongs in useEffect)
+  useEffect(() => {
+    if (hasConflictingBinding && evmAddress && xrpAddress) {
+      const boundXrpAddress = reverseBindingQuery.boundSourceAddress;
+      console.warn(
+        `Conflict: EVM address ${evmAddress} is already bound to XRP address ${boundXrpAddress}, ` +
+          `but current connected XRP address is ${xrpAddress}`,
+      );
+    }
+  }, [hasConflictingBinding, evmAddress, xrpAddress, reverseBindingQuery.boundSourceAddress]);
 
   const isReadyForStaking = useMemo(() => {
     return (

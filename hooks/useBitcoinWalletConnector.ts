@@ -159,24 +159,27 @@ export function useBitcoinWalletConnector(): BitcoinWalletConnector {
     const boundBitcoinAddress = reverseBindingQuery.boundSourceAddress;
 
     // Conflict exists if the EVM address is bound to a different Bitcoin address
-    if (
+    return !!(
       boundBitcoinAddress &&
       boundBitcoinAddress.toLowerCase() !== bitcoinAddress.toLowerCase()
-    ) {
-      console.warn(
-        `Conflict: EVM address ${evmAddress} is already bound to Bitcoin address ${boundBitcoinAddress}, ` +
-          `but current connected Bitcoin address is ${bitcoinAddress}`,
-      );
-      return true;
-    }
-
-    return false;
+    );
   }, [
     evmAddress,
     isBitcoinConnected,
     bitcoinAddress,
     reverseBindingQuery.boundSourceAddress,
   ]);
+
+  // Log warning for conflicting binding (side effect belongs in useEffect)
+  useEffect(() => {
+    if (hasConflictingBinding && evmAddress && bitcoinAddress) {
+      const boundBitcoinAddress = reverseBindingQuery.boundSourceAddress;
+      console.warn(
+        `Conflict: EVM address ${evmAddress} is already bound to Bitcoin address ${boundBitcoinAddress}, ` +
+          `but current connected Bitcoin address is ${bitcoinAddress}`,
+      );
+    }
+  }, [hasConflictingBinding, evmAddress, bitcoinAddress, reverseBindingQuery.boundSourceAddress]);
 
   const isReadyForStaking = useMemo(() => {
     const ready = !!(

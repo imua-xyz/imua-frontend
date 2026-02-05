@@ -167,7 +167,7 @@ const createXrplClient = () => {
               return {
                 success: false,
                 error: new Error("Failed to auto-connect to XRP network"),
-                data: { finalized: false, success: false },
+                data: { finalized: false, success: false, ledger_index: undefined },
               };
             }
           } else if (!client || !isConnected) {
@@ -176,7 +176,7 @@ const createXrplClient = () => {
               error: new Error(
                 "Client not connected and no network information available",
               ),
-              data: { finalized: false, success: false },
+              data: { finalized: false, success: false, ledger_index: undefined },
             };
           }
 
@@ -197,6 +197,7 @@ const createXrplClient = () => {
                   typeof response.result.meta !== "string"
                     ? response.result.meta.TransactionResult === "tesSUCCESS"
                     : false,
+                ledger_index: response.result.ledger_index as number | undefined,
               },
             };
           } catch (err) {
@@ -204,7 +205,7 @@ const createXrplClient = () => {
             return {
               success: false,
               error: err instanceof Error ? err : new Error(String(err)),
-              data: { finalized: false, success: false },
+              data: { finalized: false, success: false, ledger_index: undefined },
             };
           }
         },
@@ -247,7 +248,7 @@ export interface XrplClientState {
   }>;
   getTransactionStatus: (hash: string) => Promise<{
     success: boolean;
-    data: { finalized: boolean; success: boolean };
+    data: { finalized: boolean; success: boolean; ledger_index?: number };
     error?: Error;
   }>;
 }

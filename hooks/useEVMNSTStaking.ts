@@ -19,6 +19,8 @@ import { useDelegations } from "./useDelegations";
 import { getContract } from "viem";
 import ImuaCapsuleContract from "@/out/ImuaCapsule.sol/ImuaCapsule.json";
 import EigenLayerBeaconOracle from "@/out/EigenLayerBeaconOracle.sol/EigenLayerBeaconOracle.json";
+import { storePendingTransaction } from "@/lib/optimistic-helpers";
+import { getDepositAmountWeiFromValidatorContainer } from "@/lib/validator-container";
 
 export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
   const { address: userAddress } = useAccount();
@@ -252,8 +254,26 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            try {
+              const depositAmountWei = getDepositAmountWeiFromValidatorContainer(
+                verifyParams.validatorContainer,
+              );
+              storePendingTransaction(
+                result.hash,
+                "deposit",
+                token,
+                userAddress,
+                result.blockHeight,
+                depositAmountWei,
+              );
+            } catch (error) {
+              console.error(
+                "Failed to store optimistic update for NST verifyAndDeposit:",
+                error,
+              );
+            }
             console.log(
               "NST verify and deposit succeeded, updating cached balances...",
             );
@@ -269,6 +289,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
       publicClient,
       stakerBalanceFromHook.refetch,
       simulateTransaction,
+      userAddress,
     ],
   );
 
@@ -328,8 +349,18 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "delegate",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log("Delegate succeeded, updating cached balances...");
             stakerBalanceFromHook.refetch();
             delegations.refetch();
@@ -339,13 +370,14 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
     },
     [
       writeableContract,
-      token.address,
       getQuote,
       bootstrapStatus?.isBootstrapped,
       publicClient,
       stakerBalanceFromHook.refetch,
       delegations,
       simulateTransaction,
+      userAddress,
+      token,
     ],
   );
 
@@ -420,8 +452,18 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "undelegate",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log("Undelegate succeeded, updating cached balances...");
             stakerBalanceFromHook.refetch();
             delegations.refetch();
@@ -431,13 +473,14 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
     },
     [
       writeableContract,
-      token.address,
       getQuote,
       bootstrapStatus?.isBootstrapped,
       publicClient,
       stakerBalanceFromHook.refetch,
       delegations.refetch,
       simulateTransaction,
+      userAddress,
+      token,
     ],
   );
 
@@ -504,8 +547,9 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
           ? getBalanceSnapshot
           : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && userAddress) {
+            // Note: withdrawPrincipal for NST doesn't affect Bootstrap/Imuachain tracking
             console.log("Withdraw succeeded, updating cached balances...");
             balance?.refetch();
             stakerBalanceFromHook.refetch();
@@ -521,6 +565,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
       stakerBalanceFromHook.refetch,
       balance.refetch,
       simulateTransaction,
+      userAddress,
     ],
   );
 

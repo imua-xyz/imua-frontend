@@ -36,7 +36,7 @@ export interface BaseTxOptions {
     snapshotAfter: any,
   ) => Promise<boolean>;
   onPhaseChange?: (newPhase: Phase) => void;
-  onSuccess?: (result: { hash: string; success: boolean }) => void;
+  onSuccess?: (result: { hash: string; success: boolean; blockHeight?: number }) => void;
 }
 
 export interface EVMTxOptions extends BaseTxOptions {

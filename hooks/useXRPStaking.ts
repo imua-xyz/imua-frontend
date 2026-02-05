@@ -20,6 +20,7 @@ import { useStakerBalances } from "./useStakerBalances";
 import { useBootstrapStatus } from "./useBootstrapStatus";
 import { useAddressBinding } from "./useAddressBinding";
 import { useTokenBalance } from "./useTokenBalance";
+import { storePendingTransaction } from "@/lib/optimistic-helpers";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -203,8 +204,20 @@ export function useXRPStaking(): StakingService {
       ) => {
         return bootstrapped ? balanceAfter === balanceBefore + amount : true;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && effectiveAddress) {
+          // Determine operation type: stake (deposit + delegate) if operatorAddress provided, else deposit
+          const operation = operatorAddress ? "stake" : "deposit";
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            operation,
+            xrp,
+            effectiveAddress,
+            result.blockHeight,
+            amount,
+            operatorAddress,
+          );
           console.log("Stake succeeded, updating cached balances...");
           stakerBalanceResponse.refetch();
         }
@@ -305,8 +318,18 @@ export function useXRPStaking(): StakingService {
       ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            "delegate",
+            xrp,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+            operator,
+          );
           console.log("Delegate succeeded, updating cached balances...");
           stakerBalanceResponse.refetch();
         }
@@ -376,8 +399,18 @@ export function useXRPStaking(): StakingService {
           : BalanceAfter === balanceBefore + amount;
       };
 
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            "undelegate",
+            xrp,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+            operator,
+          );
           console.log("Undelegate succeeded, updating cached balances...");
           stakerBalanceResponse.refetch();
         }
@@ -436,8 +469,17 @@ export function useXRPStaking(): StakingService {
       ) => {
         return balanceAfter === balanceBefore - amount;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // XRP withdraw is claim+withdraw in one step; cache so merge can apply optimistic deltas
+          storePendingTransaction(
+            result.hash,
+            "withdraw",
+            xrp,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+          );
           console.log("Withdraw succeeded, updating cached balances...");
           stakerBalanceResponse.refetch();
         }

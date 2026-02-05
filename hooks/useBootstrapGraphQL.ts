@@ -99,6 +99,11 @@ export function useBootstrapValidatorsGraphQL() {
 /**
  * Hook to fetch bootstrap delegations via GraphQL
  */
+/**
+ * Hook to fetch bootstrap delegations via GraphQL
+ * Returns raw BootstrapDelegationState[] - transformation happens in useDelegations
+ * This keeps the GraphQL hook simple and focused on data fetching
+ */
 export function useBootstrapDelegationsGraphQL(
   stakerAddress: string,
   token: Token,
@@ -112,9 +117,6 @@ export function useBootstrapDelegationsGraphQL(
     token.network.customChainIdByImua,
   );
 
-  // Fetch operators to get operator names
-  const { data: operatorsData } = useBootstrapValidatorsGraphQL();
-
   const { data, loading, error, refetch } =
     useQuery<GetBootstrapDelegationsByAssetResponse>(
       GET_BOOTSTRAP_DELEGATIONS_BY_ASSET,
@@ -127,25 +129,8 @@ export function useBootstrapDelegationsGraphQL(
       },
     );
 
-  const delegations = useMemo(() => {
-    if (!data?.bootstrap_delegation_states) {
-      return {
-        token,
-        userAddress: stakerAddress as `0x${string}`,
-        delegationsByOperator: new Map(),
-      } as DelegationsPerToken;
-    }
-
-    return transformBootstrapDelegationsToDelegationsPerToken(
-      data.bootstrap_delegation_states,
-      token,
-      stakerAddress,
-      operatorsData || [],
-    );
-  }, [data?.bootstrap_delegation_states, token, stakerAddress, operatorsData]);
-
   return {
-    data: delegations,
+    data: data?.bootstrap_delegation_states ?? [],
     loading,
     error,
     refetch,
