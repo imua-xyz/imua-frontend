@@ -13,6 +13,10 @@ const fakeToken: EVMLSTToken = {
   name: "Exocore ETH",
   address: "0xToken",
   decimals: 18,
+  iconUrl: "/icons/eth-icon.svg",
+  priceIndex: 1,
+  underlyingAsset: "ETH",
+  provider: "Exocore",
   network: {
     chainName: "EVM",
     evmChainID: 11155111,
@@ -31,7 +35,7 @@ const baseStakingService: StakingService = {
     token: { customClientChainID: 1, tokenID: fakeToken.address },
     stakerAddress: "0xUser",
     balance: {
-      value: BigInt(100_000000000000000000n),
+      value: BigInt("100000000000000000000"),
       decimals: 18,
       symbol: "exoETH",
     },

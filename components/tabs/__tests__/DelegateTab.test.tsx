@@ -32,7 +32,7 @@ const baseStakingService: StakingService = {
     delegated: BigInt(0),
     pendingUndelegated: BigInt(0),
     totalDeposited: BigInt(0),
-    claimable: BigInt(500000000000000000n),
+    claimable: BigInt("500000000000000000"),
   } as any,
   vaultAddress: "0xVault",
   minimumStakeAmount: BigInt(1),

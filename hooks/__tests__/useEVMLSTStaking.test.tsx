@@ -13,6 +13,10 @@ const fakeToken: EVMLSTToken = {
   name: "Exocore ETH",
   address: "0xToken",
   decimals: 18,
+  iconUrl: "/icons/eth-icon.svg",
+  priceIndex: 1,
+  underlyingAsset: "ETH",
+  provider: "Exocore",
   network: {
     chainName: "EVM",
     evmChainID: 11155111,
@@ -21,6 +25,7 @@ const fakeToken: EVMLSTToken = {
       type: "evm",
       requireExtraConnectToImua: false,
     } as any,
+    txExplorerUrl: "https://explorer/",
   } as any,
 };
 
@@ -159,10 +164,11 @@ describe("useEVMLSTStaking", () => {
     });
 
     await act(async () => {
-      await result.current.deposit(BigInt(10));
+      const current = result.current!;
+      await (current.deposit as (amount: bigint) => Promise<unknown>)(BigInt(10));
     });
 
-    expect(mockWriteableContract.write.deposit).toHaveBeenCalledWith(
+    expect(mockWriteableContract.write!.deposit).toHaveBeenCalledWith(
       [fakeToken.address, BigInt(10)],
       expect.objectContaining({ value: expect.anything() }),
     );
@@ -182,10 +188,11 @@ describe("useEVMLSTStaking", () => {
     });
 
     await act(async () => {
-      await result.current.depositAndDelegate(BigInt(20), "imOperator");
+      const current = result.current!;
+      await (current.depositAndDelegate as (amount: bigint, operator: string) => Promise<unknown>)(BigInt(20), "imOperator");
     });
 
-    expect(mockWriteableContract.write.depositThenDelegateTo).toHaveBeenCalled();
+    expect(mockWriteableContract.write!.depositThenDelegateTo).toHaveBeenCalled();
     expect(storePendingTransaction).toHaveBeenCalledWith(
       "0xTxHash",
       "stake",
@@ -203,10 +210,10 @@ describe("useEVMLSTStaking", () => {
     });
 
     await act(async () => {
-      await result.current.delegateTo("imOperator", BigInt(5));
+      await result.current!.delegateTo("imOperator", BigInt(5));
     });
 
-    expect(mockWriteableContract.write.delegateTo).toHaveBeenCalled();
+    expect(mockWriteableContract.write!.delegateTo).toHaveBeenCalled();
     expect(storePendingTransaction).toHaveBeenCalledWith(
       "0xTxHash",
       "delegate",
@@ -224,10 +231,10 @@ describe("useEVMLSTStaking", () => {
     });
 
     await act(async () => {
-      await result.current.undelegateFrom("imOperator", BigInt(7), true);
+      await result.current!.undelegateFrom("imOperator", BigInt(7), true);
     });
 
-    expect(mockWriteableContract.write.undelegateFrom).toHaveBeenCalled();
+    expect(mockWriteableContract.write!.undelegateFrom).toHaveBeenCalled();
     expect(storePendingTransaction).toHaveBeenCalledWith(
       "0xTxHash",
       "undelegate",
@@ -245,10 +252,11 @@ describe("useEVMLSTStaking", () => {
     });
 
     await act(async () => {
-      await result.current.claimPrincipal(BigInt(30));
+      const current = result.current!;
+      await (current.claimPrincipal as (amount: bigint) => Promise<unknown>)(BigInt(30));
     });
 
-    expect(mockWriteableContract.write.claimPrincipalFromImuachain).toHaveBeenCalled();
+    expect(mockWriteableContract.write!.claimPrincipalFromImuachain).toHaveBeenCalled();
     expect(storePendingTransaction).toHaveBeenCalledWith(
       "0xTxHash",
       "claim",

@@ -40,7 +40,7 @@ describe("optimistic flow (integration)", () => {
       tbtc,
       QUERY_ADDRESS,
       10,
-      50n,
+      BigInt(50),
     );
 
     const pending = useOptimisticCacheStore.getState().getPendingTransactions(STAKER_ID, ASSET_ID);
