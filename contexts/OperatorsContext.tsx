@@ -1,6 +1,5 @@
 // contexts/OperatorsContext.tsx
-import { createContext, useContext, ReactNode } from "react";
-import { useOperators } from "@/hooks/useOperators";
+import { createContext, useContext } from "react";
 import { OperatorInfo } from "@/types/operator";
 
 export interface OperatorsContextType {

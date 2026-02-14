@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { COSMOS_CONFIG } from "@/config/cosmos";
@@ -11,8 +11,6 @@ import {
 import { getQueryStakerAddress } from "@/stores/allWalletsStore";
 import { useOperators } from "./useOperators";
 import { useBootstrapStatus } from "./useBootstrapStatus";
-import { useBootstrap } from "./useBootstrap";
-import { hoodi } from "@/types/networks";
 import {
   useOptimisticCacheStore,
   usePendingTransactionsForStakerAsset,
@@ -27,50 +25,6 @@ import { apolloClient } from "@/lib/graphql/client";
 import { GET_BOOTSTRAP_DELEGATIONS_BY_ASSET } from "@/lib/graphql/queries";
 import { BootstrapDelegationState } from "@/lib/graphql/schema";
 
-// Helper function to fetch delegations from Bootstrap contract for a user
-async function fetchBootstrapDelegations(
-  contract: any,
-  userAddress: string,
-  tokenAddress: string,
-  operators: any[],
-): Promise<Map<string, DelegationPerOperator>> {
-  if (operators && operators.length > 0) {
-    const delegationsByOperator = new Map<string, DelegationPerOperator>();
-    // Iterate over all operators to get user's delegations
-    await Promise.all(
-      operators.map(async (operator) => {
-        try {
-          // Get delegation amount for this user, validator, and token
-          const delegationAmount = (await contract.read.delegations([
-            userAddress as `0x${string}`,
-            operator.address,
-            tokenAddress as `0x${string}`,
-          ])) as bigint;
-
-          if (delegationAmount > BigInt(0)) {
-            delegationsByOperator.set(operator.address.toLowerCase(), {
-              operatorAddress: operator.address,
-              operatorName: operator.operator_meta_info,
-              delegated: delegationAmount,
-              unbonding: BigInt(0), // No unbonding during bootstrap phase
-            });
-          }
-        } catch (error) {
-          console.error(
-            `Failed to fetch delegation for operator ${operator.address}:`,
-            error,
-          );
-          throw error;
-        }
-      }),
-    );
-
-    return delegationsByOperator;
-  } else {
-    throw new Error("No operators available");
-  }
-}
-
 // If no staker address, returns { data: undefined, isLoading: false, error: null, ... }
 export function useDelegations(
   token: Token,
@@ -78,7 +32,6 @@ export function useDelegations(
   const { data: operators } = useOperators();
   const { queryAddress, stakerAddress } = getQueryStakerAddress(token);
   const { bootstrapStatus } = useBootstrapStatus();
-  const bootstrap = useBootstrap(hoodi);
 
   const customChainId = token.network.customChainIdByImua;
 

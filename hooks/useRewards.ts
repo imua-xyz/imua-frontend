@@ -78,7 +78,7 @@ async function fetchRewards(
     const avsAddress = avsReward.avs_address;
 
     // Get or create the token amounts map for this AVS
-    let tokenAmounts = rewardsByAvs.get(avsAddress);
+    const tokenAmounts = rewardsByAvs.get(avsAddress);
 
     // Aggregate all rewards for this AVS entry first
     const newTokenAmounts = new Map<string, bigint>();
@@ -121,7 +121,7 @@ async function fetchRewards(
 
   rewardsByAvs.forEach((tokenAmounts, avsAddress) => {
     // Find the AVS object by address, or create an unknown AVS if not found
-    let avs: AVS =
+    const avs: AVS =
       findKnownAVSByAddress(avsAddress) || createUnknownAVS(avsAddress);
 
     // Create the tokens map for this AVS

@@ -12,7 +12,6 @@ import {
   useAppKit,
   useAppKitEvents,
   useDisconnect,
-  useAppKitBalance,
   useAppKitNetwork,
 } from "@reown/appkit/react";
 import { bitcoinTestnet } from "@reown/appkit/networks";
@@ -83,11 +82,6 @@ export function useBitcoinWalletConnector(): BitcoinWalletConnector {
       bitcoinAddress.startsWith("1") ||
       bitcoinAddress.startsWith("3") ||
       bitcoinAddress.startsWith("bc1");
-    const isTestnetAddress =
-      bitcoinAddress.startsWith("m") ||
-      bitcoinAddress.startsWith("n") ||
-      bitcoinAddress.startsWith("2") ||
-      bitcoinAddress.startsWith("tb1");
 
     // We expect testnet, so mainnet address = wrong network
     return (

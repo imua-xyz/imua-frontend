@@ -51,7 +51,7 @@ async function fetchBootstrapOperators(contract: any): Promise<OperatorInfo[]> {
         const rawValidatorInfo = await contract.read.validators([
           operator.address,
         ]);
-        const [version, commissionData, consensusPublicKey] =
+        const [version, commissionData, _consensusPublicKey] =
           rawValidatorInfo as [string, any, string];
 
         return {
@@ -145,7 +145,7 @@ async function fetchValidatorAtIndex(
     );
   }
 
-  const [version, commissionData, consensusPublicKey] = rawValidatorInfo;
+  const [version, commissionData, _consensusPublicKey] = rawValidatorInfo;
 
   // Check if commission data exists
   if (!commissionData || typeof commissionData !== "object") {

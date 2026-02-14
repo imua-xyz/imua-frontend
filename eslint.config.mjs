@@ -12,7 +12,37 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    ignores: ["lib/**/*"],
+    ignores: [
+      "lib/**/*",
+      ".next/**/*",
+      "out/**/*",
+      "node_modules/**/*",
+      "coverage/**/*",
+      "playwright-report/**/*",
+      ".playwright/**/*",
+      "build/**/*",
+      "dist/**/*",
+      "*.config.js",
+      "*.config.ts",
+      "next-env.d.ts", // Next.js generated file
+    ],
+  },
+  {
+    rules: {
+      // Allow 'any' type but warn about it (common when dealing with external APIs)
+      "@typescript-eslint/no-explicit-any": "warn",
+      // Allow unused vars that start with underscore (common pattern for intentionally unused)
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      // Display name warnings are less critical
+      "react/display-name": "warn",
+    },
   },
 ];
 

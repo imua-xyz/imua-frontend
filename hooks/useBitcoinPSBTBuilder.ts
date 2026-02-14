@@ -155,7 +155,7 @@ function getAddressInfo(address: string): {
     }
     // Other versions: treat as segwit unknown
     return { isSegwit: true, type: "Unknown" };
-  } catch (error) {
+  } catch (_error) {
     // Not bech32, fall back to Base58 prefixes
     if (
       address.startsWith("1") ||

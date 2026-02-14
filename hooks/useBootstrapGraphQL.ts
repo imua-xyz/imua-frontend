@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useQuery, useSubscription } from "@apollo/client/react";
 import {
   GET_BOOTSTRAP_VALIDATORS,
-  GET_BOOTSTRAP_DELEGATIONS,
   GET_BOOTSTRAP_DELEGATIONS_BY_ASSET,
   GET_BOOTSTRAP_ADDRESS_BINDING,
   GET_BOOTSTRAP_ADDRESS_BINDINGS_BY_TARGET,
@@ -14,13 +13,10 @@ import {
 } from "@/lib/graphql/queries";
 import {
   transformBootstrapValidatorToOperatorInfo,
-  transformBootstrapDelegationsToDelegationsPerToken,
-  filterDelegationsByAsset,
   generateStakerId,
   generateAssetId,
   sortOperatorsByCommissionRate,
 } from "@/lib/graphql/transformers";
-import { DelegationsPerToken } from "@/types/delegations";
 import { Token } from "@/types/tokens";
 import {
   BootstrapValidator,

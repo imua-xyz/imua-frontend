@@ -4,16 +4,16 @@ import { Token, getNetworkByChainId } from "@/types/tokens";
 import { AllWalletsState } from "@/types/wallet-state";
 
 // Global state for contract
-let utxoGateway: any = null;
+let _utxoGateway: any = null;
 
 // Set contract reference
 const setContract = (contract: any) => {
-  utxoGateway = contract;
+  _utxoGateway = contract;
 };
 
 export const useAllWalletsStore = create<AllWalletsState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       // State
       wallets: {},
       provisionalBindings: {},

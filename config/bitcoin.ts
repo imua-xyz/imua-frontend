@@ -5,6 +5,10 @@ export const BTC_VAULT_ADDRESS =
 // The Bitcoin Esplora API URL
 export const ESPLORA_API_URL = process.env.NEXT_PUBLIC_ESPLORA_API_URL || "";
 
+// True when using Bitcoin testnet (fallback fee rates used for testnet; mainnet fetches from API)
+export const IS_BITCOIN_TESTNET =
+  process.env.NEXT_PUBLIC_BITCOIN_NETWORK !== "mainnet";
+
 // The minimum stake amount in satoshis
 export const MINIMUM_STAKE_AMOUNT_SATS = parseInt(
   process.env.NEXT_PUBLIC_MINIMUM_STAKE_AMOUNT_SATS || "5000",

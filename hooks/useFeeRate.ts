@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ESPLORA_API_URL } from "@/config/bitcoin";
+import { ESPLORA_API_URL, IS_BITCOIN_TESTNET } from "@/config/bitcoin";
 
 export interface FeeRate {
   blocks: number;
@@ -16,6 +16,9 @@ export interface FeeRates {
   economical: FeeRate;
 }
 
+// Fallback fee rate (works well for testnet)
+const FALLBACK_FEE_RATE: FeeRate = { blocks: 6, feeRate: 1.5 };
+
 // Fee strategies configuration
 const FEE_STRATEGIES = {
   fast: { maxBlocks: 2, priority: "speed" },
@@ -24,20 +27,28 @@ const FEE_STRATEGIES = {
 } as const;
 
 /**
- * Get real-time fee rates for all strategies in a single request
+ * Get real-time fee rates for all strategies in a single request.
+ * For testnet, returns a fallback value that works well; for mainnet, fetches from Esplora API.
  */
 export async function getFeeRates(): Promise<FeeRates> {
+  if (IS_BITCOIN_TESTNET) {
+    return {
+      fast: FALLBACK_FEE_RATE,
+      balanced: FALLBACK_FEE_RATE,
+      economical: FALLBACK_FEE_RATE,
+    };
+  }
+
   if (!ESPLORA_API_URL) {
     throw new Error("Esplora API URL not configured");
   }
 
-  const res = await fetch("https://blockstream.info/testnet/api/fee-estimates");
+  const res = await fetch("https://blockstream.info/api/fee-estimates");
   if (!res.ok) {
     throw new Error(`Failed to fetch fee estimates: ${res.statusText}`);
   }
 
   const raw: Record<string, number> = await res.json();
-  console.log("Raw fee rates:", raw);
   const entries: FeeRate[] = Object.entries(raw)
     .map(
       ([blocksStr, feeRate]): FeeRate => ({
@@ -47,9 +58,12 @@ export async function getFeeRates(): Promise<FeeRates> {
     )
     .sort((a, b) => a.blocks - b.blocks);
 
-  const fallback: FeeRate = { blocks: 6, feeRate: 1.5 };
   if (entries.length === 0) {
-    return { fast: fallback, balanced: fallback, economical: fallback };
+    return {
+      fast: FALLBACK_FEE_RATE,
+      balanced: FALLBACK_FEE_RATE,
+      economical: FALLBACK_FEE_RATE,
+    };
   }
 
   // Calculate fee rate for each strategy
@@ -75,9 +89,9 @@ export async function getFeeRates(): Promise<FeeRates> {
   };
 
   return {
-    fast: fallback,
-    balanced: fallback,
-    economical: fallback,
+    fast: calculateStrategy("fast"),
+    balanced: calculateStrategy("balanced"),
+    economical: calculateStrategy("economical"),
   };
 }
 
@@ -86,9 +100,9 @@ export async function getFeeRates(): Promise<FeeRates> {
  */
 export function useFeeRates() {
   return useQuery({
-    queryKey: ["fee-rates"],
+    queryKey: ["fee-rates", IS_BITCOIN_TESTNET],
     queryFn: getFeeRates,
-    enabled: !!ESPLORA_API_URL,
+    enabled: IS_BITCOIN_TESTNET || !!ESPLORA_API_URL,
     refetchInterval: 30000, // Refetch every 30 seconds
     staleTime: 15000, // Consider data stale after 15 seconds
   });

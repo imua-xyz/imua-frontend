@@ -1,6 +1,6 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { DelegateTab } from "@/components/tabs/DelegateTab";
 import { StakingServiceContext } from "@/contexts/StakingServiceContext";
 import { OperatorsContext, OperatorsContextType } from "@/contexts/OperatorsContext";

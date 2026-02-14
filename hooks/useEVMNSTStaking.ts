@@ -64,7 +64,6 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
     address: userAddress,
   });
 
-  const lzEndpointIdOrCustomChainId = token.network.customChainIdByImua;
   const { bootstrapStatus } = useBootstrapStatus();
 
   const [stakerBalanceFromHook] = useStakerBalances([token]);

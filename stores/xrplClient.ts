@@ -14,8 +14,8 @@ const createXrplClient = () => {
         error: null,
 
         // Set network without connecting
-        setNetwork: (network: GemWalletNetwork) => {
-          set({ currentNetwork: network });
+        setNetwork: (_network: GemWalletNetwork) => {
+          set({ currentNetwork: _network });
         },
 
         // Connect or reconnect to the network
@@ -95,14 +95,15 @@ const createXrplClient = () => {
         },
 
         getAccountInfo: async (address: string) => {
-          let { client, currentNetwork, connect } = get();
+          let { client } = get();
+          const { currentNetwork, connect } = get();
           const isConnected = client ? client.isConnected() : false;
 
           // If not connected but we have network info, try to connect first
           if ((!client || !isConnected) && currentNetwork) {
             try {
               client = await connect(currentNetwork);
-            } catch (err) {
+            } catch (_err) {
               return {
                 success: false,
                 error: new Error("Failed to auto-connect to XRP network"),
@@ -157,13 +158,14 @@ const createXrplClient = () => {
         },
 
         getTransactionStatus: async (hash: string) => {
-          let { client, currentNetwork, connect } = get();
+          let { client } = get();
+          const { currentNetwork, connect } = get();
           const isConnected = client ? client.isConnected() : false;
           // If not connected but we have network info, try to connect first
           if ((!client || !isConnected) && currentNetwork) {
             try {
               client = await connect(currentNetwork);
-            } catch (err) {
+            } catch (_err) {
               return {
                 success: false,
                 error: new Error("Failed to auto-connect to XRP network"),

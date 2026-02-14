@@ -23,7 +23,6 @@ import {
   BTC_VAULT_ADDRESS,
   MINIMUM_STAKE_AMOUNT_SATS,
   BTC_TOKEN_ENUM,
-  ESPLORA_API_URL,
 } from "@/config/bitcoin";
 import { useTokenBalance } from "./useTokenBalance";
 import { storePendingTransaction } from "@/lib/optimistic-helpers";

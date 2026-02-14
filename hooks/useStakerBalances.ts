@@ -83,7 +83,7 @@ export function useStakerBalances(tokens: Token[]) {
 
   // Bootstrap useQueries: per token, same shape as post-bootstrap. Fetches from cache (stakerAssetsQueries), merges optimistic cache, returns StakerBalanceResponseFromPrecompile.
   const bootstrapBalanceQueries = useQueries({
-    queries: tokens.map((token, index) => {
+    queries: tokens.map((token, _index) => {
       const queryAddress = getQueryAddress(token);
       const stakerId =
         queryAddress && token.network.customChainIdByImua
