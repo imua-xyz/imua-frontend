@@ -1,9 +1,10 @@
-.PHONY: help install lint type-check test test-watch test-coverage build build-local e2e e2e-ui ci clean
+.PHONY: help install lockfile-check lint type-check test test-watch test-coverage build build-local e2e e2e-ui ci clean
 
 # Default target
 help:
 	@echo "Available targets:"
 	@echo "  make install          - Install dependencies"
+	@echo "  make lockfile-check   - Ensure pnpm-lock.yaml is in sync with package.json"
 	@echo "  make lint             - Run ESLint"
 	@echo "  make type-check       - Run TypeScript type check"
 	@echo "  make test             - Run unit tests"
@@ -19,6 +20,12 @@ help:
 # Install dependencies
 install:
 	pnpm install
+
+# Ensure lockfile is in sync with package.json (fails if out of date)
+lockfile-check:
+	@echo "Checking lockfile is in sync with package.json..."
+	@pnpm install --frozen-lockfile || (echo "Error: pnpm-lock.yaml is out of date. Run 'pnpm install' and commit the updated lockfile." && exit 1)
+	@echo "Lockfile is in sync."
 
 # Lint
 lint:
@@ -58,7 +65,7 @@ e2e-ui:
 	pnpm test:e2e:ui
 
 # Run all CI checks (mimics GitHub Actions CI workflow)
-ci: lint type-check test build-local
+ci: lockfile-check lint type-check test build-local
 	@echo "✅ All CI checks passed!"
 
 # Clean build artifacts and dependencies

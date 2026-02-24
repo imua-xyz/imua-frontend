@@ -5,7 +5,27 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
+  lockfile:
+    name: Lockfile in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - name: Check lockfile is in sync with package.json
+        run: |
+          pnpm install --frozen-lockfile || (
+            echo "::error::pnpm-lock.yaml is out of date. Run 'pnpm install' and commit the updated lockfile."
+            exit 1
+          )
+
   pr-checks:
+    needs: [lockfile]
     name: PR Checks
     runs-on: ubuntu-latest
     steps:
