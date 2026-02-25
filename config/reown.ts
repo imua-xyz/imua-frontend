@@ -2,10 +2,7 @@ import { BitcoinAdapter } from "@reown/appkit-adapter-bitcoin";
 import { bitcoinTestnet, AppKitNetwork } from "@reown/appkit/networks";
 
 // Get this from WalletConnect dashboard
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
-if (!projectId) {
-  throw new Error("NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set");
-}
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
 
 // Set up Bitcoin Adapter
 export const bitcoinAdapter = new BitcoinAdapter({
