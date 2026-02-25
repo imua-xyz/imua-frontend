@@ -8,6 +8,7 @@ import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
 import { ArrowRight, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
 import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 
 import {
@@ -50,6 +51,8 @@ export function WithdrawTab({
 }: WithdrawTabProps) {
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+  const walletConnector = useWalletConnectorContext();
+
   // Get bootstrap status directly
   const { bootstrapStatus } = useBootstrapStatus();
 
@@ -271,14 +274,10 @@ export function WithdrawTab({
     setShowProgress(true);
 
     try {
-      const recipient =
-        recipientAddress.trim() !== ""
-          ? (recipientAddress as `0x${string}`)
-          : undefined;
-
       const result = await stakingService.withdrawPrincipal!(
         parsedWithdrawAmount,
-        recipient,
+        (recipientAddress as `0x${string}`) ||
+          walletConnector.nativeWallet.address,
         {
           onPhaseChange: handlePhaseChange,
         },

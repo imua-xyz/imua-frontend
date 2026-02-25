@@ -504,7 +504,6 @@ export function useBitcoinStaking(): StakingService {
       if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!amount) throw new Error("Invalid parameters");
-      if (recipient) throw new Error("Recipient not supported for now");
       if (
         evmAddress &&
         evmAddress.toLowerCase() !== boundImuaAddress.toLowerCase()
