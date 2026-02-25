@@ -498,7 +498,7 @@ export function useBitcoinStaking(): StakingService {
   const withdrawBitcoin = useCallback(
     async (
       amount: bigint,
-      recipient?: `0x${string}`,
+      _recipient: `0x${string}`,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
       if (!writeableContract || !boundImuaAddress)

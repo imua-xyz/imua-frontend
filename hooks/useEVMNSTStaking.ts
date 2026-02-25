@@ -487,7 +487,7 @@ export function useEVMNSTStaking(token: EVMNSTToken): StakingService {
   const handleWithdrawPrincipal = useCallback(
     async (
       amount: bigint,
-      recipient?: `0x${string}`,
+      recipient: `0x${string}`,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
       if (!writeableContract || !amount || !recipient)

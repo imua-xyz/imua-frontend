@@ -19,7 +19,7 @@ export interface StakingService {
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   withdrawPrincipal: (
     amount: bigint,
-    recipient?: `0x${string}`,
+    recipient: `0x${string}`,
     options?: Pick<BaseTxOptions, "onPhaseChange">,
   ) => Promise<{ hash: string; success: boolean; error?: string }>;
   delegateTo: (
