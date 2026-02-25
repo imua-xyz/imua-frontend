@@ -103,13 +103,10 @@ export const hoodi: EVMNSTNetwork = {
   beaconApiUrl: "",
 } as const;
 
-if (process.env.NEXT_PUBLIC_NST_LOCALNET?.toLowerCase() !== "true") {
-  // not localnet
-  if (!process.env.NEXT_PUBLIC_BEACON_API_URL) {
-    // and no beacon api url is set
-    throw new Error("NEXT_PUBLIC_BEACON_API_URL is not set");
-  }
-  // otherwise set the beacon api url
+if (
+  process.env.NEXT_PUBLIC_NST_LOCALNET?.toLowerCase() !== "true" &&
+  process.env.NEXT_PUBLIC_BEACON_API_URL
+) {
   hoodi.beaconApiUrl = process.env.NEXT_PUBLIC_BEACON_API_URL;
 }
 

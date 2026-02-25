@@ -1,5 +1,2 @@
-export const GRAPHQL_ENDPOINT = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT;
-
-if (!GRAPHQL_ENDPOINT) {
-  throw new Error("NEXT_PUBLIC_GRAPHQL_ENDPOINT is not set");
-}
+export const GRAPHQL_ENDPOINT =
+  process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT ?? "";

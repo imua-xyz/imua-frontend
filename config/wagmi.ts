@@ -2,11 +2,7 @@ import { createConfig, http } from "wagmi";
 import { sepolia, mainnet } from "wagmi/chains";
 import { createPublicClient, http as viem_http } from "viem";
 
-// Get this from WalletConnect dashboard
-const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
-if (!alchemyApiKey) {
-  throw new Error("NEXT_PUBLIC_ALCHEMY_API_KEY is not set");
-}
+const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY ?? "";
 
 // Define Imua chain
 // We use hardcoded values here for now because we are likely to be the sole API hoster.
