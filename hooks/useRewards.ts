@@ -87,7 +87,7 @@ async function fetchRewards(
       if (token) {
         const tokenKey = getTokenKey(token);
         const existingAmount = newTokenAmounts.get(tokenKey) || BigInt(0);
-        const newAmount = existingAmount + BigInt(parseInt(reward.amount));
+        const newAmount = existingAmount + BigInt(reward.amount);
         newTokenAmounts.set(tokenKey, newAmount);
       }
     });
