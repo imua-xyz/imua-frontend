@@ -13,7 +13,7 @@
 | Build (Vercel) | `pnpm build` (auto-installs Foundry) |
 | Lint | `pnpm lint` |
 | Type check | `npx tsc --noEmit` |
-| Unit tests | `pnpm test` (vitest, 58 tests across 12 files) |
+| Unit tests | `pnpm test` (vitest) |
 | E2E tests | `pnpm test:e2e` (playwright, requires dev server) |
 | Format | `npx prettier --check .` |
 
@@ -28,8 +28,8 @@
 
 - The `out/` directory (Solidity artifacts) is gitignored. You must run `forge compile` after cloning or after submodule updates.
 - `forge compile` produces a non-blocking linter error from `lib/imua-contracts/src/utils/CustomProxyAdmin.sol` — this is harmless and doesn't affect ABI generation.
-- ESLint has 0 errors and ~88 warnings (mostly `no-explicit-any` and `react-hooks/exhaustive-deps`). These are pre-existing.
+- ESLint has 0 errors and warnings only (mostly `no-explicit-any` and `react-hooks/exhaustive-deps`). These are pre-existing.
 - pnpm may warn about ignored build scripts (esbuild, sharp, etc.). The app builds and runs without them.
-- No `.env` file is required — the app uses hardcoded RPC URLs with fallback defaults.
+- For the current bootstrap setup, no `.env` file is strictly required — the app uses fallback defaults. In production, env vars like `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`, `NEXT_PUBLIC_ALCHEMY_API_KEY`, and `NEXT_PUBLIC_GRAPHQL_ENDPOINT` must be set. See `.env.example`.
 - Wallet connection requires a browser extension (MetaMask, etc.) and cannot be fully tested headlessly.
 - CI workflows are in `.github/workflows/`. The `build:local` script is what CI's Build job should use; E2E tests expect a `build:local` artifact.
