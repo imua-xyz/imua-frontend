@@ -50,6 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -57,8 +59,14 @@ jobs:
         with:
           node-version: 20
           cache: "pnpm"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Compile Solidity contracts
+        run: forge compile
       - name: Type check
         run: pnpm exec tsc --noEmit
 
@@ -68,6 +76,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -75,8 +85,14 @@ jobs:
         with:
           node-version: 20
           cache: "pnpm"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Compile Solidity contracts
+        run: forge compile
       - name: Run unit tests
         run: pnpm test
       - name: Upload coverage
@@ -94,6 +110,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -101,6 +119,10 @@ jobs:
         with:
           node-version: 20
           cache: "pnpm"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
@@ -114,6 +136,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -121,6 +145,10 @@ jobs:
         with:
           node-version: 20
           cache: "pnpm"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Playwright browsers
@@ -129,6 +157,13 @@ jobs:
         run: pnpm build:local
         env:
           SKIP_ENV_VALIDATION: true
+      - name: Start server
+        run: |
+          npx next start -p 3000 &
+          for i in $(seq 1 30); do
+            curl -s http://localhost:3000 > /dev/null && break
+            sleep 1
+          done
       - name: Run E2E tests
         run: pnpm test:e2e
         env:
