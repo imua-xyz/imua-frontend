@@ -92,9 +92,7 @@ export function StakeTab({
   });
 
   // Staking mode state - force stake mode if it's the only allowed mode
-  const [isStakeMode, setIsStakeMode] = useState(
-    isOnlyDepositThenDelegateAllowed ? true : true,
-  );
+  const [isStakeMode, setIsStakeMode] = useState(true);
 
   // Force stake mode if it's the only allowed mode
   useEffect(() => {
