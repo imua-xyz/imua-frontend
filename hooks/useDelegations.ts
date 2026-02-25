@@ -72,9 +72,13 @@ export function useDelegations(
         const stakerId = `${queryAddress.toLowerCase()}_0x${customChainId.toString(16)}`;
         const assetId = `${token.address.toLowerCase()}_0x${customChainId.toString(16)}`;
         const url = `${COSMOS_CONFIG.API_ENDPOINT}${COSMOS_CONFIG.PATHS.DELEGATION_INFO(stakerId, assetId)}`;
-        const data = (await fetch(url).then((r) =>
-          r.json(),
-        )) as DelegationsResponse;
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch delegations: ${response.status} ${response.statusText}`,
+          );
+        }
+        const data = (await response.json()) as DelegationsResponse;
         const infos = data.delegation_infos || [];
 
         // Convert to Map for O(1) lookups by operator address
