@@ -82,13 +82,10 @@ function StakingContent({
       tabs.push(
         { id: "delegate", label: "Delegate" },
         { id: "undelegate", label: "Undelegate" },
-        { id: "withdraw", label: "Withdraw" },
       );
-    }
-
-    // However, withdraw should only be added for NST tokens if bootstrapped
-    if (isNSTToken && !isBootstrapped) {
-      tabs.pop();
+      if (!isNSTToken || isBootstrapped) {
+        tabs.push({ id: "withdraw", label: "Withdraw" });
+      }
     }
 
     return tabs;
