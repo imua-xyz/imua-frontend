@@ -105,18 +105,16 @@ export function UndelegateTab({
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
   // Initialize operation steps based on operation mode
-  useState(() => {
+  useEffect(() => {
     let steps: OperationStep[] = [];
 
     if (isNativeChainOperation) {
-      // Local mode: transaction, confirmation, completion (no approval needed)
       steps = [
         { ...transactionStep, description: "Sending undelegate transaction" },
         { ...confirmationStep },
         { ...completionStep },
       ];
     } else {
-      // Cross-chain mode: transaction, confirmation, relay, completion
       steps = [
         { ...transactionStep, description: "Sending undelegate transaction" },
         { ...confirmationStep },
@@ -129,7 +127,7 @@ export function UndelegateTab({
     }
 
     setOperationSteps(steps);
-  });
+  }, [destinationChain, isNativeChainOperation]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
