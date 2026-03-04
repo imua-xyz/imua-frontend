@@ -1,0 +1,23 @@
+import { BitcoinAdapter } from "@reown/appkit-adapter-bitcoin";
+import { bitcoinTestnet, AppKitNetwork } from "@reown/appkit/networks";
+
+// Get this from WalletConnect dashboard
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+
+// Set up Bitcoin Adapter
+export const bitcoinAdapter = new BitcoinAdapter({
+  projectId,
+});
+
+// Create a metadata object
+export const metadata = {
+  name: "Imua Staking",
+  description: "Omnichain Restaking Platform",
+  url: "https://www.imua.xyz/",
+  icons: ["public/logos/imua-logo.svg"],
+};
+
+export const supportedChains = [bitcoinTestnet] as [
+  AppKitNetwork,
+  ...AppKitNetwork[],
+];

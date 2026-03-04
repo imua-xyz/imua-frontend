@@ -39,3 +39,13 @@ export const gemConnector: NonEVMConnector = {
   installUrl:
     "https://chromewebstore.google.com/detail/gemwallet/egebedonbdapoieedfcfkofloclfghab?hl=en",
 } as const;
+
+export const bitcoinConnector: NonEVMConnector = {
+  evmCompatible: false,
+  requireExtraConnectToImua: true,
+  customConnector: {
+    name: "Bitcoin Wallet",
+    iconUrl: "/icons/bitcoin-icon.png",
+  },
+  installUrl: "https://bitcoin.org/en/wallets/",
+} as const;

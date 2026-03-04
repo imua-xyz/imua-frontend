@@ -1,5 +1,13 @@
-import { Network, EVMNetwork, sepolia, xrpl, imuaChain } from "./networks";
-import { ConnectorBase, evmConnector, gemConnector } from "./connectors";
+import {
+  Network,
+  EVMNetwork,
+  xrpl,
+  imuaChain,
+  hoodi,
+  bitcoin,
+  bitcoinTestnet,
+  ethPosLocalnet,
+} from "./networks";
 import { imuaDenom } from "./rewards";
 
 // Define a base TokenBase interface with common properties
@@ -11,7 +19,6 @@ interface TokenBase {
   iconUrl: string;
   network: Network;
   type: TokenType;
-  connector: ConnectorBase;
   priceIndex: number;
 }
 
@@ -28,9 +35,11 @@ export interface LSTToken extends TokenBase {
   provider: string;
 }
 
-export interface NSTToken extends TokenBase {
+export interface EVMNSTToken extends TokenBase {
   type: "nst";
   underlyingAsset: string;
+  provider: string;
+  network: EVMNetwork;
 }
 
 export interface EVMLSTToken extends LSTToken {
@@ -44,29 +53,27 @@ export interface EVMNativeToken extends NativeToken {
 
 export const exoETH: EVMLSTToken = {
   type: "lst",
-  network: sepolia,
+  network: hoodi,
   name: "Imua Ethereum",
   symbol: "imETH",
-  address: "0xF79F563571f7D8122611D0219A0d5449B5304F79",
+  address: "0x80E5bb3A04554E54b40Dd6e14ca0F97212d9428d",
   decimals: 18,
-  iconUrl: "/imua-logo.avif",
+  iconUrl: "/icons/imua-icon.svg",
   underlyingAsset: "ETH",
   provider: "Imua",
-  connector: evmConnector,
   priceIndex: 1,
 } as const;
 
 export const wstETH: EVMLSTToken = {
   type: "lst",
-  network: sepolia,
+  network: hoodi,
   name: "Wrapped Staked Ether",
   symbol: "wstETH",
-  address: "0xB82381A3fBD3FaFA77B3a7bE693342618240067b",
+  address: "0x32118ebD4b82A84B0f13218dbA41f352CC7c2923",
   decimals: 18,
-  iconUrl: "/wsteth-logo.svg",
+  iconUrl: "/icons/wsteth-icon.svg",
   underlyingAsset: "ETH",
   provider: "Lido",
-  connector: evmConnector,
   priceIndex: 2,
 } as const;
 
@@ -77,9 +84,30 @@ export const xrp: NativeToken = {
   symbol: "XRP",
   address: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
   decimals: 6,
-  iconUrl: "/xrp-logo.svg",
-  connector: gemConnector,
+  iconUrl: "/icons/xrp-icon.png",
   priceIndex: 7,
+} as const;
+
+export const btc: NativeToken = {
+  type: "native",
+  network: bitcoin,
+  name: "Bitcoin",
+  symbol: "BTC",
+  address: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+  decimals: 8,
+  iconUrl: "/icons/bitcoin-icon.png",
+  priceIndex: 6,
+} as const;
+
+export const tbtc: NativeToken = {
+  type: "native",
+  network: bitcoinTestnet,
+  name: "Bitcoin Testnet",
+  symbol: "tBTC",
+  address: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+  decimals: 8,
+  iconUrl: "/icons/bitcoin-icon.png",
+  priceIndex: 6,
 } as const;
 
 export const imua: EVMNativeToken = {
@@ -88,15 +116,54 @@ export const imua: EVMNativeToken = {
   symbol: "IM",
   address: "0x0000000000000000000000000000000000000000",
   decimals: 18,
-  iconUrl: "/imua-logo.avif",
+  iconUrl: "/icons/imua-icon.svg",
   network: imuaChain,
-  connector: evmConnector,
   priceIndex: 1, // TODO: we use ETH's price index because the imua token does not have a price yet
 } as const;
 
-export type Token = typeof exoETH | typeof wstETH | typeof xrp;
+export const ethNSTlocal: EVMNSTToken = {
+  type: "nst",
+  name: "Local Staked ETH",
+  symbol: "nstLocalETH",
+  address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  decimals: 18,
+  iconUrl: "/icons/eth-icon.svg",
+  network: ethPosLocalnet,
+  underlyingAsset: "Local ETH",
+  priceIndex: 1,
+  provider: "Chain",
+} as const;
 
-export const validTokens: Token[] = [exoETH, wstETH, xrp];
+export const ethNSTHoodi: EVMNSTToken = {
+  type: "nst",
+  name: "Hoodi Staked ETH",
+  symbol: "nstHoodiETH",
+  address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  decimals: 18,
+  iconUrl: "/icons/eth-icon.svg",
+  network: hoodi,
+  underlyingAsset: "Hoodi ETH",
+  priceIndex: 1,
+  provider: "Chain",
+} as const;
+
+export type Token =
+  | typeof exoETH
+  | typeof wstETH
+  | typeof xrp
+  | typeof tbtc
+  | typeof ethNSTlocal
+  | typeof ethNSTHoodi;
+
+export const validTokens: Token[] = [
+  exoETH,
+  wstETH,
+  xrp,
+  tbtc,
+  process.env.NEXT_PUBLIC_NST_LOCALNET?.toLowerCase() === "true"
+    ? ethNSTlocal
+    : ethNSTHoodi,
+];
 
 export const validRewardTokens: Token[] = [imua];
 
@@ -136,3 +203,10 @@ export function getTokenBySymbol(symbol: string): Token | undefined {
   }
   return matchingTokens[0];
 }
+
+// Helper function to get network by custom chain ID from valid tokens
+export const getNetworkByChainId = (customChainId: number) => {
+  return validTokens.find(
+    (token) => token.network.customChainIdByImua === customChainId,
+  )?.network;
+};

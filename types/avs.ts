@@ -17,7 +17,7 @@ export const imuaChainAVS: AVS = {
   address: "0xedb7a6077ab45df72e57bc2ea091f9183429720e",
   name: "Imua",
   description: "An omnichain staking protocol",
-  iconUrl: "/imua-logo.avif",
+  iconUrl: "/logos/imua-logo.svg",
   apy: 3,
 } as const;
 

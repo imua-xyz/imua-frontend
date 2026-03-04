@@ -68,7 +68,7 @@ export function useAmountInput({
       }
 
       setAmount(value);
-    } catch (e) {
+    } catch (_e) {
       setError("Invalid amount");
     }
   };

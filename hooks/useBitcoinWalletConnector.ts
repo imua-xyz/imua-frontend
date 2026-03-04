@@ -1,0 +1,328 @@
+"use client";
+
+import { useMemo, useEffect, useState } from "react";
+import {
+  useAccount,
+  useBalance,
+  useDisconnect as useWagmiDisconnect,
+  useSwitchChain,
+} from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import {
+  useAppKit,
+  useAppKitEvents,
+  useDisconnect,
+  useAppKitNetwork,
+} from "@reown/appkit/react";
+import { bitcoinTestnet } from "@reown/appkit/networks";
+import { useAllWalletsStore } from "@/stores/allWalletsStore";
+import { btc } from "@/types/tokens";
+import { bootstrapContractNetwork, imuaChain } from "@/types/networks";
+import { BitcoinWalletConnector } from "@/types/wallet-connector";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useReverseAddressBinding } from "@/hooks/useAddressBinding";
+
+export function useBitcoinWalletConnector(): BitcoinWalletConnector {
+  // Expected Bitcoin network (using testnet for testing)
+  const expectedBitcoinNetwork = bitcoinTestnet;
+
+  // AppKit hooks for Bitcoin wallet
+  const { bootstrapStatus } = useBootstrapStatus();
+  const { open: openAppKit } = useAppKit();
+  const { disconnect: disconnectAppKit } = useDisconnect();
+  const { switchNetwork, caipNetworkId } = useAppKitNetwork();
+
+  // EVM wallet state for Imua connection (same wallet as Bitcoin)
+  const {
+    address: evmAddress,
+    isConnected: isWagmiConnected,
+    chainId: evmChainId,
+  } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { disconnect: disconnectEVM } = useWagmiDisconnect();
+  const { switchChain } = useSwitchChain();
+  const { data: evmBalance } = useBalance({ address: evmAddress });
+
+  // Get Bitcoin wallet state from unified store
+  const boundImuaAddress = useAllWalletsStore(
+    (state) => state.wallets[btc.network.customChainIdByImua]?.boundImuaAddress,
+  );
+  const isBitcoinConnected = useAllWalletsStore(
+    (state) => state.wallets[btc.network.customChainIdByImua]?.isConnected,
+  );
+  const bitcoinAddress = useAllWalletsStore(
+    (state) => state.wallets[btc.network.customChainIdByImua]?.address,
+  );
+
+  const events = useAppKitEvents();
+  const isBootstrapPhase = !bootstrapStatus?.isBootstrapped;
+  const targetEVMChainId = isBootstrapPhase
+    ? bootstrapContractNetwork.evmChainID
+    : imuaChain.evmChainID;
+
+  // Use the unified token balance hook
+  const balanceQuery = useTokenBalance({
+    token: btc,
+    address: bitcoinAddress,
+    refetchInterval: 30000, // 30 seconds
+  });
+
+  // Check reverse binding to ensure EVM address isn't bound to different Bitcoin addresses
+  const reverseBindingQuery = useReverseAddressBinding(evmAddress || "", btc);
+
+  // Detect if wallet is on wrong network by checking address prefix
+  // Bitcoin addresses have different prefixes for mainnet vs testnet
+  const isWrongNetwork = useMemo(() => {
+    if (!isBitcoinConnected || !bitcoinAddress) return false;
+
+    // Bitcoin mainnet addresses start with '1', '3', or 'bc1'
+    // Bitcoin testnet addresses start with 'm', 'n', '2', or 'tb1'
+    const isMainnetAddress =
+      bitcoinAddress.startsWith("1") ||
+      bitcoinAddress.startsWith("3") ||
+      bitcoinAddress.startsWith("bc1");
+
+    // We expect testnet, so mainnet address = wrong network
+    return (
+      isMainnetAddress || caipNetworkId !== expectedBitcoinNetwork.caipNetworkId
+    );
+  }, [isBitcoinConnected, bitcoinAddress, caipNetworkId]);
+
+  // State for connection promise resolution
+  const [connectionPromise, setConnectionPromise] = useState<{
+    resolve: () => void;
+    reject: (error: Error) => void;
+  } | null>(null);
+
+  // Listen for AppKit events
+  useEffect(() => {
+    if (events.data && connectionPromise) {
+      if (
+        events.data.event === "MODAL_CLOSE" ||
+        events.data.event === "CONNECT_SUCCESS" ||
+        events.data.event === "CONNECT_ERROR"
+      ) {
+        // Modal closed, connection successful, or connection failed - always resolve the promise so the wallet connection modal reopens
+        // The connection status will be checked by the modal itself
+        connectionPromise.resolve();
+        setConnectionPromise(null);
+      }
+    }
+  }, [events.data, connectionPromise]);
+
+  // Connect to Bitcoin wallet
+  const connectNative = async () => {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        // Store the promise resolvers
+        setConnectionPromise({ resolve, reject });
+
+        // Open AppKit modal for Bitcoin wallet connection
+        openAppKit({ view: "Connect", namespace: "bip122" });
+
+        // Set up a timeout as fallback
+        setTimeout(() => {
+          if (connectionPromise) {
+            connectionPromise.reject(new Error("Connection timeout"));
+            setConnectionPromise(null);
+          }
+        }, 30000); // 30 second timeout
+      } catch (error) {
+        console.error("Failed to connect Bitcoin wallet:", error);
+        reject(error);
+      }
+    });
+  };
+
+  // Disconnect Bitcoin wallet
+  const disconnectNative = async () => {
+    try {
+      disconnectAppKit();
+    } catch (error) {
+      console.error("Failed to disconnect Bitcoin wallet:", error);
+      throw error;
+    }
+  };
+
+  // Check if EVM address is bound to different Bitcoin addresses
+  const hasConflictingBinding = useMemo(() => {
+    if (!evmAddress || !isBitcoinConnected || !bitcoinAddress) return false;
+
+    // If reverse binding address exists, check if it matches the current Bitcoin address
+    const boundBitcoinAddress = reverseBindingQuery.boundSourceAddress;
+
+    // Conflict exists if the EVM address is bound to a different Bitcoin address
+    return !!(
+      boundBitcoinAddress &&
+      boundBitcoinAddress.toLowerCase() !== bitcoinAddress.toLowerCase()
+    );
+  }, [
+    evmAddress,
+    isBitcoinConnected,
+    bitcoinAddress,
+    reverseBindingQuery.boundSourceAddress,
+  ]);
+
+  // Log warning for conflicting binding (side effect belongs in useEffect)
+  useEffect(() => {
+    if (hasConflictingBinding && evmAddress && bitcoinAddress) {
+      const boundBitcoinAddress = reverseBindingQuery.boundSourceAddress;
+      console.warn(
+        `Conflict: EVM address ${evmAddress} is already bound to Bitcoin address ${boundBitcoinAddress}, ` +
+          `but current connected Bitcoin address is ${bitcoinAddress}`,
+      );
+    }
+  }, [hasConflictingBinding, evmAddress, bitcoinAddress, reverseBindingQuery.boundSourceAddress]);
+
+  const isReadyForStaking = useMemo(() => {
+    const ready = !!(
+      isBitcoinConnected &&
+      isWagmiConnected &&
+      !isWrongNetwork &&
+      evmChainId === targetEVMChainId &&
+      (!boundImuaAddress ||
+        boundImuaAddress.toLowerCase() === evmAddress?.toLowerCase()) &&
+      !hasConflictingBinding
+    );
+
+    return ready;
+  }, [
+    isBitcoinConnected,
+    isWagmiConnected,
+    isWrongNetwork,
+    evmChainId,
+    targetEVMChainId,
+    boundImuaAddress,
+    evmAddress,
+    isBootstrapPhase,
+    hasConflictingBinding,
+  ]);
+
+  const nativeWallet = useMemo(
+    () => ({
+      connected: isBitcoinConnected || false,
+      address: bitcoinAddress,
+      balance: {
+        value: balanceQuery.data?.value || BigInt(0),
+        decimals: balanceQuery.data?.decimals || 8,
+        symbol: balanceQuery.data?.symbol || "BTC",
+      },
+    }),
+    [isBitcoinConnected, bitcoinAddress, balanceQuery.data],
+  );
+
+  const bindingEVMWallet = useMemo(
+    () => ({
+      connected: isWagmiConnected,
+      address: evmAddress,
+      balance: {
+        value: evmBalance?.value || BigInt(0),
+        decimals: evmBalance?.decimals || 18,
+        symbol: evmBalance?.symbol || "",
+      },
+    }),
+    [isWagmiConnected, evmAddress, evmBalance],
+  );
+
+  const bindingState = useMemo(
+    () => ({
+      isBound: !!boundImuaAddress,
+      expectedBoundAddress: boundImuaAddress || undefined,
+    }),
+    [boundImuaAddress],
+  );
+
+  const issues = useMemo(() => {
+    if (isReadyForStaking) return undefined;
+
+    // Check if Bitcoin is connected but on wrong network
+    // We detect this by checking if the balance fetch is failing due to network mismatch
+    const needsSwitchNative = isWrongNetwork;
+
+    return {
+      needsConnectNative: !isBitcoinConnected
+        ? {
+            resolve: connectNative,
+            needsAction: true,
+          }
+        : undefined,
+      needsSwitchNative: needsSwitchNative
+        ? {
+            resolve: async () => {
+              // Disconnect current wallet and prompt user to switch network manually
+              await disconnectNative();
+              // User will need to reconnect after switching network in their wallet
+            },
+            needsAction: true,
+          }
+        : undefined,
+      needsConnectBindingEVM: !isWagmiConnected
+        ? {
+            resolve: async () => {
+              if (openConnectModal) {
+                openConnectModal();
+              }
+            },
+            needsAction: true,
+          }
+        : undefined,
+      needsSwitchBindingEVM:
+        isWagmiConnected && evmChainId !== targetEVMChainId
+          ? {
+              resolve: async () => {
+                if (switchChain) {
+                  switchChain({ chainId: targetEVMChainId });
+                }
+              },
+              needsAction: true,
+            }
+          : undefined,
+      needsMatchingAddress: !!(
+        boundImuaAddress &&
+        boundImuaAddress.toLowerCase() !== evmAddress?.toLowerCase()
+      )
+        ? {
+            // address matching is handled by connecting the correct wallet
+            needsAction: true,
+          }
+        : undefined,
+      needsResolveConflictingBinding: hasConflictingBinding
+        ? {
+            // EVM address is bound to different Bitcoin address
+            needsAction: true,
+            boundNativeAddress:
+              reverseBindingQuery.boundSourceAddress || undefined,
+          }
+        : undefined,
+      others: undefined,
+    };
+  }, [
+    isReadyForStaking,
+    isBitcoinConnected,
+    isWagmiConnected,
+    evmChainId,
+    boundImuaAddress,
+    evmAddress,
+    connectNative,
+    caipNetworkId,
+    expectedBitcoinNetwork,
+    switchNetwork,
+    isWrongNetwork,
+    hasConflictingBinding,
+  ]);
+
+  return {
+    isReadyForStaking,
+    nativeWallet,
+    bindingEVMWallet,
+    bindingState,
+    issues,
+    disconnectNative: disconnectNative,
+    disconnectBindingEVM: async () => {
+      if (disconnectEVM) {
+        disconnectEVM();
+      }
+    },
+  };
+}

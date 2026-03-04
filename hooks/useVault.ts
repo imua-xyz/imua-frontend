@@ -2,7 +2,7 @@ import { getContract } from "viem";
 import { EVMLSTToken } from "@/types/tokens";
 import { usePortalContract } from "./usePortalContract";
 import { useQuery } from "@tanstack/react-query";
-import VaultABI from "@/abi/Vault.abi.json";
+import VaultContract from "@/out/Vault.sol/Vault.json";
 
 export function useEVMVault(token: EVMLSTToken) {
   const { readonlyContract, publicClient } = usePortalContract(token.network);
@@ -29,7 +29,7 @@ export function useEVMVault(token: EVMLSTToken) {
     vaultAddress && publicClient
       ? getContract({
           address: vaultAddress as `0x${string}`,
-          abi: VaultABI,
+          abi: VaultContract.abi,
           client: {
             public: publicClient,
           },

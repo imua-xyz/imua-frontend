@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
 import {
@@ -28,6 +30,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HelpCircle } from "lucide-react";
+import { getShortErrorMessage } from "@/lib/utils";
+import { btc, tbtc } from "@/types/tokens";
 
 interface StakeTabProps {
   sourceChain: string;
@@ -47,6 +51,15 @@ export function StakeTab({
   // Context hooks
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
+
+  // Check if this is a native chain operation (not cross-chain)
+  // This considers both bootstrap phase and token-specific requirements
+  const isNativeChainOperation =
+    !bootstrapStatus?.isBootstrapped ||
+    !!token.network.connector?.requireExtraConnectToImua;
   const { operators } = useOperatorsContext();
 
   // Check mode availability based on both props
@@ -58,14 +71,15 @@ export function StakeTab({
   // Determine which modes are available
   const isStakeModeAvailable = !isDepositThenDelegateDisabled;
   const isDepositModeAvailable = !isOnlyDepositThenDelegateAllowed;
+  const isConfirmationSlow = token === btc || token === tbtc;
 
   // If only stake mode is allowed, force stake mode
   const canSwitchModes = isStakeModeAvailable && isDepositModeAvailable;
 
-  // Balance and amount state
-  const balance = stakingService.walletBalance?.value || BigInt(0);
-  const maxAmount = balance;
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  // Balance and amount state: use token balance from staking service
+  const tokenBalanceValue = stakingService.tokenBalance.balance.value;
+  const maxAmount = tokenBalanceValue;
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -78,9 +92,7 @@ export function StakeTab({
   });
 
   // Staking mode state - force stake mode if it's the only allowed mode
-  const [isStakeMode, setIsStakeMode] = useState(
-    isOnlyDepositThenDelegateAllowed ? true : true,
-  );
+  const [isStakeMode, setIsStakeMode] = useState(true);
 
   // Force stake mode if it's the only allowed mode
   useEffect(() => {
@@ -97,22 +109,39 @@ export function StakeTab({
   const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Initialize operation steps using predefined steps
+  // Initialize operation steps based on operation mode
   useEffect(() => {
-    const steps: OperationStep[] = [
-      { ...approvalStep },
-      { ...transactionStep },
-      { ...confirmationStep },
-      { ...sendingRequestStep },
-      { ...completionStep },
-    ];
+    let steps: OperationStep[] = [];
 
-    // Update descriptions for better context
-    steps[1].description = "Sending stake transaction";
-    steps[3].description = `Relaying message to ${destinationChain}`;
+    if (isNativeChainOperation) {
+      // Local mode: approval, transaction, confirmation, completion
+      steps = [
+        { ...approvalStep },
+        { ...transactionStep },
+        { ...confirmationStep },
+        { ...completionStep },
+      ];
+      // Update descriptions for local context
+      steps[1].description = "Sending stake transaction";
+      steps[2].description = "Waiting for transaction confirmation";
+      steps[2].estimatedTime = isConfirmationSlow ? "10 min" : "10 sec";
+    } else {
+      // Cross-chain mode: approval, transaction, confirmation, relay, completion
+      steps = [
+        { ...approvalStep },
+        { ...transactionStep },
+        { ...confirmationStep },
+        { ...sendingRequestStep },
+        { ...completionStep },
+      ];
+      // Update descriptions for cross-chain context
+      steps[1].description = "Sending stake transaction";
+      steps[3].description = `Relaying message to ${destinationChain}`;
+      steps[2].estimatedTime = isConfirmationSlow ? "10 min" : "10 sec";
+    }
 
     setOperationSteps(steps);
-  }, [destinationChain]);
+  }, [destinationChain, isNativeChainOperation]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
@@ -237,8 +266,9 @@ export function StakeTab({
           );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage =
-              result.error || "Operation failed";
+            updated[processingStepIndex].errorMessage = result.error
+              ? getShortErrorMessage(new Error(result.error))
+              : "Operation failed";
           }
           return updated;
         });
@@ -251,9 +281,18 @@ export function StakeTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = "Operation failed";
+          updated[processingStepIndex].errorMessage =
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -286,10 +325,12 @@ export function StakeTab({
       isStakeMode && isStakeModeAvailable && selectedOperator
         ? "stake"
         : "deposit",
-    chainInfo: {
-      sourceChain,
-      destinationChain,
-    },
+    chainInfo: isNativeChainOperation
+      ? undefined
+      : {
+          sourceChain,
+          destinationChain,
+        },
     steps: operationSteps,
     overallStatus: {
       // Derive current phase from step statuses
@@ -325,8 +366,11 @@ export function StakeTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setCurrentStep("amount");
       setAmount("");
       setSelectedOperator(null);
@@ -335,9 +379,15 @@ export function StakeTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 
@@ -377,11 +427,11 @@ export function StakeTab({
               </label>
               <div className="flex items-center space-x-2 text-xs text-[#9999aa]">
                 <span>
-                  Balance: {formatUnits(balance, decimals)} {token.symbol}
+                  Balance: {formatUnits(maxAmount, decimals)} {token.symbol}
                 </span>
                 <button
                   className="text-xs font-medium text-[#00e5ff] ml-1"
-                  onClick={() => setAmount(formatUnits(balance, decimals))}
+                  onClick={() => setAmount(formatUnits(maxAmount, decimals))}
                 >
                   MAX
                 </button>
@@ -451,8 +501,10 @@ export function StakeTab({
           )}
 
           {/* Continue button */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={
               !!amountError ||
               !amount ||
@@ -462,7 +514,7 @@ export function StakeTab({
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -486,14 +538,6 @@ export function StakeTab({
                     Edit
                   </button>
                 </div>
-              </div>
-
-              {/* Operation type */}
-              <div className="flex justify-between">
-                <span className="text-[#9999aa]">Operation</span>
-                <span className="text-white">
-                  {isStakeMode ? "Stake" : "Deposit"}
-                </span>
               </div>
 
               {/* Selected operator (if staking) */}
@@ -524,6 +568,14 @@ export function StakeTab({
                   </div>
                 </div>
               )}
+
+              {/* Operation type (moved below Operator for better flow) */}
+              <div className="flex justify-between">
+                <span className="text-[#9999aa]">Operation</span>
+                <span className="text-white">
+                  {isStakeMode ? "Stake" : "Deposit"}
+                </span>
+              </div>
             </div>
 
             {/* Estimated rewards section - cleaner */}
@@ -550,7 +602,7 @@ export function StakeTab({
                 </div>
               )}
 
-            {/* Fee information - more subtle */}
+            {/* Fee information */}
             <div className="flex items-center text-xs text-[#9999aa] px-1">
               <Info size={12} className="mr-1 flex-shrink-0" />
               <span>No additional fees for this transaction</span>
@@ -567,8 +619,12 @@ export function StakeTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 (isStakeMode && isStakeModeAvailable && !selectedOperator) ||
@@ -578,7 +634,7 @@ export function StakeTab({
               onClick={handleOperation}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}
@@ -590,6 +646,7 @@ export function StakeTab({
         onSelect={handleOperatorSelect}
         operators={operators || []}
         selectedOperator={selectedOperator}
+        token={token}
       />
 
       {/* Operation Progress Modal */}

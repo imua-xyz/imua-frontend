@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
@@ -16,8 +17,10 @@ import {
 } from "@/components/ui/operation-progress";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
 import { useOperatorsContext } from "@/contexts/OperatorsContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
 import { OperatorSelectionModal } from "@/components/modals/OperatorSelectionModal";
 import { OperatorInfo } from "@/types/operator";
+import { getShortErrorMessage } from "@/lib/utils";
 
 interface DelegateTabProps {
   sourceChain: string;
@@ -39,12 +42,18 @@ export function DelegateTab({
   const token = stakingService.token;
   const { operators } = useOperatorsContext();
 
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
+
   // Check if this is a native chain operation (not cross-chain)
-  const isNativeChainOperation = !!token.connector?.requireExtraConnectToImua;
+  // This considers both bootstrap phase and token-specific requirements
+  const isNativeChainOperation =
+    !bootstrapStatus?.isBootstrapped ||
+    !!token.network.connector?.requireExtraConnectToImua;
 
   // Balance and amount state
-  const maxAmount = stakingService.stakerBalance?.claimable || BigInt(0);
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  const maxAmount = stakingService.stakerBalance.claimable || BigInt(0);
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const {
     amount,
     parsedAmount,
@@ -64,7 +73,7 @@ export function DelegateTab({
   const [operationSteps, setOperationSteps] = useState<OperationStep[]>([]);
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
 
-  // Determine operation mode and initialize steps
+  // Initialize operation steps based on operation mode
   useEffect(() => {
     let steps: OperationStep[] = [];
 
@@ -76,7 +85,7 @@ export function DelegateTab({
         { ...completionStep },
       ];
     } else {
-      // Simplex mode: transaction, confirmation, relay, completion (no approval needed)
+      // Cross-chain mode: transaction, confirmation, relay, completion
       steps = [
         { ...transactionStep, description: "Sending delegate transaction" },
         { ...confirmationStep },
@@ -89,7 +98,7 @@ export function DelegateTab({
     }
 
     setOperationSteps(steps);
-  }, [isNativeChainOperation, destinationChain]);
+  }, [destinationChain, isNativeChainOperation]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
@@ -213,8 +222,9 @@ export function DelegateTab({
           );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage =
-              result.error || "Operation failed";
+            updated[processingStepIndex].errorMessage = result.error
+              ? getShortErrorMessage(new Error(result.error))
+              : "Operation failed";
           }
           return updated;
         });
@@ -227,9 +237,18 @@ export function DelegateTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
-          updated[processingStepIndex].errorMessage = "Operation failed";
+          updated[processingStepIndex].errorMessage =
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -298,8 +317,11 @@ export function DelegateTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setCurrentStep("amount");
       setAmount("");
       setSelectedOperator(null);
@@ -308,9 +330,15 @@ export function DelegateTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 
@@ -382,8 +410,10 @@ export function DelegateTab({
           </div>
 
           {/* Continue button - now only requires valid amount */}
-          <Button
-            className="w-full py-3 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+          <ActionButton
+            className="w-full"
+            variant="primary"
+            size="lg"
             disabled={
               !!amountError ||
               !amount ||
@@ -393,7 +423,7 @@ export function DelegateTab({
             onClick={handleContinue}
           >
             Continue
-          </Button>
+          </ActionButton>
         </>
       )}
 
@@ -484,8 +514,12 @@ export function DelegateTab({
               Back
             </Button>
 
-            <Button
-              className="flex-1 bg-[#00e5ff] hover:bg-[#00c8df] text-black font-medium"
+            <ActionButton
+              className="flex-1"
+              variant="primary"
+              size="md"
+              loading={showProgress}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !selectedOperator ||
@@ -495,7 +529,7 @@ export function DelegateTab({
               onClick={handleOperation}
             >
               {getButtonText()}
-            </Button>
+            </ActionButton>
           </div>
         </>
       )}
@@ -507,6 +541,7 @@ export function DelegateTab({
         onSelect={handleOperatorSelect}
         operators={operators || []}
         selectedOperator={selectedOperator}
+        token={token}
       />
 
       {/* Operation Progress Modal */}

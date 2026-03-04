@@ -1,0 +1,68 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly on Monday at 00:00 UTC
+    - cron: "0 0 * * 1"
+
+jobs:
+  lockfile:
+    name: Lockfile in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - name: Check lockfile is in sync with package.json
+        run: |
+          pnpm install --frozen-lockfile || (
+            echo "::error::pnpm-lock.yaml is out of date. Run 'pnpm install' and commit the updated lockfile."
+            exit 1
+          )
+
+  code-quality:
+    needs: [lockfile]
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Compile Solidity contracts
+        run: forge compile
+      - name: Run ESLint
+        run: pnpm lint
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+      - name: Run unit tests with coverage
+        run: pnpm test:coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unit
+          name: code-quality-coverage
+          fail_ci_if_error: false

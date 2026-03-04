@@ -1,8 +1,7 @@
-import { useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useBalance } from "wagmi";
+import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { maxUint256 } from "viem";
-import { BaseTxOptions, StakerBalance } from "@/types/staking";
+import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import { StakingService } from "@/types/staking-service";
 import { useEVMVault } from "./useVault";
 import { EVMLSTToken } from "@/types/tokens";
@@ -12,9 +11,10 @@ import { OperationType } from "@/types/staking";
 import { handleEVMTxWithStatus } from "@/lib/txUtils";
 import { useBootstrapStatus } from "./useBootstrapStatus";
 import { useStakerBalances } from "./useStakerBalances";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useERC20Token } from "./useERC20Token";
 import { useDelegations } from "./useDelegations";
+import { useTokenBalance } from "./useTokenBalance";
+import { storePendingTransaction } from "@/lib/optimistic-helpers";
 
 export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { address: userAddress } = useAccount();
@@ -24,15 +24,15 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
   const { contract: erc20Contract } = useERC20Token(token);
   const delegations = useDelegations(token);
 
-  const balance = useBalance({
+  // Fetch token balance using the unified hook
+  const tokenBalanceQuery = useTokenBalance({
+    token,
     address: userAddress,
-    token: token.address,
+    refetchInterval: 30000, // 30 seconds
   });
-  const lzEndpointIdOrCustomChainId = token.network.customChainIdByImua;
   const { bootstrapStatus } = useBootstrapStatus();
-  const { getStakerBalanceByToken } = useAssetsPrecompile();
 
-  const [stakerBalanceAfterBootstrap] = useStakerBalances([token]);
+  const [stakerBalanceFromHook] = useStakerBalances([token]);
   const withdrawableAmountFromVault = useQuery({
     queryKey: [
       "withdrawableAmountFromVault",
@@ -51,68 +51,40 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     refetchInterval: 3000,
   });
 
-  // Define stakerBalance query first so it can be used in other functions
-  const stakerBalance = useQuery({
-    queryKey: [
-      "stakerBalance",
-      lzEndpointIdOrCustomChainId,
-      userAddress,
-      token.address,
-    ],
-    queryFn: async (): Promise<StakerBalance> => {
-      const isBootstrapped = bootstrapStatus?.isBootstrapped;
+  const stakerBalance = useMemo<StakerBalance>(() => {
+    const s = stakerBalanceFromHook.data;
+    return {
+      clientChainID: token.network.customChainIdByImua,
+      stakerAddress: userAddress as `0x${string}`,
+      tokenID: token.address,
+      totalBalance: s?.balance || BigInt(0),
+      claimable: s?.withdrawable || BigInt(0),
+      withdrawable: withdrawableAmountFromVault.data || BigInt(0),
+      delegated: s?.delegated || BigInt(0),
+      pendingUndelegated: s?.pendingUndelegated || BigInt(0),
+      totalDeposited: s?.totalDeposited || BigInt(0),
+    };
+  }, [
+    stakerBalanceFromHook.data,
+    withdrawableAmountFromVault.data,
+    token,
+    userAddress,
+  ]);
 
-      if (isBootstrapped) {
-        return {
-          clientChainID:
-            stakerBalanceAfterBootstrap.data?.clientChainID ||
-            lzEndpointIdOrCustomChainId,
-          stakerAddress:
-            stakerBalanceAfterBootstrap.data?.stakerAddress ||
-            (userAddress as `0x${string}`),
-          tokenID: stakerBalanceAfterBootstrap.data?.tokenID || token.address,
-          totalBalance: stakerBalanceAfterBootstrap.data?.balance || BigInt(0),
-          claimable: stakerBalanceAfterBootstrap.data?.withdrawable,
-          withdrawable: withdrawableAmountFromVault.data || BigInt(0),
-          delegated: stakerBalanceAfterBootstrap.data?.delegated || BigInt(0),
-          pendingUndelegated:
-            stakerBalanceAfterBootstrap.data?.pendingUndelegated || BigInt(0),
-          totalDeposited:
-            stakerBalanceAfterBootstrap.data?.totalDeposited || BigInt(0),
-        };
-      } else {
-        const claimable = await readonlyContract?.read.withdrawableAmounts([
-          userAddress as `0x${string}`,
-          token.address,
-        ]);
-        const totalDeposited = await readonlyContract?.read.totalDepositAmounts(
-          [userAddress as `0x${string}`, token.address],
-        );
-        return {
-          clientChainID: lzEndpointIdOrCustomChainId,
-          stakerAddress: userAddress as `0x${string}`,
-          tokenID: token.address,
-          totalBalance: totalDeposited as bigint,
-          claimable: claimable as bigint,
-          withdrawable: withdrawableAmountFromVault.data || BigInt(0),
-          delegated: (totalDeposited as bigint) - (claimable as bigint),
-          pendingUndelegated: BigInt(0),
-          totalDeposited: totalDeposited as bigint,
-        };
-      }
-    },
-    refetchInterval: 3000,
-    enabled: !!userAddress && !!lzEndpointIdOrCustomChainId && !!token.address,
-  });
-
-  const walletBalance = {
-    customClientChainID: lzEndpointIdOrCustomChainId || 0,
-    stakerAddress: userAddress as `0x${string}`,
-    tokenID: token.address,
-    value: balance?.data?.value || BigInt(0),
-    decimals: balance?.data?.decimals || 0,
-    symbol: balance?.data?.symbol || "",
-  };
+  const tokenBalance = useMemo<TokenBalance>(() => {
+    return {
+      token: {
+        customClientChainID: token.network.customChainIdByImua,
+        tokenID: token.address,
+      },
+      stakerAddress: userAddress || "",
+      balance: {
+        value: tokenBalanceQuery.data?.value || BigInt(0),
+        decimals: tokenBalanceQuery.data?.decimals || token.decimals,
+        symbol: tokenBalanceQuery.data?.symbol || token.symbol,
+      },
+    };
+  }, [tokenBalanceQuery.data, token, userAddress]);
 
   // Get quote for relaying a message to imua chain, and relaying fee is needed only after bootstrap
   const getQuote = useCallback(
@@ -135,7 +107,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return BigInt(0);
       }
     },
-    [readonlyContract],
+    [readonlyContract, bootstrapStatus?.isBootstrapped],
   );
 
   const handleDeposit = useCallback(
@@ -148,15 +120,11 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const fee = await getQuote("asset");
       const spawnTx = () =>
         writeableContract.write.deposit([token.address, amount], {
-          value: fee,
+          value: fee as any,
         });
       const getBalanceSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          userAddress as `0x${string}`,
-          lzEndpointIdOrCustomChainId,
-          token.address,
-        );
-        return balance?.totalDeposited || BigInt(0);
+        const freshStaker = await stakerBalanceFromHook.refetch();
+        return freshStaker.data?.totalDeposited || BigInt(0);
       };
       const verifyCompletion = async (
         totalDepositedBefore: bigint,
@@ -165,26 +133,50 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return totalDepositedAfter === totalDepositedBefore + amount;
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "deposit",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+            );
+
             console.log("Deposit succeeded, updating cached balances...");
-            // Force update both Imuachain staker balance and client chain wallet balance
-            stakerBalance.refetch();
-            // Force refetch wallet balance for immediate update
-            balance?.refetch();
+            stakerBalanceFromHook.refetch();
+            tokenBalanceQuery.refetch();
           }
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook.refetch,
+      tokenBalanceQuery.refetch,
+      userAddress,
+      token,
+    ],
   );
 
   const handleDelegateTo = useCallback(
@@ -198,15 +190,11 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const fee = await getQuote("delegation");
       const spawnTx = () =>
         writeableContract.write.delegateTo([operator, token.address, amount], {
-          value: fee,
+          value: fee as any,
         });
       const getBalanceSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          userAddress as `0x${string}`,
-          lzEndpointIdOrCustomChainId,
-          token.address,
-        );
-        return balance?.delegated || BigInt(0);
+        const freshStaker = await stakerBalanceFromHook.refetch();
+        return freshStaker.data?.delegated || BigInt(0);
       };
       const verifyCompletion = async (
         delegatedBefore: bigint,
@@ -215,25 +203,49 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return delegatedAfter === delegatedBefore + amount;
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "delegate",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log("Delegate succeeded, updating cached balances...");
-            // Update Imuachain staker balance (delegated and claimable balances)
-            stakerBalance.refetch();
-            // Force update delegations to reflect new delegation amounts
+            stakerBalanceFromHook.refetch();
             delegations.refetch();
           }
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook.refetch,
+      delegations.refetch,
+      userAddress,
+      token,
+    ],
   );
 
   const handleUndelegateFrom = useCallback(
@@ -245,23 +257,25 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
     ) => {
       if (!writeableContract || !amount || !operator)
         throw new Error("Invalid parameters");
+      if (!bootstrapStatus?.isBootstrapped && !instantUnbond) {
+        throw new Error(
+          "Only instant undelegation is supported before bootstrap",
+        );
+      }
+
       const fee = await getQuote("undelegation");
       const spawnTx = () =>
         writeableContract.write.undelegateFrom(
           [operator, token.address, amount, instantUnbond],
           {
-            value: fee,
+            value: fee as any,
           },
         );
       const getBalanceSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          userAddress as `0x${string}`,
-          lzEndpointIdOrCustomChainId,
-          token.address,
-        );
+        const freshStaker = await stakerBalanceFromHook.refetch();
         return instantUnbond
-          ? balance?.withdrawable
-          : balance?.pendingUndelegated || BigInt(0);
+          ? freshStaker.data?.withdrawable || BigInt(0)
+          : freshStaker.data?.pendingUndelegated || BigInt(0);
       };
 
       const verifyCompletion = async (
@@ -273,25 +287,49 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
           : BalanceAfter === balanceBefore + amount;
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "undelegate",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log("Undelegate succeeded, updating cached balances...");
-            // Update Imuachain staker balance (delegated, claimable, or pendingUndelegated)
-            stakerBalance.refetch();
-            // Force update delegations to reflect reduced delegation amounts
+            stakerBalanceFromHook.refetch();
             delegations.refetch();
           }
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook.refetch,
+      delegations.refetch,
+      userAddress,
+      token,
+    ],
   );
 
   const handleDepositAndDelegate = useCallback(
@@ -308,15 +346,12 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const spawnTx = () =>
         writeableContract.write.depositThenDelegateTo(
           [token.address, amount, operator],
-          { value: fee },
+          { value: fee as any },
         );
       const getBalanceSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          userAddress as `0x${string}`,
-          lzEndpointIdOrCustomChainId,
-          token.address,
-        );
-        return balance?.delegated || BigInt(0);
+        const freshStaker = await stakerBalanceFromHook.refetch();
+        console.log("fresh delegated", freshStaker.data?.delegated);
+        return freshStaker.data?.delegated || BigInt(0);
       };
       const verifyCompletion = async (
         delegatedBefore: bigint,
@@ -325,29 +360,54 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return delegatedAfter === delegatedBefore + amount;
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
+      // We get staker balance from indexer, which indexes EVM tx with delay, so we cannot verify completion immediately after tx is sent
       return handleEVMTxWithStatus({
         approvingTx: approvingTx,
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "simplex" : "local",
         publicClient: publicClient,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getBalanceSnapshot,
+        verifyCompletion: bootstrapStatus?.isBootstrapped
+          ? verifyCompletion
+          : undefined,
+        getStateSnapshot: bootstrapStatus?.isBootstrapped
+          ? getBalanceSnapshot
+          : undefined,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update (stake = deposit + delegate) - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "stake",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+              operator,
+            );
             console.log(
               "Deposit and delegate succeeded, updating cached balances...",
             );
-            // Force update both Imuachain staker balance and client chain wallet balance
-            stakerBalance.refetch();
-            balance?.refetch();
-            // Force update delegations to reflect new delegation amounts
+            stakerBalanceFromHook.refetch();
+            tokenBalanceQuery.refetch();
             delegations.refetch();
           }
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook.refetch,
+      tokenBalanceQuery.refetch,
+      delegations.refetch,
+      userAddress,
+      token,
+    ],
   );
 
   const handleClaimPrincipal = useCallback(
@@ -359,14 +419,12 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         writeableContract.write.claimPrincipalFromImuachain(
           [token.address, amount],
           {
-            value: fee,
+            value: fee as any,
           },
         );
       const getBalanceSnapshot = async () => {
-        const withdrawable = await vault?.read.getWithdrawableBalance([
-          userAddress as `0x${string}`,
-        ]);
-        return withdrawable || BigInt(0);
+        const freshWithdrawable = await withdrawableAmountFromVault.refetch();
+        return freshWithdrawable.data || BigInt(0);
       };
 
       // Claiming amount will be added to withdrawable balance
@@ -377,6 +435,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return withdrawableAfter === withdrawableBefore + amount;
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: bootstrapStatus?.isBootstrapped ? "duplex" : "local",
@@ -384,27 +444,44 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         verifyCompletion: verifyCompletion,
         getStateSnapshot: getBalanceSnapshot,
         onPhaseChange: options?.onPhaseChange,
-        onSuccess: (result: { hash: string; success: boolean }) => {
-          if (result.success) {
+        onSuccess: (result: { hash: string; success: boolean; blockHeight?: number }) => {
+          if (result.success && result.blockHeight && userAddress) {
+            // Store optimistic update - Zustand reactivity will trigger hook re-renders
+            storePendingTransaction(
+              result.hash,
+              "claim",
+              token,
+              userAddress,
+              result.blockHeight,
+              amount,
+            );
+
             console.log("Claim succeeded, updating cached balances...");
-            // Force update withdrawable amount from vault
             withdrawableAmountFromVault.refetch();
-            // Force update both Imuachain staker balance and client chain vault withdrawable balance
-            stakerBalance.refetch();
+            stakerBalanceFromHook.refetch();
           }
         },
       });
     },
-    [writeableContract, token.address, getQuote],
+    [
+      writeableContract,
+      getQuote,
+      bootstrapStatus?.isBootstrapped,
+      publicClient,
+      stakerBalanceFromHook.refetch,
+      withdrawableAmountFromVault.refetch,
+      userAddress,
+      token,
+    ],
   );
 
   const handleWithdrawPrincipal = useCallback(
     async (
       amount: bigint,
-      recipient?: `0x${string}`,
+      recipient: `0x${string}`,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
-      if (!writeableContract || !amount || !recipient)
+      if (!writeableContract || !amount)
         throw new Error("Invalid parameters");
 
       const spawnTx = () =>
@@ -426,6 +503,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         return withdrawableAfter + amount === withdrawableBefore;
       };
 
+      if (!publicClient) throw new Error("Public client not found");
+
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
         mode: "local",
@@ -436,15 +515,21 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         onSuccess: (result: { hash: string; success: boolean }) => {
           if (result.success) {
             console.log("Withdraw succeeded, updating cached balances...");
-            // Force update client chain vault withdrawable balance and wallet balance
-            // Note: stakerBalance.withdrawable will automatically reflect the updated vault balance
-            balance?.refetch();
+            tokenBalanceQuery.refetch();
             withdrawableAmountFromVault.refetch();
           }
         },
       });
     },
-    [writeableContract, token.address],
+    [
+      writeableContract,
+      token.address,
+      publicClient,
+      tokenBalanceQuery.refetch,
+      withdrawableAmountFromVault.refetch,
+      userAddress,
+      vault?.read,
+    ],
   );
 
   const handleStakeWithApproval = useCallback(
@@ -493,8 +578,8 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
 
   return {
     token: token,
-    stakerBalance: stakerBalance?.data,
-    walletBalance: walletBalance,
+    tokenBalance: tokenBalance,
+    stakerBalance: stakerBalance,
     vaultAddress: vaultAddress || undefined,
 
     deposit: handleDeposit,

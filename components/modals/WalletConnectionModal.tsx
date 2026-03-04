@@ -4,13 +4,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useSwitchChain } from "wagmi";
-import { imua } from "@/config/wagmi";
-import { Button } from "@/components/ui/button";
+import { useSwitchChain } from "wagmi";
+import { ActionButton } from "@/components/ui/action-button";
 import { Token } from "@/types/tokens";
-import { EVMNetwork } from "@/types/networks";
 import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+import { IssueWithResolver } from "@/types/wallet-connector";
 import Image from "next/image";
 
 interface WalletConnectionModalProps {
@@ -18,6 +17,7 @@ interface WalletConnectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onReopen?: () => void;
 }
 
 export function WalletConnectionModal({
@@ -25,65 +25,415 @@ export function WalletConnectionModal({
   isOpen,
   onClose,
   onSuccess,
+  onReopen,
 }: WalletConnectionModalProps) {
   const [connecting, setConnecting] = useState(false);
   const walletConnector = useWalletConnectorContext();
-  const { chain, isConnected: isEVMWalletConnected } = useAccount();
-  const { switchChain, status: switchChainStatus } = useSwitchChain();
+  const { status: switchChainStatus } = useSwitchChain();
+  const { bootstrapStatus } = useBootstrapStatus();
 
   // Extract connection status from wallet connector
-  const { isReady, issues, boundAddress } = walletConnector;
+  const {
+    isReadyForStaking,
+    issues,
+    nativeWallet,
+    bindingEVMWallet,
+    bindingState,
+  } = walletConnector;
 
   // Extract connector information from token
-  const targetEVMChainID =
-    (token.network as EVMNetwork).evmChainID || undefined;
   const { evmCompatible, requireExtraConnectToImua, customConnector } =
-    token.connector;
+    token.network.connector;
 
-  // Check if connected to Imua network when required
-  const isImuaNetwork = chain?.id === imua.id;
+  // Determine if we're in bootstrap phase
+  const isBootstrapPhase = !bootstrapStatus?.isBootstrapped;
 
-  // Handle native wallet connection
-  const handleNativeConnect = async () => {
+  // Check if all connection requirements are met and call onSuccess
+  useEffect(() => {
+    if (isReadyForStaking) {
+      onSuccess();
+    }
+  }, [isReadyForStaking, onSuccess]);
+
+  // Handle issue resolution
+  const handleIssueResolve = async (issue: IssueWithResolver) => {
+    if (!issue.resolve) return;
+
     setConnecting(true);
     try {
-      if (evmCompatible) {
-        // For EVM-compatible tokens, connection is handled by ConnectButton
-        // This is just a placeholder
-      } else if (walletConnector.connectNative) {
-        // For non-EVM tokens with custom connector
-        await walletConnector.connectNative();
+      // For Bitcoin connections, close modal first to avoid hiding AppKit modal
+      if (
+        token.network.chainName === "Bitcoin" ||
+        token.network.chainName === "Bitcoin Testnet"
+      ) {
+        onClose();
+        // Small delay to ensure modal closes before AppKit opens
+        setTimeout(async () => {
+          try {
+            await issue.resolve!();
+            // AppKit modal closed - always reopen our modal to show updated status
+            onReopen?.();
+          } catch (error) {
+            console.error("Issue resolution failed:", error);
+            // AppKit modal closed - always reopen our modal so user can see status
+            onReopen?.();
+          }
+        }, 100);
+
+        // Fallback timeout to ensure modal reopens even if AppKit events don't fire
+        setTimeout(() => {
+          onReopen?.();
+        }, 35000); // 35 second timeout (longer than AppKit's 30s timeout)
+      } else {
+        // For other connections, resolve directly
+        await issue.resolve!();
       }
     } catch (error) {
-      console.error("Connection error:", error);
+      console.error("Issue resolution failed:", error);
     } finally {
       setConnecting(false);
     }
   };
 
-  // Check if all connection requirements are met and call onSuccess
-  useEffect(() => {
-    if (isReady) {
-      onSuccess();
+  // Helper function to render manual action notice
+  const renderManualActionNotice = (
+    message: string,
+    color: "amber" | "rose" = "amber",
+    showHeader: boolean = true,
+  ) => {
+    const colorClasses =
+      color === "amber"
+        ? "border-amber-500/30 bg-amber-950/10 text-amber-400"
+        : "border-rose-500/30 bg-rose-950/10 text-rose-400";
+
+    return (
+      <div className={`p-3 border ${colorClasses} rounded-lg`}>
+        {showHeader && (
+          <div className="flex items-center justify-center gap-2 text-sm mb-2">
+            <AlertCircle size={16} />
+            <span className="font-medium">Manual Action Required</span>
+          </div>
+        )}
+        <p className="text-xs opacity-90">{message}</p>
+      </div>
+    );
+  };
+
+  // Helper function to render action button
+  const renderActionButton = (
+    onClick: () => void,
+    text: string,
+    loadingText?: string,
+    disabled?: boolean,
+  ) => (
+    <ActionButton
+      onClick={onClick}
+      disabled={disabled}
+      loading={connecting}
+      loadingText={loadingText}
+      variant="primary"
+      size="md"
+    >
+      {text}
+    </ActionButton>
+  );
+
+  // Helper function to render native wallet section
+  const renderNativeWalletSection = () => {
+    if (evmCompatible) {
+      return renderEVMTokenSection();
     }
-  }, [isReady, onSuccess]);
 
-  // Check if custom connector is installed
-  const [isCustomConnectorInstalled, setIsCustomConnectorInstalled] =
-    useState(false);
-
-  useEffect(() => {
-    const checkCustomConnectorInstallation = async () => {
-      if (walletConnector.checkNativeInstallation) {
-        const installed = await walletConnector.checkNativeInstallation();
-        setIsCustomConnectorInstalled(installed);
-      }
-    };
-
-    if (!evmCompatible && walletConnector.checkNativeInstallation) {
-      checkCustomConnectorInstallation();
+    if (customConnector) {
+      return renderCustomConnectorSection();
     }
-  }, [walletConnector, evmCompatible]);
+
+    return (
+      <div className="text-center text-[#9999aa]">
+        No wallet connector available for this token
+      </div>
+    );
+  };
+
+  // Helper function to render EVM token section
+  const renderEVMTokenSection = () => {
+    // Show custom buttons that use our resolvers consistently
+    return (
+      <div className="text-center">
+        {issues?.needsConnectNative && (
+          <div className="mb-4">
+            <p className="mb-3 text-[#9999aa] text-sm">
+              Connect your wallet to continue
+            </p>
+            {issues.needsConnectNative.resolve
+              ? renderActionButton(
+                  () => handleIssueResolve(issues.needsConnectNative!),
+                  "Connect Wallet",
+                  "Connecting...",
+                )
+              : renderManualActionNotice(
+                  "Please manually connect your wallet.",
+                )}
+          </div>
+        )}
+
+        {issues?.needsSwitchNative && (
+          <div className="mb-4">
+            <p className="mb-3 text-[#9999aa] text-sm">
+              Wrong network detected
+            </p>
+            {issues.needsSwitchNative.resolve ? (
+              <div className="space-y-3">
+                <p className="text-xs text-[#9999aa]">
+                  Click to switch to {token.network.chainName} network
+                </p>
+                {renderActionButton(
+                  () => handleIssueResolve(issues.needsSwitchNative!),
+                  "Switch Network",
+                  "Switching...",
+                  switchChainStatus === "pending",
+                )}
+              </div>
+            ) : (
+              renderManualActionNotice(
+                "Please switch to the correct network in your wallet.",
+                "amber",
+                false,
+              )
+            )}
+          </div>
+        )}
+
+        {/* Connected state - show when no issues */}
+        {!issues?.needsConnectNative && !issues?.needsSwitchNative && (
+          <div className="flex items-center justify-center gap-2 text-green-400">
+            <CheckCircle size={16} />
+            <span className="text-sm">
+              Connected to {token.network.chainName}
+            </span>
+            {nativeWallet.address && (
+              <div className="text-xs text-[#9999aa] mt-1">
+                {nativeWallet.address.slice(0, 8)}...
+                {nativeWallet.address.slice(-8)}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper function to render custom connector section
+  const renderCustomConnectorSection = () => {
+    if (!customConnector) {
+      return (
+        <div className="text-center text-[#9999aa]">
+          No wallet connector available for this token
+        </div>
+      );
+    }
+
+    if (issues?.needsInstallNative) {
+      return (
+        <div className="text-center">
+          <p className="mb-2 text-[#9999aa] text-sm">
+            {customConnector.name} is required for {token.symbol} staking
+          </p>
+          <div className="flex justify-center">
+            <ActionButton
+              onClick={() =>
+                window.open(token.network.connector.installUrl, "_blank")
+              }
+              variant="primary"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              Install {customConnector.name} <ExternalLink size={16} />
+            </ActionButton>
+          </div>
+        </div>
+      );
+    }
+
+    if (issues?.needsConnectNative) {
+      return (
+        <div className="text-center">
+          <p className="mb-2 text-[#9999aa] text-sm">
+            Connect your {customConnector.name} for {token.symbol}
+          </p>
+          {issues.needsConnectNative.resolve
+            ? renderActionButton(
+                () => handleIssueResolve(issues.needsConnectNative!),
+                `Connect ${customConnector.name}`,
+                "Connecting...",
+              )
+            : renderManualActionNotice(
+                `Please manually connect your ${customConnector.name} wallet.`,
+              )}
+        </div>
+      );
+    }
+
+    if (issues?.needsSwitchNative) {
+      return (
+        <div className="text-center">
+          <p className="mb-3 text-[#9999aa] text-sm">Wrong network detected</p>
+          {issues.needsSwitchNative.resolve ? (
+            <div className="space-y-3">
+              <p className="text-xs text-[#9999aa]">
+                Switch network in your wallet, then reconnect
+              </p>
+              {renderActionButton(
+                () => handleIssueResolve(issues.needsSwitchNative!),
+                "Disconnect & Reconnect",
+                "Disconnecting...",
+              )}
+            </div>
+          ) : (
+            renderManualActionNotice(
+              "Switch to the correct network in your wallet, then reconnect.",
+              "amber",
+              false,
+            )
+          )}
+        </div>
+      );
+    }
+
+    // Connected state
+    return (
+      <div className="flex items-center justify-center gap-2 text-green-400">
+        <CheckCircle size={16} />
+        <span className="text-sm">Connected to {token.network.chainName}</span>
+        {nativeWallet.address && (
+          <div className="text-xs text-[#9999aa] mt-1">
+            {nativeWallet.address.slice(0, 8)}...
+            {nativeWallet.address.slice(-8)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper function to render EVM wallet section
+  const renderEVMWalletSection = () => {
+    if (issues?.needsConnectBindingEVM) {
+      return (
+        <div className="text-center">
+          <p className="mb-2 text-[#9999aa] text-sm">
+            Connect your EVM wallet for {token.symbol} staking
+          </p>
+          {issues.needsConnectBindingEVM.resolve
+            ? renderActionButton(
+                () => handleIssueResolve(issues.needsConnectBindingEVM!),
+                "Connect EVM Wallet",
+              )
+            : renderManualActionNotice(
+                "Please manually connect your EVM wallet.",
+              )}
+        </div>
+      );
+    }
+
+    if (issues?.needsSwitchBindingEVM) {
+      return (
+        <div className="text-center">
+          <p className="mb-2 text-[#9999aa] text-sm">
+            Switch to the correct EVM network
+          </p>
+          {issues.needsSwitchBindingEVM.resolve
+            ? renderActionButton(
+                () => handleIssueResolve(issues.needsSwitchBindingEVM!),
+                "Switch Network",
+                "Switching...",
+                switchChainStatus === "pending",
+              )
+            : renderManualActionNotice(
+                "Please manually switch to the correct EVM network in your wallet.",
+              )}
+        </div>
+      );
+    }
+
+    if (issues?.needsMatchingAddress && bindingState?.expectedBoundAddress) {
+      return (
+        <div className="text-center">
+          <p className="mb-2 text-rose-500 text-sm">
+            This {token.symbol} address is already bound to a different EVM
+            address. Please connect:
+          </p>
+          <div className="p-2 bg-[#21212f] rounded-md mb-3 break-all text-xs text-[#9999aa]">
+            {bindingState.expectedBoundAddress}
+          </div>
+          {issues.needsMatchingAddress.resolve
+            ? renderActionButton(
+                () => handleIssueResolve(issues.needsMatchingAddress!),
+                "Connect Correct EVM Wallet",
+              )
+            : renderManualActionNotice(
+                "Please switch to the correct wallet address in your EVM wallet extension or mobile app, then reconnect.",
+                "rose",
+              )}
+        </div>
+      );
+    }
+
+    if (issues?.needsResolveConflictingBinding) {
+      return (
+        <div className="text-center">
+          <p className="mb-2 text-rose-500 text-sm">
+            This EVM address is already bound to a different {token.symbol}{" "}
+            address:
+          </p>
+          {issues.needsResolveConflictingBinding.boundNativeAddress && (
+            <div className="p-2 bg-[#21212f] rounded-md mb-3 break-all text-xs text-[#9999aa]">
+              {issues.needsResolveConflictingBinding.boundNativeAddress}
+            </div>
+          )}
+          <p className="mb-3 text-xs text-rose-400">
+            To resolve this conflict, you can either:
+          </p>
+          <div className="space-y-2 mb-3 text-left">
+            <div className="p-2 bg-[#21212f] rounded-md text-xs text-[#9999aa]">
+              <span className="text-rose-400 font-medium">Option 1:</span>{" "}
+              Connect the correct {token.symbol} wallet (
+              {issues.needsResolveConflictingBinding.boundNativeAddress?.slice(
+                0,
+                8,
+              )}
+              ...
+              {issues.needsResolveConflictingBinding.boundNativeAddress?.slice(
+                -8,
+              )}
+              )
+            </div>
+            <div className="p-2 bg-[#21212f] rounded-md text-xs text-[#9999aa]">
+              <span className="text-rose-400 font-medium">Option 2:</span>{" "}
+              Connect a different EVM wallet that hasn&apos;t been bound yet
+            </div>
+          </div>
+          {renderManualActionNotice(
+            `Please switch to the correct ${token.symbol} wallet or connect a different EVM wallet in your wallet extension or mobile app, then reconnect.`,
+            "rose",
+          )}
+        </div>
+      );
+    }
+
+    // Connected state
+    return (
+      <div className="flex items-center justify-center gap-2 text-green-400">
+        <CheckCircle size={16} />
+        <span className="text-sm">Connected to EVM Network</span>
+        {bindingEVMWallet?.address && (
+          <div className="text-xs text-[#9999aa] mt-1">
+            {bindingEVMWallet.address.slice(0, 8)}...
+            {bindingEVMWallet.address.slice(-8)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -94,7 +444,7 @@ export function WalletConnectionModal({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.3 }}
-            className="bg-[#15151c] border border-[rgba(255,255,255,0.1)] rounded-xl p-6 w-full max-w-md relative"
+            className="bg-[#15151c] border border-[rgba(255,255,255,0.1)] rounded-xl p-6 w-full max-w-md relative max-h-[85vh] overflow-y-auto"
           >
             <button
               onClick={onClose}
@@ -114,15 +464,18 @@ export function WalletConnectionModal({
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-white">
-                    Connection Progress
+                    {isBootstrapPhase
+                      ? "Bootstrap Phase Progress"
+                      : "Connection Progress"}
                   </span>
                   <span className="text-sm text-[#9999aa]">
-                    {isReady
+                    {isReadyForStaking
                       ? "Complete"
                       : `${
-                          (!issues?.needsConnectToNative ? 1 : 0) +
-                          (!issues?.needsConnectToImua &&
-                          !issues?.needsMatchingBoundAddress
+                          (!issues?.needsConnectNative ? 1 : 0) +
+                          (!issues?.needsConnectBindingEVM &&
+                          !issues?.needsMatchingAddress &&
+                          !issues?.needsResolveConflictingBinding
                             ? 1
                             : 0)
                         }/2`}
@@ -133,9 +486,10 @@ export function WalletConnectionModal({
                     className="h-full bg-[#00e5ff] transition-all duration-500 ease-in-out"
                     style={{
                       width: `${
-                        (!issues?.needsConnectToNative ? 50 : 0) +
-                        (!issues?.needsConnectToImua &&
-                        !issues?.needsMatchingBoundAddress
+                        (!issues?.needsConnectNative ? 50 : 0) +
+                        (!issues?.needsConnectBindingEVM &&
+                        !issues?.needsMatchingAddress &&
+                        !issues?.needsResolveConflictingBinding
                           ? 50
                           : 0)
                       }%`,
@@ -148,7 +502,7 @@ export function WalletConnectionModal({
             {/* Native Wallet Connection Section */}
             <div
               className={`p-4 border ${
-                !issues?.needsConnectToNative
+                !issues?.needsConnectNative
                   ? "border-green-500/30 bg-green-950/10"
                   : "border-[rgba(255,255,255,0.1)]"
               } rounded-lg mb-4`}
@@ -165,173 +519,61 @@ export function WalletConnectionModal({
                   {token.network.chainName} Wallet
                 </h3>
 
-                {!issues?.needsConnectToNative && (
+                {!issues?.needsConnectNative && (
                   <div className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
                     Connected
                   </div>
                 )}
               </div>
 
-              {evmCompatible ? (
-                // For EVM-compatible tokens, provide context-specific guidance
-                <div>
-                  <div className="flex justify-center">
-                    <ConnectButton chainStatus="icon" accountStatus="address" />
-                  </div>
-
-                  {issues?.needsConnectToNative && (
-                    <div className="mt-3 text-center">
-                      {!isEVMWalletConnected ? (
-                        <div className="flex items-center justify-center gap-2 text-[#9999aa] text-sm">
-                          <AlertCircle size={16} className="text-amber-400" />
-                          <p>Please connect your wallet to continue</p>
-                        </div>
-                      ) : chain?.id !== targetEVMChainID ? (
-                        <div className="flex items-center justify-center gap-2 text-[#9999aa] text-sm">
-                          <AlertCircle size={16} className="text-amber-400" />
-                          <p>
-                            Please switch to{" "}
-                            <span className="text-[#00e5ff] font-medium">
-                              {token.network.chainName}
-                            </span>
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              ) : customConnector ? (
-                // For non-EVM tokens with custom connector
-                !isCustomConnectorInstalled ? (
-                  <div className="text-center">
-                    <p className="mb-2 text-[#9999aa] text-sm">
-                      {customConnector.name} extension is required for{" "}
-                      {token.symbol} staking
-                    </p>
-                    <div className="flex justify-center">
-                      <Button
-                        onClick={() =>
-                          window.open(token.connector.installUrl, "_blank")
-                        }
-                        className="bg-[#00e5ff] text-black hover:bg-[#00c8df] flex items-center gap-2"
-                      >
-                        Install {customConnector.name}{" "}
-                        <ExternalLink size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ) : issues?.needsConnectToNative ? (
-                  <div className="text-center">
-                    <p className="mb-2 text-[#9999aa] text-sm">
-                      Connect your {customConnector.name} for {token.symbol}
-                    </p>
-                    <Button
-                      onClick={handleNativeConnect}
-                      disabled={connecting}
-                      className="bg-[#00e5ff] text-black hover:bg-[#00c8df]"
-                    >
-                      {connecting
-                        ? "Connecting..."
-                        : `Connect ${customConnector.name}`}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2 text-green-400">
-                    <CheckCircle size={16} />
-                    <span className="text-sm">
-                      Connected to {token.name} Network
-                    </span>
-                  </div>
-                )
-              ) : (
-                <div className="text-center text-[#9999aa]">
-                  No wallet connector available for this token
-                </div>
-              )}
+              {renderNativeWalletSection()}
             </div>
 
-            {/* Imua Network Connection Section (only if required) */}
+            {/* EVM Network Connection Section (only if required) */}
             {requireExtraConnectToImua && (
               <div
                 className={`p-4 border ${
-                  !issues?.needsConnectToImua &&
-                  !issues?.needsMatchingBoundAddress
+                  !issues?.needsConnectBindingEVM &&
+                  !issues?.needsMatchingAddress &&
+                  !issues?.needsResolveConflictingBinding
                     ? "border-green-500/30 bg-green-950/10"
-                    : "border-[rgba(255,255,255,0.1)]"
+                    : issues?.needsResolveConflictingBinding ||
+                        issues?.needsMatchingAddress
+                      ? "border-rose-500/30 bg-rose-950/10"
+                      : "border-[rgba(255,255,255,0.1)]"
                 } rounded-lg mb-4`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-medium text-white flex items-center gap-2">
                     <Image
-                      src="/imua-logo.avif"
-                      alt="Imua"
+                      src="/logos/imua-logo.svg"
+                      alt="EVM Wallet"
                       className="w-4 h-4"
                       width={16}
                       height={16}
                     />
-                    Imua Chain Wallet
+                    EVM Wallet
                   </h3>
 
-                  {isEVMWalletConnected && (
+                  {bindingEVMWallet?.connected && (
                     <div
                       className={`text-xs px-2 py-0.5 rounded-full ${
-                        isImuaNetwork && !issues?.needsMatchingBoundAddress
+                        !issues?.needsMatchingAddress &&
+                        !issues?.needsResolveConflictingBinding
                           ? "bg-green-500/20 text-green-400"
-                          : "bg-yellow-500/20 text-yellow-400"
+                          : "bg-rose-500/20 text-rose-400"
                       }`}
                     >
-                      {isImuaNetwork
-                        ? issues?.needsMatchingBoundAddress
-                          ? "Wrong Address"
-                          : "Connected"
-                        : "Wrong Network"}
+                      {issues?.needsMatchingAddress
+                        ? "Wrong Address"
+                        : issues?.needsResolveConflictingBinding
+                          ? "Conflict"
+                          : "Connected"}
                     </div>
                   )}
                 </div>
 
-                {!isEVMWalletConnected ? (
-                  <div className="flex justify-center">
-                    <ConnectButton chainStatus="icon" accountStatus="address" />
-                  </div>
-                ) : issues?.needsMatchingBoundAddress && boundAddress ? (
-                  <div className="text-center">
-                    <p className="mb-2 text-rose-500 text-sm">
-                      This {token.symbol} address is already bound to a
-                      different Imua address. Please connect:
-                    </p>
-                    <div className="p-2 bg-[#21212f] rounded-md mb-3 break-all text-xs text-[#9999aa]">
-                      {boundAddress}
-                    </div>
-                    <ConnectButton chainStatus="icon" accountStatus="address" />
-                  </div>
-                ) : !isImuaNetwork ? (
-                  <div className="text-center">
-                    <p className="mb-2 text-[#9999aa] text-sm">
-                      Please switch to the Imua network
-                    </p>
-                    {switchChain ? (
-                      <Button
-                        onClick={() => switchChain({ chainId: imua.id })}
-                        disabled={switchChainStatus === "pending"}
-                        className="bg-[#00e5ff] text-black hover:bg-[#00c8df]"
-                      >
-                        {switchChainStatus === "pending"
-                          ? "Switching..."
-                          : "Switch to Imua Network"}
-                      </Button>
-                    ) : (
-                      <p className="text-[#9999aa] text-sm">
-                        Please manually switch to the Imua network in your
-                        wallet
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2 text-green-400">
-                    <CheckCircle size={16} />
-                    <span className="text-sm">Connected to Imua Network</span>
-                  </div>
-                )}
+                {renderEVMWalletSection()}
               </div>
             )}
 
@@ -359,16 +601,71 @@ export function WalletConnectionModal({
 
             {/* Connection explanation for multi-wallet scenarios */}
             {requireExtraConnectToImua && (
-              <div className="mt-4 p-3 border border-[rgba(255,255,255,0.1)] rounded-lg bg-[#1a1a24]">
-                <h4 className="font-medium text-white flex items-center gap-2 mb-2">
-                  <AlertCircle size={16} className="text-[#9999aa]" />
-                  Why two wallets?
-                </h4>
-                <p className="text-xs text-[#9999aa]">
-                  {token.symbol} staking requires both wallets: {token.symbol}{" "}
-                  Wallet for deposits and Ethereum Wallet on Imua Network for
-                  delegation and withdrawals.
-                </p>
+              <div className="mt-4 space-y-3">
+                <div className="p-3 border border-[rgba(255,255,255,0.1)] rounded-lg bg-[#1a1a24]">
+                  <h4 className="font-medium text-white flex items-center gap-2 mb-2">
+                    <AlertCircle size={16} className="text-[#9999aa]" />
+                    {isBootstrapPhase
+                      ? "Why two wallets during bootstrap?"
+                      : "Why two wallets?"}
+                  </h4>
+                  <p className="text-xs text-[#9999aa]">
+                    {isBootstrapPhase
+                      ? `${token.symbol} staking requires both wallets: ${token.symbol} Wallet for deposits and EVM Wallet on Bootstrap Network to specify your bound address in transaction memo.`
+                      : `${token.symbol} staking requires both wallets: ${token.symbol} Wallet for deposits and EVM Wallet on Imua Network for delegation and withdrawals.`}
+                  </p>
+                </div>
+
+                {/* Special emphasis for bootstrap phase future Imuachain connection */}
+                {isBootstrapPhase && requireExtraConnectToImua && (
+                  <div className="space-y-3">
+                    <div className="p-3 border border-[#00e5ff]/30 rounded-lg bg-gradient-to-r from-[#00e5ff]/5 to-[#00c8df]/5">
+                      <h4 className="font-medium text-[#00e5ff] flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 rounded-full bg-[#00e5ff] flex items-center justify-center">
+                          <span className="text-black text-xs font-bold">
+                            !
+                          </span>
+                        </div>
+                        Important: Future Imuachain Connection
+                      </h4>
+                      <p className="text-xs text-[#00e5ff]/90">
+                        <span className="font-medium text-[#00e5ff]">
+                          This exact same EVM wallet
+                        </span>{" "}
+                        will be permanently bound to your {token.symbol} address
+                        and{" "}
+                        <span className="font-medium text-[#00e5ff]">
+                          must be used to connect to Imuachain
+                        </span>{" "}
+                        for all future delegation, undelegation, and withdrawal
+                        operations.
+                      </p>
+                    </div>
+
+                    {/* EOA wallet requirement warning for bootstrap phase */}
+                    <div className="p-3 border border-amber-500/30 rounded-lg bg-gradient-to-r from-amber-500/5 to-orange-500/5">
+                      <h4 className="font-medium text-amber-400 flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                          <span className="text-black text-xs font-bold">
+                            ⚠
+                          </span>
+                        </div>
+                        EOA Wallet Required
+                      </h4>
+                      <p className="text-xs text-amber-400/90">
+                        <span className="font-medium text-amber-400">
+                          Only EOA wallets are supported for binding during
+                          bootstrap.
+                        </span>{" "}
+                        Contract wallets (multisig, account abstraction) may not
+                        be controlled by you in future Imuachain and we cannot
+                        verify your authorization during bootstrap phase. Please
+                        use a standard wallet like MetaMask, Coinbase Wallet, or
+                        similar.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </motion.div>

@@ -1,0 +1,59 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  lockfile:
+    name: Lockfile in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - name: Check lockfile is in sync with package.json
+        run: |
+          pnpm install --frozen-lockfile || (
+            echo "::error::pnpm-lock.yaml is out of date. Run 'pnpm install' and commit the updated lockfile."
+            exit 1
+          )
+
+  pr-checks:
+    needs: [lockfile]
+    name: PR Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Compile Solidity contracts
+        run: forge compile
+      - name: Lint
+        run: pnpm lint
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+      - name: Unit tests
+        run: pnpm test
+      - name: Build
+        run: pnpm build:local
+        env:
+          SKIP_ENV_VALIDATION: true

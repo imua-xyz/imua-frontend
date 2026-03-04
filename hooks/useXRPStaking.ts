@@ -1,13 +1,10 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo } from "react";
 import { useAccount } from "wagmi";
-import { BaseTxOptions, StakerBalance, WalletBalance } from "@/types/staking";
+import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import {
-  XRP_CHAIN_ID,
   XRP_TOKEN_ENUM,
-  XRP_TOKEN_ADDRESS,
   XRP_VAULT_ADDRESS,
   XRP_STAKING_DESTINATION_TAG,
 } from "@/config/xrp";
@@ -15,13 +12,15 @@ import { MINIMUM_STAKE_AMOUNT_DROPS } from "@/config/xrp";
 import { StakingService } from "@/types/staking-service";
 import { xrp } from "@/types/tokens";
 import { useGemWalletStore } from "@/stores/gemWalletClient";
-import { useBindingStore } from "@/stores/bindingClient";
+import { useAllWalletsStore } from "@/stores/allWalletsStore";
 import { usePortalContract } from "./usePortalContract";
 import { useXrplStore } from "@/stores/xrplClient";
 import { handleEVMTxWithStatus, handleXrplTxWithStatus } from "@/lib/txUtils";
 import { useStakerBalances } from "./useStakerBalances";
-import { useAssetsPrecompile } from "./useAssetsPrecompile";
 import { useBootstrapStatus } from "./useBootstrapStatus";
+import { useAddressBinding } from "./useAddressBinding";
+import { useTokenBalance } from "./useTokenBalance";
+import { storePendingTransaction } from "@/lib/optimistic-helpers";
 
 export function useXRPStaking(): StakingService {
   const vaultAddress = XRP_VAULT_ADDRESS;
@@ -36,17 +35,24 @@ export function useXRPStaking(): StakingService {
     (state) => state.getTransactionStatus,
   );
 
-  const checkBoundAddress = useBindingStore((state) => state.checkBinding);
-  const setBoundAddress = useBindingStore((state) => state.setBinding);
-  const boundImuaAddress = useBindingStore(
-    (state) => state.boundAddresses[xrpAddress ?? ""],
+  const setBoundAddress = useAllWalletsStore((state) => state.setBinding);
+  const setProvisionalBinding = useAllWalletsStore(
+    (state) => state.setProvisionalBinding,
+  );
+  const boundImuaAddress = useAllWalletsStore(
+    (state) => state.wallets[xrp.network.customChainIdByImua]?.boundImuaAddress,
   );
 
-  const xrplClient = useXrplStore((state) => state.client);
   const setNetwork = useXrplStore((state) => state.setNetwork);
 
-  const { getStakerBalanceByToken } = useAssetsPrecompile();
   const { bootstrapStatus } = useBootstrapStatus();
+
+  // Unified binding hook (auto-switches between GraphQL and contract)
+  const xrpBindingQuery = useAddressBinding(
+    "XRP",
+    xrpAddress || "",
+    xrp.network.customChainIdByImua,
+  );
 
   useEffect(() => {
     if (walletNetwork) {
@@ -62,67 +68,41 @@ export function useXRPStaking(): StakingService {
 
   const [stakerBalanceResponse] = useStakerBalances([xrp]);
 
-  // Fetch staking position
-  const stakerBalance = useQuery({
-    queryKey: ["stakerBalanceForXRP", xrpAddress],
-    queryFn: async (): Promise<StakerBalance> => {
-      if (!xrpAddress) {
-        throw new Error("Required dependencies not available");
-      }
-
-      try {
-        if (!boundImuaAddress || !bootstrapStatus?.isBootstrapped) {
-          return {
-            clientChainID: XRP_CHAIN_ID,
-            stakerAddress: "0x0" as `0x${string}`,
-            tokenID: XRP_TOKEN_ADDRESS,
-            totalBalance: BigInt(0),
-            withdrawable: BigInt(0),
-            delegated: BigInt(0),
-            pendingUndelegated: BigInt(0),
-            totalDeposited: BigInt(0),
-          };
-        }
-
-        if (!stakerBalanceResponse.data)
-          throw new Error("Failed to fetch staker balance");
-
-        return {
-          clientChainID: stakerBalanceResponse.data.clientChainID,
-          stakerAddress: stakerBalanceResponse.data.stakerAddress,
-          tokenID: stakerBalanceResponse.data.tokenID,
-          totalBalance: stakerBalanceResponse.data.balance,
-          withdrawable: stakerBalanceResponse.data.withdrawable || BigInt(0),
-          delegated: stakerBalanceResponse.data.delegated,
-          pendingUndelegated: stakerBalanceResponse.data.pendingUndelegated,
-          totalDeposited: stakerBalanceResponse.data.totalDeposited,
-        };
-      } catch (error) {
-        console.error("Error fetching staking position:", error);
-        throw error; // Let React Query handle the error
-      }
-    },
-    refetchInterval: 3000,
-    enabled: !!xrpAddress,
+  // Fetch XRP token balance using the unified hook
+  const tokenBalanceQuery = useTokenBalance({
+    token: xrp,
+    address: xrpAddress,
+    refetchInterval: 30000, // 30 seconds
   });
 
-  const walletBalance = useQuery({
-    queryKey: ["walletBalance", xrpAddress],
-    queryFn: async (): Promise<WalletBalance | undefined> => {
-      if (!xrpAddress) throw new Error("Required dependencies not available");
-      const accountInfo = await getAccountInfo(xrpAddress);
-      if (!accountInfo.success) throw new Error("Failed to fetch account info");
-      return {
-        customClientChainID: XRP_CHAIN_ID,
-        stakerAddress: xrpAddress,
-        tokenID: XRP_TOKEN_ADDRESS,
-        value: accountInfo.data?.balance || BigInt(0),
-        decimals: 6,
-        symbol: "XRP",
-      };
-    },
-    enabled: !!xrpAddress && !!getAccountInfo,
-  });
+  const stakerBalance = useMemo<StakerBalance>(() => {
+    const s = stakerBalanceResponse.data;
+    return {
+      clientChainID: xrp.network.customChainIdByImua,
+      stakerAddress: xrpAddress || "",
+      tokenID: xrp.address,
+      totalBalance: s?.balance || BigInt(0),
+      withdrawable: s?.withdrawable || BigInt(0),
+      delegated: s?.delegated || BigInt(0),
+      pendingUndelegated: s?.pendingUndelegated || BigInt(0),
+      totalDeposited: s?.totalDeposited || BigInt(0),
+    };
+  }, [stakerBalanceResponse.data, xrpAddress]);
+
+  const tokenBalance = useMemo<TokenBalance>(() => {
+    return {
+      token: {
+        customClientChainID: xrp.network.customChainIdByImua,
+        tokenID: xrp.address,
+      },
+      stakerAddress: xrpAddress || "",
+      balance: {
+        value: tokenBalanceQuery.data?.value || BigInt(0),
+        decimals: tokenBalanceQuery.data?.decimals || xrp.decimals,
+        symbol: tokenBalanceQuery.data?.symbol || xrp.symbol,
+      },
+    };
+  }, [tokenBalanceQuery.data, xrpAddress]);
 
   // Stake XRP
   const stakeXrp = useCallback(
@@ -147,7 +127,10 @@ export function useXRPStaking(): StakingService {
             : "Operator address is required for now",
         );
       if (!evmAddress) throw new Error("EVM wallet not connected");
-      if (boundImuaAddress && boundImuaAddress !== evmAddress)
+      if (
+        boundImuaAddress &&
+        boundImuaAddress.toLowerCase() !== evmAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
 
       // Get account info using the xrplClient
@@ -164,7 +147,7 @@ export function useXRPStaking(): StakingService {
       if (boundImuaAddress) {
         // Use the already bound address (priority)
         memoAddress = boundImuaAddress;
-        effectiveAddress = boundImuaAddress;
+        effectiveAddress = boundImuaAddress as `0x${string}`;
       } else if (evmAddress) {
         // Fallback to connected EVM wallet address
         memoAddress = evmAddress;
@@ -176,11 +159,22 @@ export function useXRPStaking(): StakingService {
       // if it is not bootstrapped, we should encode the operator address after memo address into the memo data
       let memoData: string = "";
       if (!bootstrapped) {
-        memoData = Buffer.from(memoAddress + operatorAddress, "utf8").toString(
-          "hex",
-        );
+        if (!operatorAddress)
+          throw new Error("Operator address is required for bootstrap phase");
+        // Remove 0x prefix from EVM address before encoding, and operator address is bech32 encoded starting with im
+        const cleanMemoAddress = memoAddress.startsWith("0x")
+          ? memoAddress.slice(2)
+          : memoAddress;
+        memoData = Buffer.from(
+          cleanMemoAddress + operatorAddress,
+          "utf8",
+        ).toString("hex");
       } else {
-        memoData = Buffer.from(memoAddress, "utf8").toString("hex");
+        // Remove 0x prefix from EVM address before encoding
+        const cleanMemoAddress = memoAddress.startsWith("0x")
+          ? memoAddress.slice(2)
+          : memoAddress;
+        memoData = Buffer.from(cleanMemoAddress, "utf8").toString("hex");
       }
 
       const txPayload = {
@@ -201,42 +195,72 @@ export function useXRPStaking(): StakingService {
 
       const spawnTx = () => sendTransaction(txPayload);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          effectiveAddress as `0x${string}`,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
-        return balance?.totalDeposited || BigInt(0);
+        await stakerBalanceResponse.refetch();
+        return stakerBalanceResponse.data?.totalDeposited || BigInt(0);
       };
       const verifyCompletion = async (
         balanceBefore: bigint,
         balanceAfter: bigint,
       ) => {
-        return balanceAfter === balanceBefore + amount;
+        return bootstrapped ? balanceAfter === balanceBefore + amount : true;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && effectiveAddress) {
+          // Determine operation type: stake (deposit + delegate) if operatorAddress provided, else deposit
+          const operation = operatorAddress ? "stake" : "deposit";
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            operation,
+            xrp,
+            effectiveAddress,
+            result.blockHeight,
+            amount,
+            operatorAddress,
+          );
           console.log("Stake succeeded, updating cached balances...");
-          stakerBalance.refetch();
-          walletBalance.refetch();
+          stakerBalanceResponse.refetch();
         }
       };
 
+      // We get staker balance from indexer, which indexes XRP tx with delay, so we cannot verify completion immediately after tx
       const { hash, success, error } = await handleXrplTxWithStatus({
         spawnTx: spawnTx,
-        mode: "simplex",
+        mode: bootstrapped ? "simplex" : "local",
         getTransactionStatus: getTransactionStatus,
-        verifyCompletion: verifyCompletion,
-        getStateSnapshot: getStateSnapshot,
+        verifyCompletion: bootstrapped ? verifyCompletion : undefined,
+        getStateSnapshot: bootstrapped ? getStateSnapshot : undefined,
         onPhaseChange: options?.onPhaseChange,
         onSuccess: onSuccess,
         utxoGateway: readonlyContract,
       });
 
-      // If transaction and following checks were successful and we don't have a bound address yet, we should explicitly set the bound address
-      if (success && !boundImuaAddress && effectiveAddress) {
-        // Given even the completion verification has been successful, we should explicitly set the bound address
-        setBoundAddress(xrpAddress, effectiveAddress);
+      // If transaction and following checks were successful and we don't have a bound address yet,
+      // set provisional binding to protect against wallet switches during confirmation delay
+      if (success && !boundImuaAddress && effectiveAddress && xrpAddress) {
+        // Set provisional binding that persists across wallet disconnects
+        // This binding is bidirectional: XRP address <-> EVM address
+        setProvisionalBinding(
+          xrp.network.customChainIdByImua,
+          xrpAddress,
+          effectiveAddress as string,
+        );
+
+        // Also set boundImuaAddress in wallet state for immediate UI update
+        setBoundAddress(xrp.network.customChainIdByImua, {
+          boundImuaAddress: effectiveAddress as string,
+          isCheckingBinding: false,
+          bindingError: null,
+        });
+
+        console.log(
+          `Set provisional binding: XRP ${xrpAddress} <-> EVM ${effectiveAddress} (chainId: ${xrp.network.customChainIdByImua})`,
+        );
+
+        // Refetch GraphQL binding to sync with database
+        if (xrpBindingQuery.refetch) {
+          xrpBindingQuery.refetch().catch(console.error);
+        }
       }
 
       return { hash, success, error };
@@ -247,10 +271,15 @@ export function useXRPStaking(): StakingService {
       isWagmiConnected,
       xrpAddress,
       evmAddress,
-      xrplClient,
       boundImuaAddress,
-      checkBoundAddress,
+      setBoundAddress,
+      setProvisionalBinding,
       sendTransaction,
+      xrpBindingQuery.refetch,
+      stakerBalanceResponse.refetch,
+      readonlyContract,
+      getTransactionStatus,
+      bootstrapStatus,
     ],
   );
 
@@ -269,7 +298,10 @@ export function useXRPStaking(): StakingService {
       if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
-      if (evmAddress && evmAddress !== boundImuaAddress)
+      if (
+        evmAddress &&
+        evmAddress.toLowerCase() !== boundImuaAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot delegate before bootstrap");
@@ -277,12 +309,8 @@ export function useXRPStaking(): StakingService {
       const spawnTx = () =>
         writeableContract.write.delegateTo([XRP_TOKEN_ENUM, operator, amount]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          boundImuaAddress,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
-        return balance?.delegated || BigInt(0);
+        await stakerBalanceResponse.refetch();
+        return stakerBalanceResponse.data?.delegated || BigInt(0);
       };
       const verifyCompletion = async (
         delegatedBefore: bigint,
@@ -290,12 +318,24 @@ export function useXRPStaking(): StakingService {
       ) => {
         return delegatedAfter === delegatedBefore + amount;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            "delegate",
+            xrp,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+            operator,
+          );
           console.log("Delegate succeeded, updating cached balances...");
-          stakerBalance.refetch();
+          stakerBalanceResponse.refetch();
         }
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -307,7 +347,14 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      publicClient,
+      stakerBalanceResponse.refetch,
+      evmAddress,
+      bootstrapStatus?.isBootstrapped,
+      boundImuaAddress,
+    ],
   );
 
   // Undelegate XRP from an operator
@@ -321,7 +368,10 @@ export function useXRPStaking(): StakingService {
       if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!operator || !amount) throw new Error("Invalid parameters");
-      if (evmAddress && evmAddress !== boundImuaAddress)
+      if (
+        evmAddress &&
+        evmAddress.toLowerCase() !== boundImuaAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot undelegate before bootstrap");
@@ -334,14 +384,10 @@ export function useXRPStaking(): StakingService {
           instantUnbond,
         ]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          boundImuaAddress,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
+        await stakerBalanceResponse.refetch();
         return instantUnbond
-          ? balance?.withdrawable
-          : balance?.pendingUndelegated || BigInt(0);
+          ? stakerBalanceResponse.data?.withdrawable
+          : stakerBalanceResponse.data?.pendingUndelegated || BigInt(0);
       };
 
       const verifyCompletion = async (
@@ -353,12 +399,24 @@ export function useXRPStaking(): StakingService {
           : BalanceAfter === balanceBefore + amount;
       };
 
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // Store optimistic update - Zustand reactivity will trigger hook re-renders
+          storePendingTransaction(
+            result.hash,
+            "undelegate",
+            xrp,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+            operator,
+          );
           console.log("Undelegate succeeded, updating cached balances...");
-          stakerBalance.refetch();
+          stakerBalanceResponse.refetch();
         }
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -370,21 +428,30 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      publicClient,
+      stakerBalanceResponse.refetch,
+      evmAddress,
+      bootstrapStatus?.isBootstrapped,
+      boundImuaAddress,
+    ],
   );
 
   // Withdraw XRP from staking
   const withdrawXrp = useCallback(
     async (
       amount: bigint,
-      recipient?: `0x${string}`,
+      _recipient: `0x${string}`,
       options?: Pick<BaseTxOptions, "onPhaseChange">,
     ) => {
       if (!writeableContract || !boundImuaAddress)
         throw new Error("Contract not available or bound address not found");
       if (!amount) throw new Error("Invalid parameters");
-      if (recipient) throw new Error("Recipient not supported for now");
-      if (evmAddress && evmAddress !== boundImuaAddress)
+      if (
+        evmAddress &&
+        evmAddress.toLowerCase() !== boundImuaAddress.toLowerCase()
+      )
         throw new Error("EVM wallet address does not match bound address");
       if (!bootstrapStatus?.isBootstrapped)
         throw new Error("Cannot withdraw before bootstrap");
@@ -392,12 +459,8 @@ export function useXRPStaking(): StakingService {
       const spawnTx = () =>
         writeableContract.write.withdrawPrincipal([XRP_TOKEN_ENUM, amount]);
       const getStateSnapshot = async () => {
-        const balance = await getStakerBalanceByToken(
-          boundImuaAddress,
-          XRP_CHAIN_ID,
-          XRP_TOKEN_ADDRESS,
-        );
-        return balance?.withdrawable || BigInt(0);
+        await stakerBalanceResponse.refetch();
+        return stakerBalanceResponse.data?.withdrawable || BigInt(0);
       };
       const verifyCompletion = async (
         balanceBefore: bigint,
@@ -405,12 +468,23 @@ export function useXRPStaking(): StakingService {
       ) => {
         return balanceAfter === balanceBefore - amount;
       };
-      const onSuccess = (result: { hash: string; success: boolean }) => {
-        if (result.success) {
+      const onSuccess = (result: { hash: string; success: boolean; blockHeight?: number }) => {
+        if (result.success && result.blockHeight && boundImuaAddress) {
+          // XRP withdraw is claim+withdraw in one step; cache so merge can apply optimistic deltas
+          storePendingTransaction(
+            result.hash,
+            "withdraw",
+            xrp,
+            boundImuaAddress,
+            result.blockHeight,
+            amount,
+          );
           console.log("Withdraw succeeded, updating cached balances...");
-          stakerBalance.refetch();
+          stakerBalanceResponse.refetch();
         }
       };
+
+      if (!publicClient) throw new Error("Public client not found");
 
       return handleEVMTxWithStatus({
         spawnTx: spawnTx,
@@ -422,18 +496,25 @@ export function useXRPStaking(): StakingService {
         onSuccess: onSuccess,
       });
     },
-    [writeableContract, handleEVMTxWithStatus, publicClient],
+    [
+      writeableContract,
+      publicClient,
+      stakerBalanceResponse.refetch,
+      evmAddress,
+      bootstrapStatus?.isBootstrapped,
+      boundImuaAddress,
+    ],
   );
 
   return {
     token: xrp,
+    tokenBalance: tokenBalance,
     stake: stakeXrp,
     delegateTo: delegateXrp,
     undelegateFrom: undelegateXrp,
     withdrawPrincipal: withdrawXrp,
     getQuote,
-    stakerBalance: stakerBalance?.data,
-    walletBalance: walletBalance?.data,
+    stakerBalance: stakerBalance,
     vaultAddress: vaultAddress,
     minimumStakeAmount: BigInt(MINIMUM_STAKE_AMOUNT_DROPS),
     isDepositThenDelegateDisabled: bootstrapStatus?.isBootstrapped,

@@ -1,0 +1,2482 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "endpoint_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "config",
+        "type": "tuple",
+        "internalType": "struct BootstrapStorage.ImmutableConfig",
+        "components": [
+          {
+            "name": "imuachainChainId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "beaconOracleAddress",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "vaultBeacon",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "imuaCapsuleBeacon",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "beaconProxyBytecode",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "networkConfig",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "AFTER_PECTRA_MAX_EFFECTIVE_BALANCE_ETH_PER_VALIDATOR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "AFTER_PECTRA_MIN_ACTIVATION_BALANCE_ETH_PER_VALIDATOR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "BEACON_ORACLE_ADDRESS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "BEACON_PROXY_BYTECODE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract BeaconProxyBytecode"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "IMUACHAIN_CHAIN_ID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "IMUA_ADDRESS_PREFIX",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "IMUA_CAPSULE_BEACON",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IBeacon"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "VAULT_BEACON",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IBeacon"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "addWhitelistTokens",
+    "inputs": [
+      {
+        "name": "tokens",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "tvlLimits",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "allowInitializePath",
+    "inputs": [
+      {
+        "name": "origin",
+        "type": "tuple",
+        "internalType": "struct Origin",
+        "components": [
+          {
+            "name": "srcEid",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "sender",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "nonce",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "bootstrapped",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "claimNSTFromImuachain",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "claimPrincipalFromImuachain",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "claimRewardFromImuachain",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "clientChainGatewayLogic",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "clientChainInitializationData",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "commissionEdited",
+    "inputs": [
+      {
+        "name": "imAddress",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "hasEdited",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "composeMsgSender",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "consensusPublicKeyInUse",
+    "inputs": [
+      {
+        "name": "consensusKey",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "used",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "createImuaCapsule",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "customProxyAdmin",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "delegateTo",
+    "inputs": [
+      {
+        "name": "validator",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "delegations",
+    "inputs": [
+      {
+        "name": "delegator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "imAddress",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "delegationsByValidator",
+    "inputs": [
+      {
+        "name": "imAddress",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "deposit",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "depositThenDelegateTo",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "validator",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "depositors",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "depositsByToken",
+    "inputs": [
+      {
+        "name": "tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "endpoint",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract ILayerZeroEndpointV2"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "ethToImAddress",
+    "inputs": [
+      {
+        "name": "ethAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "imAddress",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDepositorsCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPubkeysCount",
+    "inputs": [
+      {
+        "name": "stakerAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getValidatorsCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getValidatorsCountForStakerToken",
+    "inputs": [
+      {
+        "name": "stakerAddress",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getWhitelistedTokenAtIndex",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct BootstrapStorage.TokenInfo",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "tokenAddress",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "depositAmount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getWhitelistedTokensCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "inboundNonce",
+    "inputs": [
+      {
+        "name": "eid",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "sender",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "nonce",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "initialize",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "spawnTime_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "offsetDuration_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "whitelistTokens_",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "tvlLimits_",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "customProxyAdmin_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "clientChainGatewayLogic_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "clientChainInitializationData_",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isCommissionValid",
+    "inputs": [
+      {
+        "name": "commission",
+        "type": "tuple",
+        "internalType": "struct IValidatorRegistry.Commission",
+        "components": [
+          {
+            "name": "rate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxChangeRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "isDepositor",
+    "inputs": [
+      {
+        "name": "depositor",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "hasDeposited",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isLocked",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isValidImAddress",
+    "inputs": [
+      {
+        "name": "addressToValidate",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "isWhitelistedToken",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "whitelisted",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lzReceive",
+    "inputs": [
+      {
+        "name": "_origin",
+        "type": "tuple",
+        "internalType": "struct Origin",
+        "components": [
+          {
+            "name": "srcEid",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "sender",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "nonce",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      },
+      {
+        "name": "_guid",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "_message",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "_executor",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_extraData",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "markBootstrapped",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "nextNonce",
+    "inputs": [
+      {
+        "name": "srcEid",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "sender",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "oAppVersion",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "senderVersion",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "receiverVersion",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "offsetDuration",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "ownerToCapsule",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "capsule",
+        "type": "address",
+        "internalType": "contract IImuaCapsule"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "paused",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "peers",
+    "inputs": [
+      {
+        "name": "eid",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "peer",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "registerValidator",
+    "inputs": [
+      {
+        "name": "validatorAddress",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "commission",
+        "type": "tuple",
+        "internalType": "struct IValidatorRegistry.Commission",
+        "components": [
+          {
+            "name": "rate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxChangeRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "consensusPublicKey",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "registeredValidators",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "replaceKey",
+    "inputs": [
+      {
+        "name": "newKey",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setClientChainGatewayLogic",
+    "inputs": [
+      {
+        "name": "_clientChainGatewayLogic",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_clientChainInitializationData",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setDelegate",
+    "inputs": [
+      {
+        "name": "_delegate",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setOffsetDuration",
+    "inputs": [
+      {
+        "name": "offsetDuration_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPeer",
+    "inputs": [
+      {
+        "name": "_eid",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "_peer",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSpawnTime",
+    "inputs": [
+      {
+        "name": "spawnTime_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "spawnTime",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "stake",
+    "inputs": [
+      {
+        "name": "pubkey",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "depositDataRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "stakerToPubkeyIDs",
+    "inputs": [
+      {
+        "name": "staker",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "stakerToTokenToValidators",
+    "inputs": [
+      {
+        "name": "staker",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "submitReward",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "tokenToVault",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "vault",
+        "type": "address",
+        "internalType": "contract IVault"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalDepositAmounts",
+    "inputs": [
+      {
+        "name": "depositor",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "transferOwnership",
+    "inputs": [
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "undelegateFrom",
+    "inputs": [
+      {
+        "name": "validator",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "instantUnbond",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "unpause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateRate",
+    "inputs": [
+      {
+        "name": "newRate",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateTvlLimit",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tvlLimit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "validatorNameInUse",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "used",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "validators",
+    "inputs": [
+      {
+        "name": "imAddress",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "commission",
+        "type": "tuple",
+        "internalType": "struct IValidatorRegistry.Commission",
+        "components": [
+          {
+            "name": "rate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxChangeRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "consensusPublicKey",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "verifyAndDepositNativeStake",
+    "inputs": [
+      {
+        "name": "validatorContainer",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
+      },
+      {
+        "name": "proof",
+        "type": "tuple",
+        "internalType": "struct BeaconChainProofs.ValidatorContainerProof",
+        "components": [
+          {
+            "name": "beaconBlockTimestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "validatorIndex",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "stateRoot",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "stateRootProof",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]"
+          },
+          {
+            "name": "validatorContainerRootProof",
+            "type": "bytes32[]",
+            "internalType": "bytes32[]"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "whitelistTokens",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdrawPrincipal",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawReward",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdrawableAmounts",
+    "inputs": [
+      {
+        "name": "depositor",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "BootstrapNotTimeYet",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "BootstrapUpgradeFailed",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Bootstrapped",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "BootstrappedAlready",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CapsuleCreated",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "capsule",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ClaimPrincipalResult",
+    "inputs": [
+      {
+        "name": "success",
+        "type": "bool",
+        "indexed": true,
+        "internalType": "bool"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "withdrawer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ClientChainGatewayLogicUpdated",
+    "inputs": [
+      {
+        "name": "newLogic",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "initializationData",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DelegateResult",
+    "inputs": [
+      {
+        "name": "success",
+        "type": "bool",
+        "indexed": true,
+        "internalType": "bool"
+      },
+      {
+        "name": "delegator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "delegatee",
+        "type": "string",
+        "indexed": true,
+        "internalType": "string"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DepositResult",
+    "inputs": [
+      {
+        "name": "success",
+        "type": "bool",
+        "indexed": true,
+        "internalType": "bool"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "depositor",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DepositThenDelegateResult",
+    "inputs": [
+      {
+        "name": "delegateSuccess",
+        "type": "bool",
+        "indexed": true,
+        "internalType": "bool"
+      },
+      {
+        "name": "delegator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "delegatee",
+        "type": "string",
+        "indexed": true,
+        "internalType": "string"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "delegatedAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MessageExecuted",
+    "inputs": [
+      {
+        "name": "act",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "enum Action"
+      },
+      {
+        "name": "nonce",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MessageSent",
+    "inputs": [
+      {
+        "name": "act",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "enum Action"
+      },
+      {
+        "name": "packetId",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "nonce",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "nativeFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OffsetDurationUpdated",
+    "inputs": [
+      {
+        "name": "newOffsetDuration",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferred",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Paused",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PeerSet",
+    "inputs": [
+      {
+        "name": "eid",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "peer",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SpawnTimeUpdated",
+    "inputs": [
+      {
+        "name": "newSpawnTime",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "StakedWithCapsule",
+    "inputs": [
+      {
+        "name": "staker",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "capsule",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UndelegateResult",
+    "inputs": [
+      {
+        "name": "success",
+        "type": "bool",
+        "indexed": true,
+        "internalType": "bool"
+      },
+      {
+        "name": "undelegator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "undelegatee",
+        "type": "string",
+        "indexed": true,
+        "internalType": "string"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Unpaused",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ValidatorCommissionUpdated",
+    "inputs": [
+      {
+        "name": "newRate",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ValidatorKeyReplaced",
+    "inputs": [
+      {
+        "name": "validatorAddress",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "newConsensusPublicKey",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ValidatorRegistered",
+    "inputs": [
+      {
+        "name": "ethAddress",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "validatorAddress",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "commission",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IValidatorRegistry.Commission",
+        "components": [
+          {
+            "name": "rate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxChangeRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "consensusPublicKey",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "VaultCreated",
+    "inputs": [
+      {
+        "name": "underlyingToken",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "vault",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "WhitelistTokenAdded",
+    "inputs": [
+      {
+        "name": "_token",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "ArrayLengthMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapAlreadyWhitelisted",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "BootstrapBeforeLocked",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapClientChainDataMalformed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapComissionAlreadyEdited",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapConsensusPubkeyAlreadyUsed",
+    "inputs": [
+      {
+        "name": "publicKey",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "BootstrapInsufficientDelegatedBalance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapInsufficientDepositedBalance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapInsufficientWithdrawableBalance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapInvalidCommission",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapLockTimeAlreadyPast",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapLzReceiverInvalidAction",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapLzReceiverOnlyCalledFromThis",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapNoEtherForDelegation",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapRateChangeExceedsMaxChangeRate",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapRateExceedsMaxRate",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapSpawnTimeAlreadyPast",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapSpawnTimeLessThanDuration",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapValidatorAlreadyHasAddress",
+    "inputs": [
+      {
+        "name": "validator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "BootstrapValidatorAlreadyRegistered",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapValidatorNameAlreadyUsed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapValidatorNameLengthZero",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BootstrapValidatorNotExist",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CapsuleDoesNotExist",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ForbidToDeployVault",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "IndexOutOfBounds",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidDelegate",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidEndpointCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidImmutableConfig",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NativeRestakingControllerCapsuleAlreadyCreated",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NativeRestakingControllerInvalidStakeValue",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NativeRestakingControllerNotWhitelisted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoPeer",
+    "inputs": [
+      {
+        "name": "eid",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NoTvlLimitForNativeRestaking",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NonZeroValue",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotYetSupported",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OnlyEndpoint",
+    "inputs": [
+      {
+        "name": "addr",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "OnlyPeer",
+    "inputs": [
+      {
+        "name": "eid",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "sender",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "RequestOrResponseExecuteFailed",
+    "inputs": [
+      {
+        "name": "act",
+        "type": "uint8",
+        "internalType": "enum Action"
+      },
+      {
+        "name": "nonce",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "reason",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "TokenNotWhitelisted",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnexpectedInboundNonce",
+    "inputs": [
+      {
+        "name": "expectedNonce",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "actualNonce",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnexpectedSourceChain",
+    "inputs": [
+      {
+        "name": "unexpectedSrcEndpointId",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedRequest",
+    "inputs": [
+      {
+        "name": "act",
+        "type": "uint8",
+        "internalType": "enum Action"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "VaultDoesNotExist",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroValue",
+    "inputs": []
+  }
+]

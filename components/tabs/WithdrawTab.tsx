@@ -1,12 +1,16 @@
 // components/new-staking/tabs/WithdrawTab.tsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Phase, PhaseStatus } from "@/types/staking";
 import { formatUnits } from "viem";
 import { ArrowRight, Unlock, Wallet } from "lucide-react";
 import { useStakingServiceContext } from "@/contexts/StakingServiceContext";
+import { useWalletConnectorContext } from "@/contexts/WalletConnectorContext";
+import { useBootstrapStatus } from "@/hooks/useBootstrapStatus";
+
 import {
   OperationProgress,
   OperationStep,
@@ -17,6 +21,7 @@ import {
   completionStep,
 } from "@/components/ui/operation-progress";
 import Image from "next/image";
+import { getShortErrorMessage } from "@/lib/utils";
 
 // Utility function to format amounts with fixed decimal places for DISPLAY ONLY
 // Use this for UI elements that don't require precise values (badges, status messages)
@@ -46,8 +51,12 @@ export function WithdrawTab({
 }: WithdrawTabProps) {
   const stakingService = useStakingServiceContext();
   const token = stakingService.token;
+  const walletConnector = useWalletConnectorContext();
 
-  const decimals = stakingService.walletBalance?.decimals || 0;
+  // Get bootstrap status directly
+  const { bootstrapStatus } = useBootstrapStatus();
+
+  const decimals = stakingService.tokenBalance.balance.decimals;
   const maxClaimAmount = stakingService.stakerBalance?.claimable || BigInt(0);
   const maxWithdrawAmount =
     stakingService.stakerBalance?.withdrawable || BigInt(0);
@@ -109,26 +118,41 @@ export function WithdrawTab({
     }
   }, [isDirectWithdrawal, activeTab, maxWithdrawAmount]);
 
-  // Initialize operation steps based on operation type
+  // Initialize operation steps based on operation type and operation mode
   useEffect(() => {
     if (activeOperation === "claim") {
-      // Duplex mode: transaction, confirmation, relay, response, completion
-      const steps: OperationStep[] = [
-        { ...transactionStep, description: "Sending claim transaction" },
-        { ...confirmationStep },
-        {
-          ...sendingRequestStep,
-          description: "Sending claim request to Imuachain",
-        },
-        {
-          ...receivingResponseStep,
-          description: "Receiving approval from Imuachain",
-        },
-        { ...completionStep, description: "Claim completed" },
-      ];
-      setOperationSteps(steps);
+      // Check if this is a native chain operation (not cross-chain)
+      const isNativeChainOperation =
+        !bootstrapStatus?.isBootstrapped ||
+        !!token.network.connector?.requireExtraConnectToImua;
+
+      if (isNativeChainOperation) {
+        // Local mode: transaction, confirmation, completion
+        const steps: OperationStep[] = [
+          { ...transactionStep, description: "Sending claim transaction" },
+          { ...confirmationStep },
+          { ...completionStep, description: "Claim completed" },
+        ];
+        setOperationSteps(steps);
+      } else {
+        // Cross-chain mode: transaction, confirmation, relay, response, completion
+        const steps: OperationStep[] = [
+          { ...transactionStep, description: "Sending claim transaction" },
+          { ...confirmationStep },
+          {
+            ...sendingRequestStep,
+            description: "Sending claim request to Imuachain",
+          },
+          {
+            ...receivingResponseStep,
+            description: "Receiving approval from Imuachain",
+          },
+          { ...completionStep, description: "Claim completed" },
+        ];
+        setOperationSteps(steps);
+      }
     } else if (activeOperation === "withdraw") {
-      // Local mode: transaction, confirmation, completion
+      // Withdraw is always local (no cross-chain messaging)
       const steps: OperationStep[] = [
         { ...transactionStep, description: "Sending withdraw transaction" },
         { ...confirmationStep },
@@ -136,7 +160,11 @@ export function WithdrawTab({
       ];
       setOperationSteps(steps);
     }
-  }, [activeOperation]);
+  }, [
+    activeOperation,
+    bootstrapStatus?.isBootstrapped,
+    token.network.connector?.requireExtraConnectToImua,
+  ]);
 
   // Handle phase changes from txUtils
   const handlePhaseChange = (newPhase: Phase) => {
@@ -207,8 +235,9 @@ export function WithdrawTab({
           );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage =
-              result.error || "Claim failed";
+            updated[processingStepIndex].errorMessage = result.error
+              ? getShortErrorMessage(new Error(result.error))
+              : "Claim failed";
           }
           return updated;
         });
@@ -221,10 +250,18 @@ export function WithdrawTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage =
-            error instanceof Error ? error.message : "Claim failed";
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -240,7 +277,7 @@ export function WithdrawTab({
       const result = await stakingService.withdrawPrincipal!(
         parsedWithdrawAmount,
         (recipientAddress as `0x${string}`) ||
-          stakingService.walletBalance?.stakerAddress,
+          walletConnector.nativeWallet.address,
         {
           onPhaseChange: handlePhaseChange,
         },
@@ -270,8 +307,9 @@ export function WithdrawTab({
           );
           if (processingStepIndex >= 0) {
             updated[processingStepIndex].status = "error";
-            updated[processingStepIndex].errorMessage =
-              result.error || "Withdrawal failed";
+            updated[processingStepIndex].errorMessage = result.error
+              ? getShortErrorMessage(new Error(result.error))
+              : "Withdrawal failed";
           }
           return updated;
         });
@@ -284,10 +322,18 @@ export function WithdrawTab({
         const processingStepIndex = updated.findIndex(
           (step) => step.status === "processing",
         );
+
         if (processingStepIndex >= 0) {
+          // Mark the processing step as error
           updated[processingStepIndex].status = "error";
           updated[processingStepIndex].errorMessage =
-            error instanceof Error ? error.message : "Withdrawal failed";
+            getShortErrorMessage(error);
+        } else {
+          // If no processing step found, mark the first step as error
+          if (updated.length > 0) {
+            updated[0].status = "error";
+            updated[0].errorMessage = getShortErrorMessage(error);
+          }
         }
         return updated;
       });
@@ -301,8 +347,11 @@ export function WithdrawTab({
       operationSteps.length > 0 &&
       operationSteps[operationSteps.length - 1]?.status === "success";
 
+    // Check if operation failed (any step has error status)
+    const hasError = operationSteps.some((step) => step.status === "error");
+
     if (isSuccess) {
-      // Reset to initial state
+      // Reset to initial state only on success
       setClaimAmount("");
       setWithdrawAmount("");
       setRecipientAddress("");
@@ -312,35 +361,72 @@ export function WithdrawTab({
         prev.map((step) => ({ ...step, status: "pending" })),
       );
       setTxHash(undefined);
+    } else if (hasError) {
+      // On error, just reset the steps to pending but keep other state
+      setOperationSteps((prev) =>
+        prev.map((step) => ({ ...step, status: "pending" })),
+      );
+      setTxHash(undefined);
     }
 
-    // Always close modal
+    // Always close modal (success, error, or user cancellation)
     setShowProgress(false);
   };
 
+  // Check if we have any actionable content
+  const hasActionableContent =
+    (canClaimPrincipal && maxClaimAmount > BigInt(0)) ||
+    maxWithdrawAmount > BigInt(0) ||
+    isDirectWithdrawal;
+
   return (
     <div className="space-y-6">
-      {/* Header with Token Info */}
-      <div className="flex items-center">
-        <div className="relative w-16 h-16 mr-3">
-          <Image
-            src={token.iconUrl}
-            alt={token.symbol}
-            fill
-            sizes="(max-width: 768px) 64px, 96px"
-            style={{ objectFit: "contain" }}
-            priority
-          />
+      {/* Adaptive Header - Only show border and stats when there's actionable content */}
+      <div
+        className={`flex items-center justify-between ${hasActionableContent ? "pb-4 border-b border-[#222233]" : ""}`}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-8 h-8 bg-[#1a1a24] rounded-full border border-[#333344] flex-shrink-0">
+            <Image
+              src={token.iconUrl}
+              alt={token.symbol}
+              width={18}
+              height={18}
+              style={{ objectFit: "contain" }}
+              priority
+            />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-white">
+              Withdraw {token.symbol}
+            </h2>
+            <p className="text-xs text-[#666677]">{token.name}</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-white">
-            Withdraw {token.symbol}
-          </h2>
-        </div>
+
+        {/* Quick stats badge - only show when there's something to show */}
+        {!isDirectWithdrawal && hasActionableContent && (
+          <div className="flex items-center gap-2 text-xs">
+            {maxClaimAmount > BigInt(0) && (
+              <div className="px-2 py-1 bg-[#00e5ff]/10 border border-[#00e5ff]/30 rounded-md">
+                <span className="text-[#00e5ff]">
+                  {formatAmountForDisplay(maxClaimAmount, decimals)} to claim
+                </span>
+              </div>
+            )}
+            {maxWithdrawAmount > BigInt(0) && (
+              <div className="px-2 py-1 bg-[#4ade80]/10 border border-[#4ade80]/30 rounded-md">
+                <span className="text-[#4ade80]">
+                  {formatAmountForDisplay(maxWithdrawAmount, decimals)} unlocked
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Clean Tab Navigation - Handle XRP tokens differently */}
-      {!isDirectWithdrawal ? (
+      {/* Clean Tab Navigation - Only show when there's actionable content */}
+      {!isDirectWithdrawal && hasActionableContent && (
         <div className="flex space-x-1 p-1 bg-[#15151c] rounded-lg border border-[#333344]">
           <button
             onClick={() => setActiveTab("claim")}
@@ -379,7 +465,10 @@ export function WithdrawTab({
             )}
           </button>
         </div>
-      ) : (
+      )}
+
+      {/* Direct Withdrawal Badge - Only for tokens that don't need claim step */}
+      {isDirectWithdrawal && (
         <div className="text-center py-3">
           <div className="inline-flex items-center space-x-2 px-4 py-2 bg-[#1a1a24] rounded-lg border border-[#333344]">
             <Wallet size={16} className="text-[#4ade80]" />
@@ -391,46 +480,48 @@ export function WithdrawTab({
         </div>
       )}
 
-      {/* Single, Elegant Process Explanation */}
-      <div className="text-center py-3">
-        {!isDirectWithdrawal ? (
-          <>
+      {/* Single, Elegant Process Explanation - Only show when there's actionable content */}
+      {hasActionableContent && (
+        <div className="text-center py-3">
+          {!isDirectWithdrawal ? (
+            <>
+              <p className="text-sm text-[#9999aa]">
+                Claim tokens to unlock them, then withdraw to your wallet
+              </p>
+              {activeTab === "claim" && maxWithdrawAmount > BigInt(0) && (
+                <div className="flex items-center justify-center space-x-2 text-xs mt-2">
+                  <div className="w-2 h-2 rounded-full bg-[#4ade80]"></div>
+                  <span className="text-[#4ade80]">
+                    You already have{" "}
+                    {formatAmountForDisplay(maxWithdrawAmount, decimals)}{" "}
+                    {token.symbol} unlocked
+                  </span>
+                </div>
+              )}
+              {activeTab === "withdraw" && maxWithdrawAmount === BigInt(0) && (
+                <div className="mt-2">
+                  <p className="text-xs text-[#666677] mb-2">
+                    No tokens unlocked yet
+                  </p>
+                  <Button
+                    onClick={() => setActiveTab("claim")}
+                    variant="outline"
+                    size="sm"
+                    className="border-[#333344] text-[#00e5ff] hover:bg-[#222233]"
+                  >
+                    Go to Claim
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
             <p className="text-sm text-[#9999aa]">
-              Claim tokens to unlock them, then withdraw to your wallet
+              Direct withdrawal from Imuachain to your wallet (no claim step
+              needed)
             </p>
-            {activeTab === "claim" && maxWithdrawAmount > BigInt(0) && (
-              <div className="flex items-center justify-center space-x-2 text-xs mt-2">
-                <div className="w-2 h-2 rounded-full bg-[#4ade80]"></div>
-                <span className="text-[#4ade80]">
-                  You already have{" "}
-                  {formatAmountForDisplay(maxWithdrawAmount, decimals)}{" "}
-                  {token.symbol} unlocked
-                </span>
-              </div>
-            )}
-            {activeTab === "withdraw" && maxWithdrawAmount === BigInt(0) && (
-              <div className="mt-2">
-                <p className="text-xs text-[#666677] mb-2">
-                  No tokens unlocked yet
-                </p>
-                <Button
-                  onClick={() => setActiveTab("claim")}
-                  variant="outline"
-                  size="sm"
-                  className="border-[#333344] text-[#00e5ff] hover:bg-[#222233]"
-                >
-                  Go to Claim
-                </Button>
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="text-sm text-[#9999aa]">
-            Direct withdrawal from Imuachain to your wallet (no claim step
-            needed)
-          </p>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Tab Content - Handle XRP tokens differently */}
       {!isDirectWithdrawal &&
@@ -492,8 +583,12 @@ export function WithdrawTab({
                 )}
               </div>
 
-              <Button
-                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              <ActionButton
+                className="w-full"
+                variant="primary"
+                size="lg"
+                loading={showProgress && activeOperation === "claim"}
+                loadingText="Processing..."
                 disabled={
                   showProgress ||
                   !!claimAmountError ||
@@ -503,10 +598,8 @@ export function WithdrawTab({
                 }
                 onClick={handleClaimOperation}
               >
-                {showProgress && activeOperation === "claim"
-                  ? "Processing..."
-                  : "Claim Tokens"}
-              </Button>
+                Claim Tokens
+              </ActionButton>
             </div>
           </div>
         )}
@@ -611,8 +704,12 @@ export function WithdrawTab({
               </p>
             </div>
 
-            <Button
-              className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+            <ActionButton
+              className="w-full"
+              variant="primary"
+              size="lg"
+              loading={showProgress && activeOperation === "withdraw"}
+              loadingText="Processing..."
               disabled={
                 showProgress ||
                 !!withdrawAmountError ||
@@ -622,10 +719,8 @@ export function WithdrawTab({
               }
               onClick={handleWithdrawOperation}
             >
-              {showProgress && activeOperation === "withdraw"
-                ? "Processing..."
-                : "Withdraw Tokens"}
-            </Button>
+              Withdraw Tokens
+            </ActionButton>
           </div>
         </div>
       )}
@@ -690,8 +785,12 @@ export function WithdrawTab({
                 </p>
               </div>
 
-              <Button
-                className="w-full py-3 bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+              <ActionButton
+                className="w-full"
+                variant="primary"
+                size="lg"
+                loading={showProgress && activeOperation === "withdraw"}
+                loadingText="Processing..."
                 disabled={
                   showProgress ||
                   !!withdrawAmountError ||
@@ -701,10 +800,8 @@ export function WithdrawTab({
                 }
                 onClick={handleWithdrawOperation}
               >
-                {showProgress && activeOperation === "withdraw"
-                  ? "Processing..."
-                  : "Withdraw Tokens"}
-              </Button>
+                Withdraw Tokens
+              </ActionButton>
             </div>
           </div>
         )}
@@ -723,12 +820,13 @@ export function WithdrawTab({
               Claim tokens first to unlock them for withdrawal.
             </p>
             {canClaimPrincipal && maxClaimAmount > BigInt(0) && (
-              <Button
+              <ActionButton
                 onClick={() => setActiveTab("claim")}
-                className="bg-[#00e5ff] hover:bg-[#00e5ff]/90 text-black font-medium"
+                variant="primary"
+                size="sm"
               >
                 Go to Claim
-              </Button>
+              </ActionButton>
             )}
           </div>
         )}
@@ -738,12 +836,20 @@ export function WithdrawTab({
         <OperationProgress
           progress={{
             operation: activeOperation === "claim" ? "claim" : "withdraw",
-            chainInfo: {
-              sourceChain:
-                activeOperation === "claim" ? destinationChain : sourceChain,
-              destinationChain:
-                activeOperation === "claim" ? sourceChain : destinationChain,
-            },
+            chainInfo: (() => {
+              if (activeOperation === "claim") {
+                const isNativeChainOperation =
+                  !bootstrapStatus?.isBootstrapped ||
+                  !!token.network.connector?.requireExtraConnectToImua;
+                if (!isNativeChainOperation) {
+                  return {
+                    sourceChain: destinationChain,
+                    destinationChain: sourceChain,
+                  };
+                }
+              }
+              return undefined;
+            })(), // Only show chain info for cross-chain claim operations
             steps: operationSteps,
             overallStatus: {
               // Derive current phase from step statuses

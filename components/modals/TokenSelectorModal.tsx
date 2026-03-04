@@ -26,6 +26,7 @@ export function TokenSelectorModal({
   onSelectToken,
 }: TokenSelectorModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showBottomFade, setShowBottomFade] = useState(true);
 
   const filteredTokens = tokens.filter(
     (token) =>
@@ -33,9 +34,33 @@ export function TokenSelectorModal({
       token.symbol.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  // Handle scroll to detect if we're at the bottom
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    const isAtBottom =
+      element.scrollHeight - element.scrollTop <= element.clientHeight + 5; // 5px threshold
+    setShowBottomFade(!isAtBottom);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[420px] bg-[#13131a] border-[#222233] text-white">
+        <style>{`
+          .token-list-scroll::-webkit-scrollbar {
+            width: 8px;
+          }
+          .token-list-scroll::-webkit-scrollbar-track {
+            background: #222233;
+            border-radius: 4px;
+          }
+          .token-list-scroll::-webkit-scrollbar-thumb {
+            background: #00e5ff;
+            border-radius: 4px;
+          }
+          .token-list-scroll::-webkit-scrollbar-thumb:hover {
+            background: #00d4e6;
+          }
+        `}</style>
         <DialogHeader>
           <DialogTitle className="text-white">Select a token</DialogTitle>
         </DialogHeader>
@@ -61,39 +86,50 @@ export function TokenSelectorModal({
         </div>
 
         {/* Token list */}
-        <div className="max-h-[300px] overflow-y-auto pr-1">
-          {filteredTokens.map((token) => (
-            <button
-              key={token.symbol}
-              className={`w-full flex items-center justify-between p-3 rounded-lg mb-2 hover:bg-[#222233] ${
-                selectedToken.symbol === token.symbol ? "bg-[#222233]" : ""
-              }`}
-              onClick={() => onSelectToken(token)}
-            >
-              <div className="flex items-center">
-                <Image
-                  src={token.iconUrl}
-                  alt={token.symbol}
-                  className="w-8 h-8 mr-3"
-                  width={32}
-                  height={32}
-                />
-                <div className="text-left">
-                  <div className="font-medium text-white">{token.symbol}</div>
-                  <div className="text-xs text-[#9999aa]">{token.name}</div>
+        <div className="relative">
+          <div
+            className="token-list-scroll max-h-[300px] overflow-y-auto pr-2"
+            style={{ scrollbarColor: "#00e5ff #222233" }}
+            onScroll={handleScroll}
+          >
+            {filteredTokens.map((token) => (
+              <button
+                key={token.symbol}
+                className={`w-full flex items-center justify-between p-3 rounded-lg mb-2 hover:bg-[#222233] ${
+                  selectedToken.symbol === token.symbol ? "bg-[#222233]" : ""
+                }`}
+                onClick={() => onSelectToken(token)}
+              >
+                <div className="flex items-center">
+                  <Image
+                    src={token.iconUrl}
+                    alt={token.symbol}
+                    className="w-8 h-8 mr-3"
+                    width={32}
+                    height={32}
+                  />
+                  <div className="text-left">
+                    <div className="font-medium text-white">{token.symbol}</div>
+                    <div className="text-xs text-[#9999aa]">{token.name}</div>
+                  </div>
                 </div>
+
+                {selectedToken.symbol === token.symbol && (
+                  <Check size={18} className="text-[#00e5ff]" />
+                )}
+              </button>
+            ))}
+
+            {filteredTokens.length === 0 && (
+              <div className="text-center py-6 text-[#9999aa]">
+                No tokens found matching `{searchTerm}`
               </div>
+            )}
+          </div>
 
-              {selectedToken.symbol === token.symbol && (
-                <Check size={18} className="text-[#00e5ff]" />
-              )}
-            </button>
-          ))}
-
-          {filteredTokens.length === 0 && (
-            <div className="text-center py-6 text-[#9999aa]">
-              No tokens found matching `{searchTerm}`
-            </div>
+          {/* Strong fade at bottom to show more content - only when not at bottom */}
+          {filteredTokens.length > 4 && showBottomFade && (
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#13131a] via-[#13131a]/90 to-transparent pointer-events-none z-10" />
           )}
         </div>
       </DialogContent>

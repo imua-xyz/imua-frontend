@@ -17,7 +17,7 @@ export function useStakingPositions(): {
 } {
   const results = useStakerBalances(validTokens);
 
-  const positions = new Map<
+  const positionsMap = new Map<
     string,
     {
       data: StakingPositionPerToken | undefined;
@@ -61,19 +61,19 @@ export function useStakingPositions(): {
       error = result.error;
     }
 
-    positions.set(getTokenKey(token), {
+    positionsMap.set(getTokenKey(token), {
       data: position,
       isLoading,
       error,
     });
   });
 
-  const isLoading = Array.from(positions.values()).some((p) => p.isLoading);
+  const isLoading = Array.from(positionsMap.values()).some((p) => p.isLoading);
   const error =
-    Array.from(positions.values()).find((p) => p && p.error)?.error || null;
+    Array.from(positionsMap.values()).find((p) => p && p.error)?.error || null;
 
   return {
-    data: positions,
+    data: positionsMap,
     isLoading,
     error,
   };

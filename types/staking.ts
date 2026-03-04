@@ -36,7 +36,7 @@ export interface BaseTxOptions {
     snapshotAfter: any,
   ) => Promise<boolean>;
   onPhaseChange?: (newPhase: Phase) => void;
-  onSuccess?: (result: { hash: string; success: boolean }) => void;
+  onSuccess?: (result: { hash: string; success: boolean; blockHeight?: number }) => void;
 }
 
 export interface EVMTxOptions extends BaseTxOptions {
@@ -50,10 +50,15 @@ export interface XrplTxOptions extends BaseTxOptions {
   getTransactionStatus: XrplClientState["getTransactionStatus"];
 }
 
+export interface BitcoinTxOptions extends BaseTxOptions {
+  spawnTx: () => Promise<string>;
+  utxoGateway: any;
+}
+
 export interface StakerBalance {
   clientChainID: number;
-  stakerAddress: `0x${string}`;
-  tokenID: `0x${string}`;
+  stakerAddress: string;
+  tokenID: string;
   totalBalance: bigint;
   claimable?: bigint; // the balance that could be claimed from imuachain(but might not be withdrawable)
   withdrawable: bigint; // the balance that could be withdrawn to user wallet on client chain
@@ -64,8 +69,8 @@ export interface StakerBalance {
 
 export interface StakerBalanceResponseFromPrecompile {
   clientChainID: number;
-  stakerAddress: `0x${string}`;
-  tokenID: `0x${string}`;
+  stakerAddress: string;
+  tokenID: string;
   balance: bigint;
   withdrawable: bigint; // the balance that could be claimed from imuachain
   delegated: bigint;
@@ -73,13 +78,17 @@ export interface StakerBalanceResponseFromPrecompile {
   totalDeposited: bigint;
 }
 
-export interface WalletBalance {
-  customClientChainID: number;
+export interface TokenBalance {
+  token: {
+    customClientChainID: number;
+    tokenID: string;
+  };
   stakerAddress: string;
-  tokenID?: string;
-  value: bigint;
-  decimals: number;
-  symbol: string;
+  balance: {
+    value: bigint;
+    decimals: number;
+    symbol: string;
+  };
 }
 
 export interface GemWalletNetwork {
@@ -94,4 +103,24 @@ export interface GemWalletResponse {
   error?: string;
   xrpAddress?: string;
   data?: any;
+}
+
+// NST (Native Staking) specific types
+export interface ValidatorContainerProof {
+  beaconBlockTimestamp: bigint;
+  validatorIndex: bigint;
+  stateRoot: `0x${string}`;
+  stateRootProof: `0x${string}`[];
+  validatorContainerRootProof: `0x${string}`[];
+}
+
+export interface NSTStakeParams {
+  pubkey: `0x${string}`;
+  signature: `0x${string}`;
+  depositDataRoot: `0x${string}`;
+}
+
+export interface NSTVerifyParams {
+  validatorContainer: `0x${string}`[];
+  proof: ValidatorContainerProof;
 }
