@@ -8,4 +8,10 @@ const PASSWORD = "Tester@1234";
 export default defineWalletSetup(PASSWORD, async (context, walletPage) => {
   const metamask = new MetaMask(context, walletPage, PASSWORD);
   await metamask.importWallet(SEED_PHRASE);
+
+  // Click through "Your wallet is ready!" onboarding completion screen
+  const openWalletButton = walletPage.getByText("Open wallet");
+  if (await openWalletButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await openWalletButton.click();
+  }
 });
