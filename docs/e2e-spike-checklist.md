@@ -108,8 +108,38 @@ Can be scoped and built incrementally after the spike validates the infrastructu
 
 ## Progress Log
 
-_Update this section as tasks are completed._
-
 | Date | Task | Status | Notes |
 |------|------|--------|-------|
-| | | | |
+| 2026-02-25 | Task 1: Synpress setup | ✅ Done | Synpress 4.1.2 installed. Wallet cache builds in headless mode. Needs both Chromium 1140 (for Synpress) and 1208 (for Playwright 1.58). |
+| 2026-02-25 | Task 2: Anvil setup script | ✅ Done | `e2e/setup/anvil.ts` with fund/snapshot/revert/toggle helpers. imETH balance mapping at slot 0. |
+| 2026-02-25 | Task 3: Bootstrap storage slot | ✅ Done | Slot 257 (0x101). Toggle verified both directions on Anvil fork. |
+| 2026-02-25 | Task 4: Mock injection | ⏭️ Deferred | Not needed for EVM spike. Will implement for Phase 2 (XRP) and Phase 3 (Bitcoin). |
+| 2026-02-25 | Task 5: API mocking | ✅ Done | **MSW not needed.** Playwright `page.route()` is simpler, requires zero production code changes, and works reliably. GraphQL + RPC proxy both working. |
+| 2026-02-25 | Task 6: data-testid | ⏭️ Deferred | Role-based and text selectors work well with Playwright's strict mode. `data-testid` can be added incrementally for stability. |
+| 2026-02-25 | Task 7: Spike tests | ✅ Done | 4/4 tests passing in ~7s: page load, token selector, landing page, navigation. |
+| 2026-02-25 | Task 8: Learnings | ✅ Done | See below. |
+
+## Key Learnings
+
+1. **MSW is unnecessary.** Playwright's built-in `page.route()` intercepts all network requests (including GraphQL POST and RPC) without any production code changes or service worker setup. This is simpler and more reliable.
+
+2. **RPC proxy works.** Alchemy RPC calls are intercepted by `page.route()` and proxied to local Anvil. The app reads contract state from Anvil transparently.
+
+3. **Synpress needs two Chromium versions.** Synpress bundles `playwright-core@1.48.2` (needs chromium-1140) while the project uses `@playwright/test@1.58.2` (needs chromium-1208). Both must be installed.
+
+4. **Synpress wallet cache hash.** The cache hash is computed from the wallet setup file. Ensure the CLI and tests resolve the same file. If hash mismatch occurs, rebuild with `npx synpress <dir> --force`.
+
+5. **Strict mode is helpful.** Playwright's strict mode catches ambiguous selectors immediately. Use `getByRole()` for precision instead of `getByText()` when text appears multiple times.
+
+6. **Dev server first-compile is slow.** The Next.js dev server takes 10-30s to compile a page on first request. Tests should use generous timeouts for the first navigation.
+
+7. **data-testid is optional.** Role-based selectors (`getByRole('heading', { name: 'Stake Assets' })`) and specific text selectors work well. `data-testid` can be added incrementally for elements that are hard to select otherwise.
+
+## Plan Adjustments
+
+Based on the spike, the E2E testing plan should be updated:
+
+- **Replace MSW with Playwright `page.route()`** — simpler, no production code changes
+- **Replace `.env.e2e` for API mocking with route interception** — the `.env.e2e` is only needed for the `NEXT_PUBLIC_GRAPHQL_ENDPOINT` placeholder
+- **data-testid is a nice-to-have, not a blocker** — add incrementally as tests need them
+- **Mock injection (Task 4) is only needed for Phase 2/3** — EVM tests don't need wallet mocks since Synpress handles MetaMask
