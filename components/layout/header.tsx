@@ -23,7 +23,7 @@ export function Header({ token }: { token: Token | null }) {
     <header className="border-b border-[#21212f] bg-black text-white backdrop-blur-sm">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-8">
-          <Link href="/" className="flex items-center">
+          <Link data-testid="header-logo" href="/" className="flex items-center">
             <Image
               src={"/logos/imua-logo.svg"}
               alt="IMUA"
@@ -37,6 +37,7 @@ export function Header({ token }: { token: Token | null }) {
           {/* Navigation Links */}
           <nav className="flex items-center space-x-6">
             <Link
+              data-testid="nav-dashboard"
               href="/dashboard"
               className={`text-sm font-medium transition-colors duration-200 ${
                 isActive("/dashboard")
@@ -47,6 +48,7 @@ export function Header({ token }: { token: Token | null }) {
               Dashboard
             </Link>
             <Link
+              data-testid="nav-stake"
               href="/staking"
               className={`text-sm font-medium transition-colors duration-200 ${
                 isActive("/staking")

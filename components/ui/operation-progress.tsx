@@ -147,7 +147,7 @@ export function OperationProgress({
         }
       }}
     >
-      <DialogContent className="sm:max-w-md bg-[#13131a] border-[#222233] text-white">
+      <DialogContent data-testid="operation-progress-modal" className="sm:max-w-md bg-[#13131a] border-[#222233] text-white">
         <DialogHeader>
           <DialogTitle className="text-center text-xl font-bold text-white">
             {progress.operation.charAt(0).toUpperCase() +
@@ -321,6 +321,7 @@ export function OperationProgress({
           {success || hasError ? (
             <>
               <Button
+                data-testid="operation-close-button"
                 variant="outline"
                 onClick={onClose}
                 className="bg-transparent border-[#333344] text-white hover:bg-[#222233]"

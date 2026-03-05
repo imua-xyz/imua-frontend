@@ -116,6 +116,7 @@ export function MultiWalletStatus({ token }: { token: Token }) {
     <div className="relative">
       {/* Compact Status Display */}
       <button
+        data-testid="wallet-status-button"
         onClick={() => setDetailsOpen(!detailsOpen)}
         className="bg-[#15151c] hover:bg-[#1a1a24] text-white rounded-lg px-4 py-2 flex items-center gap-2 border border-[#21212f] transition-colors duration-200 hover:border-[#00e5ff]/30"
       >

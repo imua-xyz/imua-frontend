@@ -388,6 +388,7 @@ export function DelegateTab({
               </label>
               <div className="flex items-center space-x-2 text-xs text-[#9999aa]">
                 <button
+                  data-testid="delegate-max-button"
                   className="text-xs font-medium text-[#00e5ff] ml-1"
                   onClick={() => setAmount(formatUnits(maxAmount, decimals))}
                 >
@@ -397,6 +398,7 @@ export function DelegateTab({
             </div>
 
             <Input
+              data-testid="delegate-amount-input"
               type="text"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -515,6 +517,7 @@ export function DelegateTab({
             </Button>
 
             <ActionButton
+              data-testid="delegate-submit-button"
               className="flex-1"
               variant="primary"
               size="md"

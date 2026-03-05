@@ -186,6 +186,7 @@ export function OperatorSelectionModal({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#9999aa] w-4 h-4" />
             <Input
+              data-testid="operator-search-input"
               placeholder="Search by name or address"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -265,6 +266,7 @@ export function OperatorSelectionModal({
 
                 return (
                   <div
+                    data-testid={`operator-row-${operator.address}`}
                     key={operator.address}
                     className={`p-4 rounded-lg border transition-colors cursor-pointer ${
                       isSelected
@@ -381,6 +383,7 @@ export function OperatorSelectionModal({
         {/* Action buttons */}
         <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-[#333344]">
           <Button
+            data-testid="operator-cancel-button"
             variant="outline"
             onClick={onClose}
             className="bg-transparent border-[#333344] text-white hover:bg-[#222233]"
@@ -390,6 +393,7 @@ export function OperatorSelectionModal({
 
           {selectedOperator && (
             <ActionButton
+              data-testid="operator-confirm-button"
               onClick={() => onSelect(selectedOperator)}
               variant="primary"
               size="md"

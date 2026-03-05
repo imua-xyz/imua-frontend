@@ -443,6 +443,7 @@ export function UndelegateTab({
             </div>
 
             <div
+              data-testid="delegation-selector"
               className="w-full px-3 py-2 bg-[#15151c] border border-[#333344] rounded-md text-white cursor-pointer hover:border-[#00e5ff] transition-colors"
               onClick={() => setShowDelegationModal(true)}
             >
@@ -516,6 +517,7 @@ export function UndelegateTab({
                     Amount to undelegate
                   </label>
                   <button
+                    data-testid="undelegate-max-button"
                     className="text-xs font-medium text-[#00e5ff]"
                     onClick={() =>
                       setAmount(
@@ -531,6 +533,7 @@ export function UndelegateTab({
                 </div>
 
                 <Input
+                  data-testid="undelegate-amount-input"
                   type="text"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -551,6 +554,7 @@ export function UndelegateTab({
                   </label>
                   <div className="flex space-x-2">
                     <button
+                      data-testid="unbond-wait-button"
                       className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                         !isInstantUnbond
                           ? "bg-[#4ade80] text-black"
@@ -561,6 +565,7 @@ export function UndelegateTab({
                       Wait {getUnbondingPeriodText()} (No penalty)
                     </button>
                     <button
+                      data-testid="unbond-instant-button"
                       className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                         isInstantUnbond
                           ? "bg-[#fbbf24] text-black"
@@ -631,6 +636,7 @@ export function UndelegateTab({
             </Button>
 
             <ActionButton
+              data-testid="undelegate-submit-button"
               className="flex-1"
               variant="primary"
               size="md"

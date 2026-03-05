@@ -119,6 +119,7 @@ function StakingContent({
           </div>
 
           <ActionButton
+            data-testid="connect-wallet-cta"
             onClick={handleConnectWallet}
             variant="primary"
             size="lg"
@@ -243,6 +244,7 @@ function StakingContent({
           <div className="flex min-w-0">
             {availableTabs.map((tab) => (
               <button
+                data-testid={`tab-${tab.id}`}
                 key={tab.id}
                 className={`py-4 px-6 text-base font-medium relative whitespace-nowrap flex-shrink-0 ${
                   currentTab === tab.id
@@ -349,8 +351,9 @@ export default function StakingPage() {
             <div className="bg-[#13131a] rounded-2xl overflow-hidden shadow-xl">
               {/* Card header with token selector - simplified */}
               <div className="flex items-center justify-between px-6 py-5 border-b border-[#222233]">
-                <h2 className="text-xl font-bold text-white">Stake Assets</h2>
+                <h2 data-testid="staking-heading" className="text-xl font-bold text-white">Stake Assets</h2>
                 <button
+                  data-testid="token-selector-button"
                   onClick={() => setIsTokenSelectorOpen(true)}
                   className="flex items-center bg-[#1a1a24] hover:bg-[#222233] rounded-xl text-white px-3 py-2"
                 >

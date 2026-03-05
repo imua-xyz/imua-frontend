@@ -571,6 +571,7 @@ export function WithdrawTab({
                 </div>
 
                 <Input
+                  data-testid="claim-amount-input"
                   type="text"
                   value={claimAmount}
                   onChange={(e) => setClaimAmount(e.target.value)}
@@ -584,6 +585,7 @@ export function WithdrawTab({
               </div>
 
               <ActionButton
+                data-testid="claim-submit-button"
                 className="w-full"
                 variant="primary"
                 size="lg"
@@ -676,6 +678,7 @@ export function WithdrawTab({
               </div>
 
               <Input
+                data-testid="withdraw-amount-input"
                 type="text"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -694,6 +697,7 @@ export function WithdrawTab({
                 Recipient Address (optional)
               </label>
               <Input
+                data-testid="withdraw-recipient-input"
                 placeholder="Enter address or leave blank to use your wallet"
                 value={recipientAddress}
                 onChange={(e) => setRecipientAddress(e.target.value)}
@@ -705,6 +709,7 @@ export function WithdrawTab({
             </div>
 
             <ActionButton
+              data-testid="withdraw-submit-button"
               className="w-full"
               variant="primary"
               size="lg"

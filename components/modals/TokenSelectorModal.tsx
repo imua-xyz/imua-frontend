@@ -69,6 +69,7 @@ export function TokenSelectorModal({
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#9999aa] w-4 h-4" />
           <input
+            data-testid="token-search-input"
             type="text"
             placeholder="Search by name or symbol"
             value={searchTerm}
@@ -94,6 +95,7 @@ export function TokenSelectorModal({
           >
             {filteredTokens.map((token) => (
               <button
+                data-testid={`token-row-${token.symbol}`}
                 key={token.symbol}
                 className={`w-full flex items-center justify-between p-3 rounded-lg mb-2 hover:bg-[#222233] ${
                   selectedToken.symbol === token.symbol ? "bg-[#222233]" : ""

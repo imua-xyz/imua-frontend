@@ -430,6 +430,7 @@ export function StakeTab({
                   Balance: {formatUnits(maxAmount, decimals)} {token.symbol}
                 </span>
                 <button
+                  data-testid="stake-max-button"
                   className="text-xs font-medium text-[#00e5ff] ml-1"
                   onClick={() => setAmount(formatUnits(maxAmount, decimals))}
                 >
@@ -439,6 +440,7 @@ export function StakeTab({
             </div>
 
             <Input
+              data-testid="stake-amount-input"
               type="text"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -456,6 +458,7 @@ export function StakeTab({
             <div className="flex items-center justify-between p-3 bg-[#1a1a24] rounded-lg">
               <div className="flex items-center space-x-2">
                 <Switch
+                  data-testid="stake-mode-toggle"
                   checked={isStakeMode}
                   onCheckedChange={(value) => setIsStakeMode(value)}
                   id="stake-mode"
@@ -502,6 +505,7 @@ export function StakeTab({
 
           {/* Continue button */}
           <ActionButton
+            data-testid="stake-continue-button"
             className="w-full"
             variant="primary"
             size="lg"
@@ -532,6 +536,7 @@ export function StakeTab({
                     {amount} {token.symbol}
                   </span>
                   <button
+                    data-testid="stake-edit-button"
                     className="text-xs text-[#00e5ff]"
                     onClick={() => setCurrentStep("amount")}
                   >
@@ -620,6 +625,7 @@ export function StakeTab({
             </Button>
 
             <ActionButton
+              data-testid="stake-submit-button"
               className="flex-1"
               variant="primary"
               size="md"
