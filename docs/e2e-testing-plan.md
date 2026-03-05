@@ -31,10 +31,11 @@ All phases share a common test harness built on Playwright. Phase 1 uses real Me
 - Assertions verify transaction structure (correct amount, destination, memo/OP_RETURN contents)
 - The actual broadcast + on-chain validation is tested manually via the existing Vercel testnet deployments
 
-**Why MSW for dashboard APIs:**
-- Cosmos REST API, GraphQL indexer, and Esplora responses are intercepted and replaced with fixture data
-- Makes dashboard tests deterministic — known positions, rewards, operators, prices
-- No dependency on Imuachain availability or indexer sync state
+**Why Playwright `page.route()` for external APIs (not MSW):**
+- Playwright's built-in request interception replaces MSW — simpler, zero production code changes
+- All external API calls (Cosmos REST, GraphQL, Esplora, Beacon, LayerZero) are intercepted at the network level and resolved with fixture data
+- No service worker setup, no Next.js App Router compatibility issues
+- Individual tests can override routes for error simulation
 
 ### Two-Layer Testing Strategy
 
@@ -57,8 +58,9 @@ The automated tests catch UI regressions and logic errors. The Vercel testnet de
 | Test isolation | Anvil `evm_snapshot`/`evm_revert` | Clean state between tests |
 | XRP wallet | SDK mock (`xrpl`) | Construct + sign XRPL Payment locally (no broadcast) |
 | Bitcoin wallet | SDK mock (`bitcoinjs-lib`) | Construct + sign PSBT locally (no broadcast) |
-| External APIs | MSW (Mock Service Worker) | Intercept Cosmos REST, GraphQL, Esplora, LayerZero |
+| External APIs | Playwright `page.route()` | Intercept Cosmos REST, GraphQL, Esplora, LayerZero |
 | API fixtures | JSON fixture files | Deterministic positions, rewards, operators, prices |
+| Stable selectors | `data-testid` attributes | Resilient to copy/styling changes, added incrementally |
 
 ### External Service Dependency Map
 
@@ -67,73 +69,62 @@ The frontend depends on 6 categories of external services. The table below shows
 | External Service | What it provides to the frontend | Production | E2E Tests |
 |-----------------|--------------------------------|------------|-----------|
 | **EVM RPC** (Hoodi / Imuachain) | Contract reads (balances, bootstrap status, vault, capsule), transaction submission, tx receipts | Alchemy / public RPC | **Real — Anvil fork** of Hoodi. Anvil executes real contract code, returns real receipts. The only "real" external service in E2E. |
-| **Cosmos REST API** (`api-cosmos-rest.exocore-restaking.com`) | Operator list, staker assets, delegation info, token prices (oracle), rewards, AVS opt-in data | Imuachain Cosmos API | **Mocked — MSW** returns fixture JSON. Used by `useOperators`, `useDelegations`, `useRewards`, `useTokenPrices` (post-bootstrap), `useStakerBalances`. |
-| **GraphQL indexer** (`NEXT_PUBLIC_GRAPHQL_ENDPOINT`) | Bootstrap-phase delegations, operator assets, address bindings, network statistics (TVL, staker count) | Subgraph / indexer service | **Mocked — MSW** intercepts GraphQL POST requests, returns fixture data. Used by `useBootstrapGraphQL`, `useAddressBinding`, `useBootstrapNetworkStatistics`. |
-| **LayerZero Scan API** (`scan-testnet.layerzero-api.com`) | Cross-chain message status (pending, delivered, failed) | LayerZero infrastructure | **Mocked — MSW** returns configurable status sequence (inflight → delivered). Used by `lib/txUtils.ts` for post-bootstrap cross-chain operation progress. |
-| **Beacon Chain API** (`NEXT_PUBLIC_BEACON_API_URL`) | Validator status, validator container data for NST proof verification | Beacon node (Hoodi) | **Mocked — MSW** returns fixture validator data. Used by `VerifyTab.tsx` for NST validator status checks and proof submission. |
-| **Esplora API** (`NEXT_PUBLIC_ESPLORA_API_URL`) | Bitcoin UTXOs, raw transaction hex, fee rate estimates | Blockstream Esplora | **Mocked — MSW** returns fixture UTXOs and fee data. Used by `useBitcoinPSBTBuilder`, `useFeeRate`, `useRawTransactions`, `useUTXOSet`. |
+| **Cosmos REST API** (`api-cosmos-rest.exocore-restaking.com`) | Operator list, staker assets, delegation info, token prices (oracle), rewards, AVS opt-in data | Imuachain Cosmos API | **Mocked — `page.route()`** returns fixture JSON. Used by `useOperators`, `useDelegations`, `useRewards`, `useTokenPrices` (post-bootstrap), `useStakerBalances`. |
+| **GraphQL indexer** (`NEXT_PUBLIC_GRAPHQL_ENDPOINT`) | Bootstrap-phase delegations, operator assets, address bindings, network statistics (TVL, staker count) | Subgraph / indexer service | **Mocked — `page.route()`** intercepts GraphQL POST requests by `operationName`, returns fixture data. Used by `useBootstrapGraphQL`, `useAddressBinding`, `useBootstrapNetworkStatistics`. |
+| **LayerZero Scan API** (`scan-testnet.layerzero-api.com`) | Cross-chain message status (pending, delivered, failed) | LayerZero infrastructure | **Mocked — `page.route()`** returns configurable status sequence (inflight → delivered). Used by `lib/txUtils.ts` for post-bootstrap cross-chain operation progress. |
+| **Beacon Chain API** (`NEXT_PUBLIC_BEACON_API_URL`) | Validator status, validator container data for NST proof verification | Beacon node (Hoodi) | **Mocked — `page.route()`** returns fixture validator data. Used by `VerifyTab.tsx` for NST validator status checks and proof submission. |
+| **Esplora API** (`NEXT_PUBLIC_ESPLORA_API_URL`) | Bitcoin UTXOs, raw transaction hex, fee rate estimates | Blockstream Esplora | **Mocked — `page.route()`** returns fixture UTXOs and fee data. Used by `useBitcoinPSBTBuilder`, `useFeeRate`, `useRawTransactions`, `useUTXOSet`. |
 
-#### MSW Route Configuration
+#### Playwright Route Interception
 
-MSW intercepts are configured per external service:
+External API calls are intercepted via Playwright's `page.route()` in test setup. This requires zero production code changes — no service worker, no conditional imports.
 
 ```typescript
-// e2e/mocks/handlers.ts
-import { http, graphql, HttpResponse } from 'msw';
+// e2e/setup/graphql-mocks.ts — intercepts GraphQL by operationName
+export async function setupGraphQLMocks(page: Page, overrides?: GraphQLFixtureMap) {
+  await page.route('**/*', async (route) => {
+    const request = route.request();
+    if (request.method() === 'POST' && request.url().includes('graphql')) {
+      const body = JSON.parse(request.postData() || '{}');
+      const fixture = fixtures[body.operationName];
+      if (fixture) return route.fulfill({ status: 200, body: JSON.stringify(fixture) });
+    }
+    return route.continue(); // Non-GraphQL requests pass through
+  });
+}
 
-export const handlers = [
-  // Cosmos REST API
-  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/operator/v1/*', () =>
-    HttpResponse.json(fixtures.operators)
-  ),
-  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/delegation/v1/*', () =>
-    HttpResponse.json(fixtures.delegations)
-  ),
-  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/feedistribution/v1/*', () =>
-    HttpResponse.json(fixtures.rewards)
-  ),
-  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/assets/v1/*', () =>
-    HttpResponse.json(fixtures.stakerAssets)
-  ),
-  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/oracle/v1/*', () =>
-    HttpResponse.json(fixtures.tokenPrices)
-  ),
+// e2e/setup/rpc-proxy.ts — proxies EVM RPC calls to Anvil
+export async function setupRPCProxy(page: Page) {
+  await page.route(url => url.hostname.includes('alchemy.com'), async (route) => {
+    const response = await fetch('http://localhost:8545', {
+      method: 'POST', body: route.request().postData(),
+    });
+    route.fulfill({ status: 200, body: await response.text() });
+  });
+}
 
-  // GraphQL indexer
-  graphql.query('GetBootstrapDelegations', () =>
-    HttpResponse.json({ data: fixtures.bootstrapDelegations })
-  ),
-  graphql.query('GetBootstrapAddressBinding', () =>
-    HttpResponse.json({ data: fixtures.addressBindings })
-  ),
-  graphql.query('GetNetworkStatistics', () =>
-    HttpResponse.json({ data: fixtures.networkStats })
-  ),
-
-  // LayerZero Scan API
-  http.get('https://scan-testnet.layerzero-api.com/v1/messages/*', () =>
-    HttpResponse.json(fixtures.layerZeroStatus)
-  ),
-
-  // Beacon API (NST)
-  http.get('*/eth/v1/beacon/states/head/validators/*', () =>
-    HttpResponse.json(fixtures.validatorStatus)
-  ),
-
-  // Esplora API (Bitcoin)
-  http.get('*/api/address/*/utxo', () =>
-    HttpResponse.json(fixtures.bitcoinUtxos)
-  ),
-  http.get('*/api/tx/*', () =>
-    HttpResponse.json(fixtures.bitcoinRawTx)
-  ),
-  http.get('*/api/fee-estimates', () =>
-    HttpResponse.json(fixtures.bitcoinFeeRates)
-  ),
-];
+// e2e/setup/cosmos-mocks.ts — intercepts Cosmos REST API calls
+export async function setupCosmosMocks(page: Page) {
+  await page.route('**/imuachain/operator/v1/**', route =>
+    route.fulfill({ status: 200, body: JSON.stringify(fixtures.operators) })
+  );
+  await page.route('**/imuachain/delegation/v1/**', route =>
+    route.fulfill({ status: 200, body: JSON.stringify(fixtures.delegations) })
+  );
+  // ... additional routes for rewards, staker assets, etc.
+}
 ```
 
-Individual tests can override specific handlers to simulate error conditions (e.g., API returning 500, empty data, malformed response).
+Individual tests can override routes for error simulation:
+
+```typescript
+test('shows error on API failure', async ({ page }) => {
+  await page.route('**/imuachain/operator/v1/**', route =>
+    route.fulfill({ status: 500 })
+  );
+  // ... assert error UI
+});
+```
 
 ---
 

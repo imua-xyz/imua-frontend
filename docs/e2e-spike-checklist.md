@@ -10,11 +10,11 @@ Validate the core E2E infrastructure by producing **one passing test**: connect 
 
 Must be resolved before bulk test writing can begin.
 
-- [ ] **Mock injection mechanism** — Design how `NEXT_PUBLIC_E2E_MOCK_WALLETS=true` swaps real wallet connectors (GemWallet, AppKit Bitcoin) with mock implementations. Decide between: conditional imports at provider level, React context DI, or Next.js module aliasing. Document the pattern.
-- [ ] **Stable selectors (`data-testid`)** — Audit key interactive elements and add `data-testid` attributes. At minimum for the spike: staking page connect button, token selector, amount input, operator selector, stake/confirm button, progress states.
-- [ ] **Bootstrap contract storage slot** — Identify the exact storage slot index for the `bootstrapped` flag from compiled Solidity artifacts (`out/Bootstrap.sol/Bootstrap.json`). Verify with `cast storage` against the Anvil fork.
-- [ ] **Synpress compatibility** — Verify Synpress works with Playwright `^1.49`, Next.js `^15.5`, Node.js 20. Install and confirm MetaMask extension launches correctly.
-- [ ] **MSW + Next.js App Router** — Verify MSW can intercept client-side `fetch()` in the App Router. Test with one Cosmos REST endpoint and one GraphQL query. Confirm requests made during SSR/prerendering are also handled (or confirm they don't need to be).
+- [x] **Bootstrap contract storage slot** — ✅ Slot 257 (0x101). Verified toggle on Anvil fork.
+- [x] **Synpress compatibility** — ✅ Synpress 4.1.2 works with Playwright 1.58, Next.js 15.5, Node 20. Needs dual Chromium (1140 + 1208).
+- [x] **API mocking** — ✅ Playwright `page.route()` replaces MSW. Zero production code changes. GraphQL + RPC proxy working.
+- [ ] **Mock injection mechanism (required for Phase 2/3)** — Design how `NEXT_PUBLIC_E2E_MOCK_WALLETS=true` swaps GemWallet and AppKit Bitcoin with mock implementations. Not needed for Phase 1 (EVM uses Synpress/MetaMask). Required before Phase 2 (XRP) and Phase 3 (Bitcoin) tests can be written.
+- [ ] **Stable selectors (`data-testid`) (required for production suites)** — Add `data-testid` attributes incrementally as each test suite is built. Role/text selectors break on copy or styling changes. Each `data-testid` is a one-line addition to a production component.
 
 ---
 
@@ -141,5 +141,5 @@ Based on the spike, the E2E testing plan should be updated:
 
 - **Replace MSW with Playwright `page.route()`** — simpler, no production code changes
 - **Replace `.env.e2e` for API mocking with route interception** — the `.env.e2e` is only needed for the `NEXT_PUBLIC_GRAPHQL_ENDPOINT` placeholder
-- **data-testid is a nice-to-have, not a blocker** — add incrementally as tests need them
-- **Mock injection (Task 4) is only needed for Phase 2/3** — EVM tests don't need wallet mocks since Synpress handles MetaMask
+- **Mock injection (Task 4) is required for Phase 2/3** — EVM tests use Synpress/MetaMask, but XRP (GemWallet) and Bitcoin (AppKit) need mock connectors injected at runtime
+- **`data-testid` is required for production test suites** — role/text selectors work for prototyping but break on any copy or styling change. Add `data-testid` incrementally as each test suite is built — one-line attribute additions to production components
