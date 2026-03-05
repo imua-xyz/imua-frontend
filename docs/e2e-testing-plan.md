@@ -60,6 +60,81 @@ The automated tests catch UI regressions and logic errors. The Vercel testnet de
 | External APIs | MSW (Mock Service Worker) | Intercept Cosmos REST, GraphQL, Esplora, LayerZero |
 | API fixtures | JSON fixture files | Deterministic positions, rewards, operators, prices |
 
+### External Service Dependency Map
+
+The frontend depends on 6 categories of external services. The table below shows how each is handled in E2E tests vs production:
+
+| External Service | What it provides to the frontend | Production | E2E Tests |
+|-----------------|--------------------------------|------------|-----------|
+| **EVM RPC** (Hoodi / Imuachain) | Contract reads (balances, bootstrap status, vault, capsule), transaction submission, tx receipts | Alchemy / public RPC | **Real — Anvil fork** of Hoodi. Anvil executes real contract code, returns real receipts. The only "real" external service in E2E. |
+| **Cosmos REST API** (`api-cosmos-rest.exocore-restaking.com`) | Operator list, staker assets, delegation info, token prices (oracle), rewards, AVS opt-in data | Imuachain Cosmos API | **Mocked — MSW** returns fixture JSON. Used by `useOperators`, `useDelegations`, `useRewards`, `useTokenPrices` (post-bootstrap), `useStakerBalances`. |
+| **GraphQL indexer** (`NEXT_PUBLIC_GRAPHQL_ENDPOINT`) | Bootstrap-phase delegations, operator assets, address bindings, network statistics (TVL, staker count) | Subgraph / indexer service | **Mocked — MSW** intercepts GraphQL POST requests, returns fixture data. Used by `useBootstrapGraphQL`, `useAddressBinding`, `useBootstrapNetworkStatistics`. |
+| **LayerZero Scan API** (`scan-testnet.layerzero-api.com`) | Cross-chain message status (pending, delivered, failed) | LayerZero infrastructure | **Mocked — MSW** returns configurable status sequence (inflight → delivered). Used by `lib/txUtils.ts` for post-bootstrap cross-chain operation progress. |
+| **Beacon Chain API** (`NEXT_PUBLIC_BEACON_API_URL`) | Validator status, validator container data for NST proof verification | Beacon node (Hoodi) | **Mocked — MSW** returns fixture validator data. Used by `VerifyTab.tsx` for NST validator status checks and proof submission. |
+| **Esplora API** (`NEXT_PUBLIC_ESPLORA_API_URL`) | Bitcoin UTXOs, raw transaction hex, fee rate estimates | Blockstream Esplora | **Mocked — MSW** returns fixture UTXOs and fee data. Used by `useBitcoinPSBTBuilder`, `useFeeRate`, `useRawTransactions`, `useUTXOSet`. |
+
+#### MSW Route Configuration
+
+MSW intercepts are configured per external service:
+
+```typescript
+// e2e/mocks/handlers.ts
+import { http, graphql, HttpResponse } from 'msw';
+
+export const handlers = [
+  // Cosmos REST API
+  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/operator/v1/*', () =>
+    HttpResponse.json(fixtures.operators)
+  ),
+  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/delegation/v1/*', () =>
+    HttpResponse.json(fixtures.delegations)
+  ),
+  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/feedistribution/v1/*', () =>
+    HttpResponse.json(fixtures.rewards)
+  ),
+  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/assets/v1/*', () =>
+    HttpResponse.json(fixtures.stakerAssets)
+  ),
+  http.get('https://api-cosmos-rest.exocore-restaking.com/imuachain/oracle/v1/*', () =>
+    HttpResponse.json(fixtures.tokenPrices)
+  ),
+
+  // GraphQL indexer
+  graphql.query('GetBootstrapDelegations', () =>
+    HttpResponse.json({ data: fixtures.bootstrapDelegations })
+  ),
+  graphql.query('GetBootstrapAddressBinding', () =>
+    HttpResponse.json({ data: fixtures.addressBindings })
+  ),
+  graphql.query('GetNetworkStatistics', () =>
+    HttpResponse.json({ data: fixtures.networkStats })
+  ),
+
+  // LayerZero Scan API
+  http.get('https://scan-testnet.layerzero-api.com/v1/messages/*', () =>
+    HttpResponse.json(fixtures.layerZeroStatus)
+  ),
+
+  // Beacon API (NST)
+  http.get('*/eth/v1/beacon/states/head/validators/*', () =>
+    HttpResponse.json(fixtures.validatorStatus)
+  ),
+
+  // Esplora API (Bitcoin)
+  http.get('*/api/address/*/utxo', () =>
+    HttpResponse.json(fixtures.bitcoinUtxos)
+  ),
+  http.get('*/api/tx/*', () =>
+    HttpResponse.json(fixtures.bitcoinRawTx)
+  ),
+  http.get('*/api/fee-estimates', () =>
+    HttpResponse.json(fixtures.bitcoinFeeRates)
+  ),
+];
+```
+
+Individual tests can override specific handlers to simulate error conditions (e.g., API returning 500, empty data, malformed response).
+
 ---
 
 ## Phase 1: EVM Staking (Synpress + MetaMask + Anvil)
@@ -752,3 +827,95 @@ This automated E2E suite does **not** replace manual testing on real testnets. I
 | Regression prevention on every PR | Pre-release validation |
 
 The existing Vercel testnet deployments (bootstrap + post-bootstrap) continue to serve as the manual testing ground for real multi-chain flows.
+
+---
+
+## Appendix: API Contract Tests (Optional)
+
+> **This section is optional and not a priority.** The MSW mock approach is sufficient for automated E2E testing. API contract tests are a nice-to-have safeguard against mock drift, but the risk is low when the team maintains both the frontend and the backend/indexer services.
+
+### The Mock Drift Problem
+
+Since all non-EVM external services are mocked with fixture data, there's a theoretical risk: if the real API changes its response format (field renamed, new required field, type change), the E2E tests would still pass against the old fixture while the production app breaks.
+
+In practice this risk is low because:
+- The Imua team controls both the frontend and the backend services
+- Manual testing on Vercel testnet deployments catches format mismatches before releases
+- TypeScript types in the frontend already define the expected shapes
+
+### Mitigation: Lightweight Contract Tests
+
+If the team wants an extra safety net, a small suite of "contract tests" can validate that real API responses match the expected TypeScript types. These tests don't exercise the UI — they just hit real endpoints and check response shapes.
+
+```typescript
+// e2e/contracts/cosmos-api.contract.test.ts
+// Runs on a schedule (nightly or weekly), NOT on every PR
+
+import { describe, test, expect } from 'vitest';
+
+const COSMOS_API = 'https://api-cosmos-rest.exocore-restaking.com';
+
+describe('Cosmos REST API contract', () => {
+  test('operators endpoint returns expected shape', async () => {
+    const res = await fetch(`${COSMOS_API}/imuachain/operator/v1/all_operators`);
+    expect(res.ok).toBe(true);
+    const data = await res.json();
+    // Validate top-level structure
+    expect(data).toHaveProperty('operators');
+    expect(Array.isArray(data.operators)).toBe(true);
+    if (data.operators.length > 0) {
+      const op = data.operators[0];
+      expect(op).toHaveProperty('operator_address');
+      expect(op).toHaveProperty('commission');
+      expect(op.commission).toHaveProperty('commission_rates');
+    }
+  });
+
+  test('delegation endpoint returns expected shape', async () => {
+    const stakerId = 'test_staker_id';
+    const assetId = 'test_asset_id';
+    const res = await fetch(
+      `${COSMOS_API}/imuachain/delegation/v1/delegations/${stakerId}/${assetId}`
+    );
+    // Even 404/empty is fine — just verify the response is parseable
+    const data = await res.json();
+    expect(data).toHaveProperty('delegation_infos');
+  });
+});
+```
+
+```typescript
+// e2e/contracts/graphql.contract.test.ts
+
+describe('GraphQL indexer contract', () => {
+  test('bootstrap delegations query returns expected shape', async () => {
+    const res = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `{ bootstrapDelegations(first: 1) { id operator staker amount } }`,
+      }),
+    });
+    const data = await res.json();
+    expect(data).toHaveProperty('data');
+    // Schema check passes even with empty results
+  });
+});
+```
+
+### When to Run
+
+| Trigger | Tests to run |
+|---------|-------------|
+| Every PR | E2E tests only (Anvil + MSW mocks) |
+| Nightly / weekly | API contract tests against real testnet endpoints |
+| After backend/indexer deploy | API contract tests (if wired to backend CI) |
+
+### When to Actually Implement This
+
+Consider adding API contract tests when:
+- The backend/indexer team is separate from the frontend team
+- API schemas start changing without frontend coordination
+- A production incident is traced back to API format mismatch
+
+Until then, the MSW mock approach combined with manual Vercel testnet testing provides sufficient coverage.
