@@ -1,0 +1,26 @@
+{
+  "data": {
+    "bootstrap_validator": [
+      {
+        "validator_eth_addr": "0x1234567890abcdef1234567890abcdef12345678",
+        "validator_im_addr": "imua1validator1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "validator_name": "Test Operator Alpha",
+        "consensus_pub_key": "0xabcdef",
+        "commission_rate": "0.1",
+        "max_commission_rate": "0.2",
+        "max_change_rate": "0.01",
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "validator_eth_addr": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+        "validator_im_addr": "imua1validator2xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "validator_name": "Test Operator Beta",
+        "consensus_pub_key": "0x123456",
+        "commission_rate": "0.05",
+        "max_commission_rate": "0.15",
+        "max_change_rate": "0.01",
+        "updated_at": "2026-01-01T00:00:00Z"
+      }
+    ]
+  }
+}

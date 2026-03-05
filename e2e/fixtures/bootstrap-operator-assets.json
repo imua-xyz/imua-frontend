@@ -1,0 +1,22 @@
+{
+  "data": {
+    "bootstrap_operator_assets": [
+      {
+        "operator_addr": "imua1validator1xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "asset_id": "0x80e5bb3a04554e54b40dd6e14ca0f97212d9428d_0x9d99",
+        "total_amount": 50000000000000000000,
+        "self_amount": 25000000000000000000,
+        "other_amount": 25000000000000000000,
+        "updated_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "operator_addr": "imua1validator2xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "asset_id": "0x80e5bb3a04554e54b40dd6e14ca0f97212d9428d_0x9d99",
+        "total_amount": 30000000000000000000,
+        "self_amount": 20000000000000000000,
+        "other_amount": 10000000000000000000,
+        "updated_at": "2026-01-01T00:00:00Z"
+      }
+    ]
+  }
+}

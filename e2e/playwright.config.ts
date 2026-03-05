@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: [["html", { outputFolder: "../playwright-report-e2e" }]],
   timeout: 60000,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.BASE_URL || "http://localhost:3001",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
