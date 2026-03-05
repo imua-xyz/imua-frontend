@@ -7,12 +7,43 @@ Automated end-to-end testing for the Imua Protocol frontend, covering wallet con
 ## Architecture
 
 ```
-Phase 1 (EVM):     Synpress + MetaMask extension + Anvil fork
-Phase 2 (XRP):     Playwright + SDK-level mock (xrpl library)
-Phase 3 (Bitcoin):  Playwright + SDK-level mock (bitcoinjs-lib)
+Phase 1 (EVM):      Synpress + MetaMask extension + Anvil fork
+Phase 2 (XRP):      Playwright + SDK-level mock (construct + sign, no broadcast)
+Phase 3 (Bitcoin):   Playwright + SDK-level mock (construct + sign, no broadcast)
+Phase 4 (Dashboard): Playwright + MSW (Mock Service Worker) for API fixtures
 ```
 
-All phases share a common test harness built on Playwright. Phase 1 uses real MetaMask via Synpress; Phases 2 and 3 inject mock wallet connectors that sign transactions programmatically, bypassing browser extensions while still exercising real UI flows and contract interactions.
+All phases share a common test harness built on Playwright. Phase 1 uses real MetaMask via Synpress with Anvil providing the EVM chain (real contract execution, no funding issues). Phases 2 and 3 inject mock wallet connectors that construct and sign transactions locally without broadcasting to real chains. Phase 4 uses MSW to intercept external API calls and return deterministic fixture data.
+
+### Design Principles
+
+**Why Anvil for EVM (not public testnet):**
+- `deal` cheatcode mints arbitrary ERC-20 tokens (imETH, wstETH) — no faucet dependency
+- `setBalance` funds accounts with unlimited ETH — no gas funding issues
+- `evm_setStorageAt` flips the `bootstrapped` flag — test both phases on one fork
+- `evm_snapshot` / `evm_revert` — clean state between tests
+- Instant block mining — tests run in seconds, not minutes
+- Zero external dependencies — no testnet outages, no rate limits
+
+**Why SDK mocks for XRP/Bitcoin (not real testnets):**
+- No need to fund XRPL/Bitcoin testnet wallets (faucets are unreliable)
+- Mock constructs the real transaction (XRPL Payment with memo, PSBT with OP_RETURN) and signs it locally
+- Assertions verify transaction structure (correct amount, destination, memo/OP_RETURN contents)
+- The actual broadcast + on-chain validation is tested manually via the existing Vercel testnet deployments
+
+**Why MSW for dashboard APIs:**
+- Cosmos REST API, GraphQL indexer, and Esplora responses are intercepted and replaced with fixture data
+- Makes dashboard tests deterministic — known positions, rewards, operators, prices
+- No dependency on Imuachain availability or indexer sync state
+
+### Two-Layer Testing Strategy
+
+| Layer | Purpose | Speed | Fidelity | Runs when |
+|-------|---------|-------|----------|-----------|
+| **Automated E2E** (this plan) | UI regression prevention, flow correctness | Fast (~5 min) | High for UI, medium for on-chain | Every PR |
+| **Manual testnet** (Vercel deployments) | Real cross-chain validation, LayerZero relay | Slow (min per flow) | Full end-to-end | Before releases |
+
+The automated tests catch UI regressions and logic errors. The Vercel testnet deployments (bootstrap + post-bootstrap) remain the ground truth for real multi-chain behavior, cross-chain relay, and on-chain state transitions.
 
 ### Test Environment
 
@@ -20,11 +51,14 @@ All phases share a common test harness built on Playwright. Phase 1 uses real Me
 |-----------|------|---------|
 | Browser automation | Playwright | Page navigation, DOM interaction, assertions |
 | EVM wallet | Synpress + MetaMask | Real extension-based wallet signing |
-| EVM chain | Anvil (Foundry) | Local fork of Hoodi testnet, instant blocks |
-| XRP wallet | SDK mock (`xrpl`) | Programmatic XRPL transaction signing |
-| Bitcoin wallet | SDK mock (`bitcoinjs-lib`) | Programmatic PSBT signing |
-| Contract state | Anvil snapshots | Revert between tests for isolation |
-| Bootstrap toggle | Anvil `evm_setStorageAt` | Test both phases on same fork |
+| EVM chain | Anvil (Foundry) | Local fork of Hoodi, instant blocks, free tokens |
+| EVM token funding | Foundry `deal` cheatcode | Mint arbitrary ERC-20 balances to test accounts |
+| Bootstrap toggle | Anvil `evm_setStorageAt` | Flip `bootstrapped` flag on bootstrap contract |
+| Test isolation | Anvil `evm_snapshot`/`evm_revert` | Clean state between tests |
+| XRP wallet | SDK mock (`xrpl`) | Construct + sign XRPL Payment locally (no broadcast) |
+| Bitcoin wallet | SDK mock (`bitcoinjs-lib`) | Construct + sign PSBT locally (no broadcast) |
+| External APIs | MSW (Mock Service Worker) | Intercept Cosmos REST, GraphQL, Esplora, LayerZero |
+| API fixtures | JSON fixture files | Deterministic positions, rewards, operators, prices |
 
 ---
 
@@ -36,10 +70,14 @@ Covers imETH, wstETH, and nstHoodlETH via MetaMask on an Anvil-forked Hoodi test
 
 ### Setup
 
-- Anvil forks Hoodi at a known block
-- Test wallet imported into MetaMask (known private key, pre-funded)
-- Wallet auto-connected to `localhost:3000`
-- Anvil snapshot taken after setup, reverted between tests
+- Anvil forks Hoodi at a known block: `anvil --fork-url $HOODI_RPC --block-time 1`
+- Test wallet funded via Foundry cheatcodes:
+  - `cast rpc anvil_setBalance $WALLET 0x56BC75E2D63100000` (100 ETH)
+  - `cast rpc anvil_deal $IMETH_TOKEN $WALLET $AMOUNT` (mint imETH/wstETH)
+- Test wallet imported into MetaMask (known private key from Anvil default accounts)
+- Next.js dev server started with `.env.e2e` pointing RPC URLs to Anvil (`http://localhost:8545`)
+- Anvil snapshot taken after setup, reverted between test suites via `evm_snapshot`/`evm_revert`
+- Bootstrap phase toggled via `evm_setStorageAt` on the bootstrap contract's `bootstrapped` storage slot
 
 ### Test Suites
 
@@ -259,20 +297,32 @@ Covers XRP staking via a mock GemWallet connector that uses the `xrpl` SDK for t
 
 ```typescript
 // Mock replaces the real GemWallet store
-// Signs XRPL transactions using xrpl.Wallet.fromSeed()
+// Constructs and signs XRPL transactions locally using xrpl.Wallet.fromSeed()
+// Does NOT broadcast to XRPL testnet — captures the signed tx for assertion
 // Injects via NEXT_PUBLIC_E2E_MOCK_WALLETS=true
 
 class MockXRPWalletConnector {
   private wallet: xrpl.Wallet;
   address: string;
   isConnected: boolean;
+  lastSignedTx: object | null;     // Captured for test assertions
 
-  connect(): void;
+  connect(): void;                  // Sets connected state + mock balance
   disconnect(): void;
-  signTransaction(tx): Promise<string>;
-  getBalance(): Promise<string>;
+  signTransaction(tx): Promise<string>;  // Signs locally, captures tx, returns mock hash
+  getBalance(): Promise<string>;         // Returns configurable mock balance
+  getNetwork(): { network: string };     // Returns "Testnet" by default
+
+  // Test helpers
+  setBalance(drops: string): void;       // Configure balance for test scenarios
+  setNetwork(network: string): void;     // Simulate wrong network
+  getLastTransaction(): object;          // Assert on constructed tx fields
 }
 ```
+
+**What the mock verifies:** The XRPL Payment transaction is correctly constructed — correct `Amount` (in drops), correct `Destination` (vault address), correct `Memos` (EVM address + operator in bootstrap, EVM address only post-bootstrap). The mock signs the tx with a real `xrpl.Wallet` to validate signature logic, but skips the broadcast step.
+
+**What is NOT tested here (tested manually on Vercel):** Actual XRPL ledger submission, transaction validation on-chain, vault address balance update.
 
 ### Test Suites
 
@@ -325,19 +375,33 @@ Covers tBTC staking via a mock Bitcoin wallet connector that uses `bitcoinjs-lib
 
 ```typescript
 // Mock replaces the Reown AppKit Bitcoin adapter
+// Constructs and signs PSBTs locally using bitcoinjs-lib + tiny-secp256k1
+// Does NOT broadcast to Bitcoin testnet — captures the PSBT for assertion
+// Injects via NEXT_PUBLIC_E2E_MOCK_WALLETS=true
+
 class MockBitcoinWalletConnector {
   private keyPair: ECPairInterface;
-  address: string;            // testnet (tb1...)
+  address: string;              // testnet (tb1...)
   paymentAddress: string;
   isConnected: boolean;
+  lastSignedPsbt: Psbt | null;  // Captured for test assertions
 
-  connect(): void;
+  connect(): void;               // Sets connected state + mock UTXOs
   disconnect(): void;
-  signPsbt(psbt): Promise<string>;
-  getBalance(): Promise<number>;
-  getUtxos(): Promise<UTXO[]>;
+  signPsbt(psbt): Promise<string>;  // Signs locally, captures PSBT, returns mock txid
+  getBalance(): Promise<number>;     // Returns sum of mock UTXOs
+  getUtxos(): Promise<UTXO[]>;       // Returns configurable mock UTXO set
+
+  // Test helpers
+  setUtxos(utxos: UTXO[]): void;     // Configure UTXOs for test scenarios
+  setNetwork(mainnet: boolean): void; // Simulate wrong network
+  getLastPsbt(): Psbt;               // Assert on PSBT structure
 }
 ```
+
+**What the mock verifies:** PSBT is correctly built — correct OP_RETURN data (EVM address + operator encoding), correct output to vault address, correct fee calculation per selected strategy, correct change output handling (above/below dust threshold). The mock signs with a real key pair to validate signature logic.
+
+**What is NOT tested here (tested manually on Vercel):** Actual Bitcoin testnet broadcast, confirmation tracking via Esplora, UTXO spending on-chain.
 
 ### Test Suites
 
@@ -465,38 +529,151 @@ Verify dashboard displays correct data after operations from all phases.
 
 ### Test Data Management
 
-- **Anvil snapshots:** Capture state after setup, revert between test suites
-- **Pre-funded accounts:** Known private keys with sufficient token balances
-- **Contract state:** Fork at a block where bootstrap contract is in desired phase
-- **Phase toggling:** Use Anvil's `evm_setStorageAt` to flip `bootstrapped` flag for testing both phases
+**Anvil (EVM state):**
+- Fork Hoodi at a known block where bootstrap contract and token contracts are deployed
+- Fund test accounts via `deal` cheatcode (ERC-20 tokens) and `setBalance` (ETH)
+- Snapshot state after initial setup: `cast rpc evm_snapshot`
+- Revert between test suites: `cast rpc evm_revert $SNAPSHOT_ID`
+- Toggle bootstrap phase: `cast rpc anvil_setStorageAt $BOOTSTRAP_CONTRACT $SLOT $VALUE`
+
+**XRP/Bitcoin (mock state):**
+- Mock connectors start with configurable balances and UTXOs per test
+- No persistent state — each test configures its own mock state
+- Signed transactions are captured in memory for assertions, not broadcast
+
+**API fixtures (dashboard data):**
+- JSON fixture files under `e2e/fixtures/` represent known states:
+  - `positions-with-stakes.json` — user with imETH + wstETH positions
+  - `positions-empty.json` — connected user with no positions
+  - `rewards-multiple-avs.json` — rewards from multiple AVS services
+  - `operators-bootstrap.json` — operators with position data (no APR)
+  - `operators-post-bootstrap.json` — operators with APR data
+  - `network-stats.json` — TVL, stakers, top token
+- MSW intercepts matching API URLs and returns fixture data
+- Fixtures can be swapped per test to simulate different states
+
+### Bootstrap Phase Toggling
+
+The bootstrap contract stores `bootstrapped` as a boolean in a known storage slot. To test both phases on the same Anvil fork:
+
+```bash
+# Read current bootstrap status
+cast call $BOOTSTRAP_CONTRACT "bootstrapped()(bool)" --rpc-url http://localhost:8545
+
+# Set to bootstrapped (post-bootstrap phase)
+cast rpc anvil_setStorageAt $BOOTSTRAP_CONTRACT $BOOTSTRAPPED_SLOT 0x0000000000000000000000000000000000000000000000000000000000000001
+
+# Set to not bootstrapped (bootstrap phase)
+cast rpc anvil_setStorageAt $BOOTSTRAP_CONTRACT $BOOTSTRAPPED_SLOT 0x0000000000000000000000000000000000000000000000000000000000000000
+```
+
+This allows running bootstrap-tagged and post-bootstrap-tagged tests sequentially on the same fork without restarting.
 
 ### CI Integration
 
 ```yaml
-e2e-dapp-tests:
-  steps:
-    - Install Foundry, pnpm, Playwright browsers
-    - Start Anvil fork (background)
-    - Build and start Next.js app (background)
-    - Run Phase 1 tests (Synpress + MetaMask)
-    - Run Phase 2 tests (XRP mock)
-    - Run Phase 3 tests (Bitcoin mock)
-    - Run Phase 4 tests (Dashboard)
-    - Upload Playwright report artifact
+name: dApp E2E Tests
+
+on:
+  pull_request:
+    branches: [main, bootstrap]
+
+jobs:
+  e2e-bootstrap:
+    name: E2E Tests (Bootstrap Phase)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: forge compile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # Start Anvil fork (bootstrap phase)
+      - name: Start Anvil
+        run: |
+          anvil --fork-url ${{ secrets.HOODI_RPC_URL }} --block-time 1 &
+          sleep 3
+          # Fund test accounts
+          cast rpc anvil_setBalance $TEST_WALLET 0x56BC75E2D63100000
+          # Ensure bootstrap phase
+          cast rpc anvil_setStorageAt $BOOTSTRAP_CONTRACT $BOOTSTRAPPED_SLOT 0x0...0
+
+      # Start dev server
+      - name: Start app
+        run: pnpm dev &
+        env:
+          NEXT_PUBLIC_E2E_MODE: "true"
+
+      # Run bootstrap-phase tests
+      - run: pnpm test:e2e --grep @bootstrap
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report-bootstrap
+          path: playwright-report/
+
+  e2e-post-bootstrap:
+    name: E2E Tests (Post-Bootstrap Phase)
+    runs-on: ubuntu-latest
+    steps:
+      # (same setup steps as above)
+
+      # Start Anvil fork (post-bootstrap phase)
+      - name: Start Anvil
+        run: |
+          anvil --fork-url ${{ secrets.HOODI_RPC_URL }} --block-time 1 &
+          sleep 3
+          cast rpc anvil_setBalance $TEST_WALLET 0x56BC75E2D63100000
+          # Set to bootstrapped
+          cast rpc anvil_setStorageAt $BOOTSTRAP_CONTRACT $BOOTSTRAPPED_SLOT 0x0...1
+
+      - name: Start app
+        run: pnpm dev &
+        env:
+          NEXT_PUBLIC_E2E_MODE: "true"
+
+      # Run post-bootstrap tests
+      - run: pnpm test:e2e --grep @post-bootstrap
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report-post-bootstrap
+          path: playwright-report/
 ```
 
-### Environment Variables for Test Mode
+Bootstrap and post-bootstrap suites run as **parallel CI jobs** for faster feedback.
+
+### Environment Variables
 
 ```env
-NEXT_PUBLIC_E2E_MODE=true              # Enable mock wallet connectors
-NEXT_PUBLIC_E2E_XRP_SEED=s...          # XRPL testnet wallet seed
-NEXT_PUBLIC_E2E_BTC_PRIVATE_KEY=...    # Bitcoin testnet private key
-NEXT_PUBLIC_E2E_EVM_PRIVATE_KEY=0xac...# Anvil default account
+# .env.e2e — used by Next.js dev server during E2E tests
+NEXT_PUBLIC_E2E_MODE=true                        # Enable mock XRP/BTC connectors
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=test         # Placeholder (AppKit mocked)
+NEXT_PUBLIC_ALCHEMY_API_KEY=test                  # Not used (Anvil provides RPC)
+NEXT_PUBLIC_GRAPHQL_ENDPOINT=http://localhost:3000/api/mock-graphql  # MSW intercepts
+
+# Test wallet (Anvil default account #0)
+E2E_EVM_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+E2E_XRP_SEED=sEdTM1uX8pu2do5XvTnutH6HsouMaM2    # Mock-only, not broadcast
+E2E_BTC_PRIVATE_KEY=cVkB...                       # Mock-only, not broadcast
 ```
 
 ### Test Tagging
 
+Tests are tagged for selective execution. CI runs `@bootstrap` and `@post-bootstrap` in parallel jobs. Developers can run specific tags locally.
+
 ```
+# By phase
 @phase1  @evm       @wallet-connect
 @phase1  @evm       @token-selector
 @phase1  @evm       @operator-modal
@@ -513,9 +690,14 @@ NEXT_PUBLIC_E2E_EVM_PRIVATE_KEY=0xac...# Anvil default account
 @phase4  @dashboard @rewards
 @phase4  @dashboard @operators
 @phase4  @dashboard @loading
-@bootstrap           (bootstrap-phase tests)
-@post-bootstrap      (post-bootstrap tests)
-@negative            (error/edge case tests)
+
+# By protocol phase (CI splits on these)
+@bootstrap
+@post-bootstrap
+
+# By test type
+@happy-path
+@negative
 ```
 
 ---
@@ -549,7 +731,24 @@ Order: **Phase 1 → Phase 4 → Phase 2 → Phase 3**
 
 - All happy-path flows pass in CI on every PR
 - Negative tests verify expected error messages are displayed
-- Tests run in < 10 minutes total
+- Each CI job (bootstrap / post-bootstrap) completes in < 5 minutes
 - No flakiness from timing (Playwright auto-waiting + Anvil instant mining)
+- No external dependencies (no faucets, no testnet RPC in hot path, no indexer sync)
 - Both bootstrap and post-bootstrap phases covered for each token type
 - Test report artifact uploaded on every CI run
+- Zero false positives from testnet outages or funding issues
+
+## Relationship to Manual Testing
+
+This automated E2E suite does **not** replace manual testing on real testnets. It complements it:
+
+| What automated E2E covers | What manual testnet testing covers |
+|---------------------------|-----------------------------------|
+| UI flow correctness | Real cross-chain relay (LayerZero) |
+| Form validation & error handling | Actual XRPL ledger transaction validation |
+| Transaction construction correctness | Actual Bitcoin confirmation tracking |
+| Bootstrap/post-bootstrap UI differences | Real Imuachain state updates |
+| Dashboard data rendering | End-to-end token flow (deposit → relay → ledger) |
+| Regression prevention on every PR | Pre-release validation |
+
+The existing Vercel testnet deployments (bootstrap + post-bootstrap) continue to serve as the manual testing ground for real multi-chain flows.
