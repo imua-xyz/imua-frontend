@@ -47,3 +47,5 @@ exocore-frontend-structure.md
 out
 cache
 broadcast
+.cache-synpress/
+test-results/
