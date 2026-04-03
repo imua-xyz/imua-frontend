@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fromBech32 } from "@cosmjs/encoding";
+import { BaseError } from "viem";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -15,9 +16,44 @@ export function isValidOperatorAddress(address: string): boolean {
   }
 }
 
+/** Pull viem/wagmi details out of nested errors (RPC, simulation, etc.). */
+export function formatEVMTransactionError(error: unknown): string {
+  if (error instanceof BaseError) {
+    const parts = [
+      error.shortMessage,
+      error.details ? `Details: ${error.details}` : null,
+      ...(error.metaMessages ?? []),
+    ].filter(Boolean) as string[];
+    return parts.join("\n");
+  }
+  if (error instanceof Error) {
+    let msg = error.message;
+    const cause = (error as Error & { cause?: unknown }).cause;
+    if (cause instanceof Error) {
+      msg += ` | cause: ${cause.message}`;
+    } else if (cause != null) {
+      msg += ` | cause: ${String(cause)}`;
+    }
+    return msg;
+  }
+  return String(error);
+}
+
+const isE2EVerboseErrors =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_E2E_MODE === "true";
+
 // Get short error message for display
 export const getShortErrorMessage = (error: unknown): string => {
-  let message = error instanceof Error ? error.message : "Operation failed";
+  const formatted = formatEVMTransactionError(error);
+
+  if (isE2EVerboseErrors) {
+    return formatted.length > 4000
+      ? `${formatted.slice(0, 4000)}…`
+      : formatted;
+  }
+
+  let message = formatted || "Operation failed";
   let simulated = false;
   if (message.includes("Transaction simulation failed: ")) {
     simulated = true;
@@ -41,8 +77,8 @@ export const getShortErrorMessage = (error: unknown): string => {
     return "Transaction failed - gas issue";
   }
 
-  // Default: smart truncation
-  const maxLength = 30;
+  // Default: smart truncation (30 was too aggressive — hid real RPC text in the UI)
+  const maxLength = 180;
   if (message.length <= maxLength) {
     return message;
   }

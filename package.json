@@ -4,14 +4,18 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:e2e": "node scripts/dev-e2e.mjs",
     "build": "bash ./scripts/vercel-build.sh",
     "build:local": "forge compile && next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
+    "test:e2e": "node scripts/test-e2e.mjs",
+    "test:e2e:clean": "node scripts/e2e-clean.mjs",
+    "test:e2e:clean:force": "node scripts/e2e-clean.mjs --force-ports",
+    "test:e2e:clean:all": "node scripts/e2e-clean.mjs --force-ports --kill-next",
+    "test:e2e:ui": "node scripts/test-e2e.mjs --ui",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

@@ -102,10 +102,10 @@ Coverage reports are generated in the `coverage/` directory locally.
 ## E2E Tests
 
 E2E tests use Playwright and require:
-- A running Next.js dev server (or set `PLAYWRIGHT_BASE_URL`)
+- Either a running **E2E dev server** (`pnpm run dev:e2e`, which loads `.env.e2e` and enables bootstrap E2E mode) or a `PLAYWRIGHT_BASE_URL` pointing at an existing deployment
 - Chromium browser installed (`pnpm exec playwright install chromium`)
 
-In CI, the build step runs before E2E tests, and Playwright browsers are installed automatically.
+Locally, `make e2e` / `pnpm test:e2e` will start the dedicated E2E dev server via Playwright’s `webServer` (`pnpm run dev:e2e`) and run the bootstrap-phase E2E suite (`e2e/phase1`, plus smoke tests). In CI, the build step runs before E2E tests, Playwright browsers are installed automatically, and the tests use the same bootstrap-first harness described in `testing.md` and `e2e-testing-plan.md`.
 
 ## Environment Variables
 

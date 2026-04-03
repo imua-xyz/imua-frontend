@@ -4,6 +4,14 @@
 
 The new Imua staking interface follows a streamlined, modal-based workflow similar to Uniswap. This document outlines the proposed user flow, component architecture, and interaction patterns to achieve the simplified experience shown in the demo.
 
+## 0. Phases and scope
+
+- **Bootstrap phase**: The modal-based UI is used for EVM LST/NST staking on Hoodi. Tabs and actions are gated by phase and asset type:
+  - **EVM LST** tokens support claim/withdraw in bootstrap, so a Withdraw tab is present. Per `state-changes.md`, the user must **claim** first (Bootstrap claimable → vault withdrawable) before they can **withdraw** (vault → wallet).
+  - **EVM NST, XRP, BTC** do not expose claim/withdraw; their bootstrap UI focuses on stake/verify/delegate/undelegate only.
+  - Stake/delegate/undelegate operate against the Bootstrap contract. Baseline behaviour for EVM bootstrap is defined in `e2e-bootstrap-user-flow-spec.md`.
+- **Post-bootstrap phase**: The same UI architecture is reused once the proxy is upgraded to `ClientChainGateway` and cross-chain messaging is enabled. Additional flows (e.g. LST cross-chain withdraw, claim) become visible and active according to `bootstrap.md` and `state-changes.md`.
+
 ## 1. Core User Flow Architecture
 
 ### Global Navigation
@@ -265,7 +273,7 @@ export const AddressDisplay = ({ address, balance, onClick }) => {
 - **Write Operations**:
   - Deposit/Stake (requires amount, token, optional operator)
   - Delegate (requires amount, token, operator)
-  - Withdraw (requires amount, token)
+  - Withdraw (requires amount, token; applies to **LST** only — NST/XRP/BTC do not expose withdraw)
 
 ### State Management
 
@@ -296,7 +304,7 @@ export const AddressDisplay = ({ address, balance, onClick }) => {
 ### Phase 3: Dashboard & Position Management
 
 - Build position view components
-- Implement withdrawal functionality
+- Implement withdrawal functionality (post-bootstrap rollout)
 - Add delegation interfaces
 
 ### Phase 4: Animation & Polish

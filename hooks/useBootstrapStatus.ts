@@ -48,6 +48,18 @@ export function useBootstrapStatus() {
   const { data } = useQuery({
     queryKey: ["bootstrapStatus"],
     queryFn: async (): Promise<BootstrapStatus> => {
+      // In E2E mode we want a stable, synthetic bootstrap status that does not
+      // depend on the live chain (which may already be locked or bootstrapped).
+      if (process.env.NEXT_PUBLIC_E2E_MODE === "true") {
+        return {
+          isBootstrapped: false,
+          spawnTime: 0,
+          offsetDuration: 0,
+          isLocked: false,
+          phase: "pre-lock",
+        };
+      }
+
       if (!bootstrapStatusContract) throw new Error("Contract not available");
 
       // Read the bootstrap status from the contract

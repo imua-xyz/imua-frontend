@@ -15,6 +15,7 @@ import {
   BITCOIN_CONFIRMATION_THRESHOLD,
 } from "@/config/bitcoin";
 import { xrpl, bitcoin } from "@/types/networks";
+import { formatEVMTransactionError } from "@/lib/utils";
 
 // Timeout and polling constants
 const TIMEOUTS = {
@@ -224,8 +225,13 @@ export async function handleEVMTxWithStatus({
             error: "Approval transaction failed",
           };
         }
-      } catch {
-        return { hash: "", success: false, error: "Approval failed" };
+      } catch (error) {
+        const detail = formatEVMTransactionError(error);
+        return {
+          hash: "",
+          success: false,
+          error: `Approval failed: ${detail}`,
+        };
       }
     }
 
@@ -286,7 +292,7 @@ export async function handleEVMTxWithStatus({
 
     return { hash, success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = formatEVMTransactionError(error);
     // Check if this is a user rejection error
     if (
       errorMessage.includes("user rejected") ||

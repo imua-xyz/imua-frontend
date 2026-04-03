@@ -13,7 +13,7 @@ Must be resolved before bulk test writing can begin.
 - [x] **Bootstrap contract storage slot** — ✅ Slot 257 (0x101). Verified toggle on Anvil fork.
 - [x] **Synpress compatibility** — ✅ Synpress 4.1.2 works with Playwright 1.58, Next.js 15.5, Node 20. Needs dual Chromium (1140 + 1208).
 - [x] **API mocking** — ✅ Playwright `page.route()` replaces MSW. Zero production code changes. GraphQL + RPC proxy working.
-- [ ] **Mock injection mechanism (required for Phase 2/3)** — Design how `NEXT_PUBLIC_E2E_MOCK_WALLETS=true` swaps GemWallet and AppKit Bitcoin with mock implementations. Not needed for Phase 1 (EVM uses Synpress/MetaMask). Required before Phase 2 (XRP) and Phase 3 (Bitcoin) tests can be written.
+- [ ] **Mock injection mechanism (required for Phase 2/3)** — Design how `NEXT_PUBLIC_E2E_MOCK_WALLETS=true` swaps GemWallet and AppKit Bitcoin with mock implementations. **Phase 1 EVM**: In-app mock implemented (`config/testWallet.ts` + `useEVMWalletConnector` when `NEXT_PUBLIC_E2E_MODE=true`); no extension required for Phase 1 specs in `e2e/phase1/`. Required before Phase 2 (XRP) and Phase 3 (Bitcoin).
 - [ ] **Stable selectors (`data-testid`) (required for production suites)** — Add `data-testid` attributes incrementally as each test suite is built. Role/text selectors break on copy or styling changes. Each `data-testid` is a one-line addition to a production component.
 
 ---
@@ -118,6 +118,7 @@ Can be scoped and built incrementally after the spike validates the infrastructu
 | 2026-02-25 | Task 6: data-testid | ⏭️ Deferred | Role-based and text selectors work well with Playwright's strict mode. `data-testid` can be added incrementally for stability. |
 | 2026-02-25 | Task 7: Spike tests | ✅ Done | 4/4 tests passing in ~7s: page load, token selector, landing page, navigation. |
 | 2026-02-25 | Task 8: Learnings | ✅ Done | See below. |
+| 2026-03-05 | Phase 1 E2E expansion | ✅ Done | In-app mock EVM connector (`config/testWallet.ts`). New specs: `e2e/phase1/wallet-connection.spec.ts`, `token-selector.spec.ts`, `operator-modal.spec.ts`, `stake-flow.spec.ts`. Findings logged in `docs/e2e-findings.md` (blockers vs non-blockers). Progress in `docs/e2e-phase1-evm-progress.md`. Blocker: mock does not sign txs (Finding 7). |
 
 ## Key Learnings
 

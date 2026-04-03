@@ -18,6 +18,15 @@
 - **`/config`**: Configuration files for contracts, tokens, and network settings
 - **`/lib`**: Utility functions and helper libraries
 
+### 1.3 Phases and user flows
+
+- **Bootstrap phase**: Before Imuachain launch, staking flows operate against the Bootstrap contract on Hoodi; operations are local (no cross-chain messaging).
+  - **EVM LST** assets support claim/withdraw in this phase (against the Bootstrap contract). User must **claim** first to increase vault withdrawable, then **withdraw** to wallet (see `state-changes.md`).
+  - **EVM NST, XRP, BTC** do not expose claim/withdraw; their bootstrap UI includes only stake/verify/delegate/undelegate.
+  - See `bootstrap.md`, `state-changes.md`, and `e2e-bootstrap-user-flow-spec.md`.
+- **Post-bootstrap phase**: After upgrade to `ClientChainGateway`, cross-chain messaging and full LST withdraw/claim flows are enabled; the same frontend components coordinate with different backends.
+- The UI is implemented as a **modal- and tab-based staking surface** (see `new-user-flow.md`); sections below that mention dedicated pages (e.g. `Stake/[token]`) describe the underlying flows and components rather than literal routes.
+
 ## 2. Core Components & Layouts
 
 ### 2.1 Application Layout
@@ -49,9 +58,12 @@
   - StakingOverview component (summary cards)
   - YourPositions component (detailed position table)
 
-- **`Staking`**: Asset listing page with:
-  - TokenList component (available assets to stake)
-- **`Stake/[token]`**: Individual token staking page with:
+- **`Staking`**: Primary staking surface with:
+  - TokenList / token selection controls (available assets to stake)
+  - Operation tabs (Stake, Delegate, Undelegate; Withdraw for LST only, with semantics depending on bootstrap vs post-bootstrap)
+  - Modal-based flows for amount entry, operator selection, and review (see `new-user-flow.md`)
+
+- **Stake flow (per token)**: Within the Staking experience:
 
   - Token information display
   - StakeTokenForm component
@@ -62,7 +74,7 @@
   - Current delegations display
   - Operator selection
 
-- **`Withdraw/[token]`**: Two-step withdrawal management page with:
+- **Withdraw flow (post-bootstrap only)**: Two-step withdrawal management flow with:
   - ClaimForm component (Step 1)
   - WithdrawForm component (Step 2)
   - Transaction status tracking
@@ -332,8 +344,8 @@
 2. User selects a token to stake
 3. User enters amount and optional operator for delegation
 4. User initiates transaction
-5. User confirms two transactions (approval and staking)
-6. User is redirected to Dashboard on success
+5. In **post-bootstrap**, user confirms two transactions (approval and staking) with cross-chain messaging; in **bootstrap**, operations are local to the Bootstrap contract and may be combined in a single “stake” call.
+6. User is redirected to Dashboard or sees updated positions on success
 
 #### State Changes
 
@@ -351,7 +363,8 @@
    - Token balance decreased in user's wallet
    - New staking position appears in Dashboard
    - If delegated, delegated balance increases
-   - Cross-chain message sent to Imuachain (assumed to always succeed)
+   - **Bootstrap**: State recorded in Bootstrap contract storage.
+   - **Post-bootstrap**: Cross-chain message sent to Imuachain / ClientChainGateway (see `state-changes.md`).
 
 #### Hook Interactions
 
@@ -379,8 +392,8 @@
    - Delegated amount is zero or partial
 
 2. **After Transaction**:
-   - Cross-chain message sent to Imuachain (no response required)
-   - No immediate state change on client chain
+   - **Bootstrap**: Delegation is updated on the Bootstrap contract.
+   - **Post-bootstrap**: Cross-chain message sent to Imuachain (no response required)
    - Later, when data refreshes, delegated amount increases (reflected in staker balance data)
    - Undelegated amount decreases
 
@@ -419,6 +432,8 @@
 3. `useToast`: Shows success notification
 
 ### 4.4 Withdrawal Workflow (Two-step process)
+
+> **Note:** This workflow describes the **two-step, cross-chain LST withdraw process in post-bootstrap** (claim on Imuachain, then withdraw from the vault). EVM LST assets also support withdraw-like flows in bootstrap, but those are local to the Bootstrap contract and described in `bootstrap.md` / `state-changes.md`. NST/XRP/BTC do not expose claim/withdraw flows.
 
 #### User Journey
 

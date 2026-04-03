@@ -10,6 +10,14 @@ import "@rainbow-me/rainbowkit/styles.css";
 import { config } from "@/config/wagmi";
 import { useState } from "react";
 import { useOptimisticCacheCleanup } from "@/hooks/useOptimisticCacheCleanup";
+import { installE2EAnvilFetchPatch } from "@/lib/e2e-anvil-fetch-patch";
+
+if (
+  typeof window !== "undefined" &&
+  process.env.NEXT_PUBLIC_E2E_MODE === "true"
+) {
+  installE2EAnvilFetchPatch();
+}
 
 function OptimisticCacheCleanup() {
   useOptimisticCacheCleanup();

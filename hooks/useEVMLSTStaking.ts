@@ -1,6 +1,20 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { maxUint256 } from "viem";
+import { maxUint256, parseGwei } from "viem";
+
+/** Anvil E2E: avoid null fee/estimate RPCs; explicit gas + EIP-1559 caps. */
+const isE2EClient =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_E2E_MODE === "true";
+
+function e2eGasOpts(gas: bigint) {
+  if (!isE2EClient) return {};
+  return {
+    gas,
+    maxFeePerGas: parseGwei("50"),
+    maxPriorityFeePerGas: parseGwei("2"),
+  };
+}
 import { BaseTxOptions, StakerBalance, TokenBalance } from "@/types/staking";
 import { StakingService } from "@/types/staking-service";
 import { useEVMVault } from "./useVault";
@@ -121,6 +135,7 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
       const spawnTx = () =>
         writeableContract.write.deposit([token.address, amount], {
           value: fee as any,
+          ...e2eGasOpts(1_000_000n),
         });
       const getBalanceSnapshot = async () => {
         const freshStaker = await stakerBalanceFromHook.refetch();
@@ -551,7 +566,9 @@ export function useEVMLSTStaking(token: EVMLSTToken): StakingService {
         let approvingTx: (() => Promise<`0x${string}`>) | undefined = undefined;
         if (currentAllowance < amount) {
           approvingTx = () =>
-            erc20Contract.write.approve([vaultAddress, maxUint256]);
+            erc20Contract.write.approve([vaultAddress, maxUint256], {
+              ...e2eGasOpts(120_000n),
+            });
         }
 
         // Proceed with stake/deposit

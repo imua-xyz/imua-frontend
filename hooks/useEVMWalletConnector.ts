@@ -1,7 +1,14 @@
-import { useBalance, useAccount, useDisconnect, useSwitchChain } from "wagmi";
+import {
+  useBalance,
+  useAccount,
+  useDisconnect,
+  useSwitchChain,
+  useConnect,
+} from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { EVMLSTToken, EVMNSTToken } from "@/types/tokens";
 import { EVMWalletConnector } from "@/types/wallet-connector";
+import { createTestWalletConnector, isE2EMode } from "@/config/testWallet";
 
 export function useEVMWalletConnector(
   token: EVMLSTToken | EVMNSTToken,
@@ -11,6 +18,7 @@ export function useEVMWalletConnector(
   const { openConnectModal } = useConnectModal();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
+  const { connectAsync } = useConnect();
 
   const isReadyForStaking = isConnected && chainId === token.network.evmChainID;
 
@@ -30,6 +38,18 @@ export function useEVMWalletConnector(
         needsConnectNative: !isConnected
           ? {
               resolve: async () => {
+                // In E2E mode, bypass RainbowKit and connect directly with a
+                // deterministic test wallet bound to Anvil.
+                if (isE2EMode && connectAsync) {
+                  const connector = createTestWalletConnector();
+                  await connectAsync({
+                    connector,
+                    chainId: token.network.evmChainID,
+                  });
+                  return;
+                }
+
+                // In non-E2E environments, fall back to the normal RainbowKit flow.
                 if (openConnectModal) {
                   openConnectModal();
                 }

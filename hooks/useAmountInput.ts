@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
 
 interface UseAmountInputProps {
@@ -74,6 +74,19 @@ export function useAmountInput({
   };
 
   const parsedAmount = amount ? parseUnits(amount, decimals) : BigInt(0);
+
+  // Re-validate the current amount whenever constraints change (e.g. balance
+  // query finishes and maxAmount is updated). This prevents stale errors like
+  // "No available balance" from sticking around after the user actually has
+  // balance.
+  useEffect(() => {
+    if (amount !== "") {
+      handleAmountChange(amount);
+    }
+    // We intentionally do not include handleAmountChange in deps to avoid
+    // re-creating the effect on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxAmount, minimumAmount, decimals]);
 
   return {
     amount,

@@ -698,6 +698,7 @@ export function UndelegateTab({
                   })
                   .map((delegation) => (
                     <div
+                      data-testid={`delegation-row-${delegation.operatorAddress}`}
                       key={delegation.operatorAddress}
                       className="p-4 bg-[#1a1a24] border border-[#222233] rounded-xl hover:border-[#00e5ff]/50 hover:bg-[#1e1e2a] transition-all cursor-pointer group"
                       onClick={() => handleDelegationSelect(delegation)}

@@ -1,0 +1,15 @@
+{
+  "data": {
+    "bootstrap_staker_assets": [
+      {
+        "staker_id": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266_0x9d19",
+        "asset_id": "0x80e5bb3a04554e54b40dd6e14ca0f97212d9428d_0x9d19",
+        "deposited": "1000000000000000000",
+        "withdrawable": "300000000000000000",
+        "delegated": "700000000000000000",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "updated_at_block": 12345
+      }
+    ]
+  }
+}

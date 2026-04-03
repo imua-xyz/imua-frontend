@@ -94,6 +94,14 @@ export function StakeTab({
   // Staking mode state - force stake mode if it's the only allowed mode
   const [isStakeMode, setIsStakeMode] = useState(true);
 
+  // When the selected token changes, reset the amount input so the user does
+  // not accidentally reuse an amount from a different token context.
+  useEffect(() => {
+    setAmount("");
+    // `setAmount` is intentionally omitted to avoid resetting on every rerender.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token.address]);
+
   // Force stake mode if it's the only allowed mode
   useEffect(() => {
     if (isOnlyDepositThenDelegateAllowed) {
@@ -556,6 +564,7 @@ export function StakeTab({
                           {getOperatorName(selectedOperator)}
                         </span>
                         <button
+                          data-testid="stake-operator-select-button"
                           className="text-xs text-[#00e5ff]"
                           onClick={() => setShowOperatorModal(true)}
                         >
@@ -564,6 +573,7 @@ export function StakeTab({
                       </>
                     ) : (
                       <button
+                        data-testid="stake-operator-select-button"
                         className="text-[#00e5ff]"
                         onClick={() => setShowOperatorModal(true)}
                       >

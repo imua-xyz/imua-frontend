@@ -4,6 +4,22 @@ import { createPublicClient, http as viem_http } from "viem";
 
 const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY ?? "";
 
+/**
+ * In E2E (Playwright + Anvil fork), talk to Anvil directly. Otherwise we rely on
+ * Alchemy URL + Playwright route interception — which breaks when the API key is
+ * missing/invalid or when RPC calls don't match the intercepted host. That shows up
+ * as generic "Approval failed" because eth_sendRawTransaction / receipts fail.
+ */
+const isE2EClient =
+  process.env.NEXT_PUBLIC_E2E_MODE === "true" ||
+  process.env.NEXT_PUBLIC_E2E_MOCK_WALLETS === "true";
+
+/** Same-origin proxy (see `app/api/e2e-anvil/route.ts`) — browser cannot call Anvil directly (no CORS). */
+/** Use `localhost` (not 127.0.0.1) so origin matches Playwright `baseURL` and `/api/e2e-anvil` patch runs reliably. */
+const HOODI_RPC_HTTP = isE2EClient
+  ? "http://localhost:3000/api/e2e-anvil"
+  : `https://eth-hoodi.g.alchemy.com/v2/${alchemyApiKey}`;
+
 // Define Imua chain
 // We use hardcoded values here for now because we are likely to be the sole API hoster.
 // However, at some point, loading from dot env would be a good idea.
@@ -56,10 +72,10 @@ export const hoodi = {
   },
   rpcUrls: {
     default: {
-      http: [`https://eth-hoodi.g.alchemy.com/v2/${alchemyApiKey}`],
+      http: [HOODI_RPC_HTTP],
     },
     public: {
-      http: [`https://eth-hoodi.g.alchemy.com/v2/${alchemyApiKey}`],
+      http: [HOODI_RPC_HTTP],
     },
   },
 } as const;
@@ -92,7 +108,7 @@ export const publicClients = {
   }),
   [hoodi.id]: createPublicClient({
     chain: hoodi,
-    transport: viem_http(`https://eth-hoodi.g.alchemy.com/v2/${alchemyApiKey}`),
+    transport: viem_http(HOODI_RPC_HTTP),
   }),
   [mainnet.id]: createPublicClient({
     chain: mainnet,
@@ -119,7 +135,7 @@ export const config = createConfig({
   chains: [sepolia, hoodi, mainnet, imua, ethPosLocalnet, imuaLocalnet],
   transports: {
     [sepolia.id]: http(`https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`),
-    [hoodi.id]: http(`https://eth-hoodi.g.alchemy.com/v2/${alchemyApiKey}`),
+    [hoodi.id]: http(HOODI_RPC_HTTP),
     [mainnet.id]: http(`https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`),
     // hardcoded because we are likely to be the sole API hoster.
     [imua.id]: http("https://api-eth.exocore-restaking.com"),

@@ -14,6 +14,8 @@
 /coverage
 /playwright-report
 /.playwright
+.e2e-anvil-pid
+.e2e-erc20-balance-slots.json
 
 # next.js
 /.next/

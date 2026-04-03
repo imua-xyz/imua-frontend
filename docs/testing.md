@@ -119,22 +119,51 @@ Other hooks (e.g. `useStakerBalances`, `useDelegations`) can be covered similarl
 ### What We Test
 
 - **Smoke**: Key routes load (e.g. `/`, `/staking`) and render without crashing.
-- **Future**: Full workflow (e.g. connect wallet → stake) can be added when needed; wallet connection in CI usually requires a test wallet or mocked provider.
+- **Bootstrap phase (EVM)**: Wallet connection, token selector, operator modal, stake flow (amount → operator → review) on Hoodi. Baseline: [Bootstrap user flow spec](./e2e-bootstrap-user-flow-spec.md). Scope and architecture: [E2E testing plan](./e2e-testing-plan.md). Bootstrap and post-bootstrap are tested separately; current focus is bootstrap.
 
 ### Setup
 
 - **Playwright** is in `devDependencies`; install with `pnpm install`.
-- **Config**: `playwright.config.ts` — baseURL `http://localhost:3000`, optional `webServer` to run `pnpm dev` when not in CI.
-- **Tests**: `e2e/smoke.spec.ts` — home and staking pages load and body is visible.
+- **Config**: `playwright.config.ts` — baseURL `http://localhost:3000`, `webServer` runs `pnpm run dev:e2e` (via `scripts/dev-e2e.mjs`, which loads `.env.e2e` and enables E2E mode), and `globalSetup` / `globalTeardown` manage Anvil (`globalSetup` stops any stale detached Anvil from `.e2e-anvil-pid` before starting a new one when `ANVIL_FORK_URL` is set; fund test wallet via JSON-RPC; `globalTeardown` stops Anvil if we started it).
+- **Tests**: `e2e/phase1/*.spec.ts` — bootstrap-phase wallet connection, token selector, operator modal, and stake flow; plus `e2e/smoke.spec.ts` for basic route health.
 
 ### Running E2E
 
 ```bash
-pnpm test:e2e      # Run Playwright (starts dev server if not CI)
-pnpm test:e2e:ui   # Playwright UI mode
+pnpm test:e2e      # Run Playwright (loads .env.e2e, starts dev server if not CI)
+pnpm test:e2e:ui   # Playwright UI mode (also loads .env.e2e)
 ```
 
-For CI, set `PLAYWRIGHT_BASE_URL` to the deployed or preview URL and do not start the webServer, or run the app in a previous step.
+By default Playwright **starts and stops** its own `pnpm run dev:e2e` so **next-server does not stay running** after tests. If port 3000 is already in use, the run fails — run `pnpm test:e2e:clean:force` first.
+
+To **reuse** an already-running dev server on :3000 and leave it up after tests (faster local iteration): `E2E_REUSE_DEV_SERVER=1 pnpm test:e2e`.
+
+### Local cleanup (stale processes / ports)
+
+Interrupted runs can leave **detached Anvil** (`.e2e-anvil-pid`) or **Playwright** driver processes around. Use:
+
+```bash
+pnpm test:e2e:clean              # Anvil pid file + stray Playwright only (does NOT free ports)
+pnpm test:e2e:clean:force        # Recommended: also frees :3000 and :8545 (SIGTERM, then SIGKILL if needed)
+pnpm test:e2e:clean:all          # Like :force + pkill heuristics for `next dev` / `dev-e2e.mjs`
+```
+
+Optional: run soft cleanup **before** every local E2E invocation:
+
+```bash
+E2E_CLEAN_BEFORE=1 pnpm test:e2e
+```
+
+`scripts/dev-e2e.mjs` forwards **SIGINT/SIGTERM** to the child `pnpm dev` so Playwright can shut down the Next.js process cleanly when the webServer stops.
+
+### E2E troubleshooting (short)
+
+- **Nothing runs for a long time**: Playwright waits for `http://localhost:3000`, then runs `globalSetup` (Anvil + fund wallet), then tests. Cold Next compile can take minutes.
+- **`page.goto` timeout**: Stop anything else on port 3000; use **`pnpm test:e2e:clean:force`**. Ensure `.env.e2e` is loaded via `pnpm test:e2e` (not raw `playwright test` without env).
+- **Precondition / `withdrawableAmounts`**: On-chain helpers use the Hoodi portal (`e2e/setup/anvil-portal.ts`), not `bootstrapContractNetwork` when `NEXT_PUBLIC_NST_LOCALNET=true` (UI still uses Hoodi LST paths). Keep `NEXT_PUBLIC_E2E_MODE=true` in `.env.e2e`.
+- **`Approval failed`**: The app must send Hoodi RPC traffic to Anvil without browser CORS issues. With `NEXT_PUBLIC_E2E_MODE=true`, `config/wagmi.ts` uses **`/api/e2e-anvil`** (proxies to `127.0.0.1:8545`). Relying only on an empty `NEXT_PUBLIC_ALCHEMY_API_KEY` + Playwright route interception often breaks `eth_sendRawTransaction` / receipts; the proxy avoids that.
+
+For CI, set `PLAYWRIGHT_BASE_URL` and disable `webServer`, or start the app in a prior step.
 
 ---
 
@@ -151,8 +180,10 @@ For CI, set `PLAYWRIGHT_BASE_URL` to the deployed or preview URL and do not star
 ### Playwright (`playwright.config.ts`)
 
 - **Test dir**: `e2e/`.
-- **webServer**: Runs `pnpm dev` and waits for `http://localhost:3000` unless in CI.
-- **Projects**: Chromium (can add Firefox/WebKit later).
+- **webServer**: Runs `pnpm run dev:e2e` and waits for `http://localhost:3000` in local runs; `.env.e2e` is loaded so `NEXT_PUBLIC_E2E_MODE` and related E2E settings are applied. In CI, either a dev server is started in a previous step or `PLAYWRIGHT_BASE_URL` is set and `webServer` is disabled.
+- **Global hooks**: `globalSetup` / `globalTeardown` ensure Anvil is running, fund the test wallet via JSON-RPC (`anvil_setBalance`, `anvil_setStorageAt`), and stop Anvil if it was started by the test run.
+- **Workers & timeouts**: E2E tests run with `workers: 1` and increased timeouts to avoid bootstrap warm-up flakes.
+- **Projects**: Chromium (Firefox/WebKit can be added later if needed).
 
 ---
 

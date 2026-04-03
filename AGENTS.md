@@ -14,7 +14,8 @@
 | Lint | `pnpm lint` |
 | Type check | `npx tsc --noEmit` |
 | Unit tests | `pnpm test` (vitest) |
-| E2E tests | `pnpm test:e2e` (playwright, requires dev server) |
+| E2E tests | `pnpm test:e2e` (playwright; loads `.env.e2e`; starts/stops `dev:e2e` by default). `E2E_REUSE_DEV_SERVER=1` reuses :3000 and does **not** stop Next after tests |
+| E2E cleanup | `pnpm test:e2e:clean:force` frees :3000 / :8545 + Anvil pid + Playwright; `test:e2e:clean:all` also pkill `next dev` / `dev-e2e` heuristics; plain `test:e2e:clean` does **not** free ports |
 | Format | `npx prettier --check .` |
 
 ### Setup prerequisites (bootstrap branch)
@@ -33,3 +34,4 @@
 - For the current bootstrap setup, no `.env` file is strictly required — the app uses fallback defaults. In production, env vars like `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`, `NEXT_PUBLIC_ALCHEMY_API_KEY`, and `NEXT_PUBLIC_GRAPHQL_ENDPOINT` must be set. See `.env.example`.
 - Wallet connection requires a browser extension (MetaMask, etc.) and cannot be fully tested headlessly.
 - CI workflows are in `.github/workflows/`. The `build:local` script is what CI's Build job should use; E2E tests expect a `build:local` artifact.
+- For frontend architecture, testing strategy, multi-chain wallet/staking providers, and conventions, see `docs/frontend-skill-guide.md`.
